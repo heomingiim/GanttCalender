@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.durian.groupware.user.mapper.UserMapper">
+
+    <!--
+        is_active(DB) → active(Java) 명시 매핑.
+        boolean 필드는 DB 컬럼명과 Java 필드명이 달라 camelCase 자동 변환이 안 됨.
+        나머지 컬럼은 map-underscore-to-camel-case 설정으로 자동 변환됨.
+    -->
+    <resultMap id="userMap" type="com.durian.groupware.user.dto.User">
+        <result property="active" column="is_active"/>
+    </resultMap>
+
+    <select id="findById" resultMap="userMap">
+        SELECT * FROM users WHERE id = #{id} AND is_active = true
+    </select>
+
+    <select id="findByEmployeeNumber" resultMap="userMap">
+        SELECT * FROM users WHERE employee_number = #{employeeNumber}
+    </select>
+
+    <select id="findByDepartmentId" resultMap="userMap">
+        SELECT * FROM users WHERE department_id = #{departmentId} AND is_active = true
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO users (employee_number, name, department_id, role, is_active)
+        VALUES (#{employeeNumber}, #{name}, #{departmentId}, #{role}, true)
+    </insert>
+
+    <update id="update">
+        UPDATE users SET name = #{name}, updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <select id="count" resultType="int">
+        SELECT COUNT(*) FROM users
+    </select>
+
+</mapper>
