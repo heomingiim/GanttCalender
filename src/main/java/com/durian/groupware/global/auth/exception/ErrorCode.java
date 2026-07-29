@@ -1,0 +1,30 @@
+@Getter
+@RequiredArgsConstructor
+public enum ErrorCode {
+
+    // 인증
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 사원번호입니다."),
+    USER_RESIGNED(HttpStatus.FORBIDDEN, "퇴직한 사용자입니다."),
+
+    // 작업
+    TASK_NOT_FOUND(HttpStatus.NOT_FOUND, "작업을 찾을 수 없습니다."),
+    TASK_FORBIDDEN(HttpStatus.FORBIDDEN, "작업을 수정할 권한이 없습니다."),
+    INVALID_TASK_DATE(HttpStatus.BAD_REQUEST, "시작일은 종료일보다 앞이어야 합니다."),
+
+    // 프로젝트
+    PROJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "프로젝트를 찾을 수 없습니다."),
+    PROJECT_FORBIDDEN(HttpStatus.FORBIDDEN, "프로젝트 관리자만 가능합니다."),
+    NOT_PROJECT_MEMBER(HttpStatus.FORBIDDEN, "프로젝트 멤버가 아닙니다."),
+
+    // 카테고리
+    CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),
+    CATEGORY_FORBIDDEN(HttpStatus.FORBIDDEN, "팀 공용 카테고리는 팀장급 이상만 관리 가능합니다."),
+
+    // 기타
+    SCOPE_NOT_ALLOWED(HttpStatus.FORBIDDEN, "조회 범위 권한을 초과했습니다."),
+    CIRCULAR_PARENT(HttpStatus.BAD_REQUEST, "순환 상위 작업은 설정할 수 없습니다.");
+
+    private final HttpStatus status;
+    private final String message;
+}
