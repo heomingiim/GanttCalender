@@ -3,10 +3,15 @@ spring:
     name: groupware
 
   datasource:
-    url: jdbc:mysql://localhost:3306/groupware?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    url: jdbc:mysql://localhost:3306/groupware?createDatabaseIfNotExist=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
+
+  sql:
+    init:
+      mode: always             # 앱 시작 시 schema.sql 자동 실행
+      continue-on-error: true  # 인덱스 중복 에러 등 무시
 
   servlet:
     session:
@@ -26,3 +31,10 @@ mybatis:
 logging:
   level:
     com.durian.groupware: DEBUG
+
+app:
+  seed:
+    enabled: true
+    csv-path: ../employees.csv
+
+logging:
