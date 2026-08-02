@@ -25,9 +25,25 @@
         SELECT * FROM users WHERE department_id = #{departmentId} AND is_active = true
     </select>
 
+    <select id="search" resultType="UserSummaryResponse">
+        SELECT id, employee_number, name, department_id, role, position_rank
+        FROM users
+        WHERE is_active = true
+        <if test="keyword != null and keyword != ''">
+            AND (name LIKE CONCAT('%', #{keyword}, '%')
+              OR employee_number LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="departmentId != null">
+            AND department_id = #{departmentId}
+        </if>
+        LIMIT 50
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO users (employee_number, name, department_id, role, is_active)
-        VALUES (#{employeeNumber}, #{name}, #{departmentId}, #{role}, true)
+        INSERT INTO users (employee_number, name, department_id, role, position_rank,
+                           email, phone, hire_date, contract_type, is_active, resigned_at)
+        VALUES (#{employeeNumber}, #{name}, #{departmentId}, #{role}, #{positionRank},
+                #{email}, #{phone}, #{hireDate}, #{contractType}, #{active}, #{resignedAt})
     </insert>
 
     <update id="update">

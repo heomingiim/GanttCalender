@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.durian.groupware.department.mapper.DepartmentMapper">
+
+    <select id="findAll" resultType="Department">
+        SELECT id, name, parent_id, type FROM departments ORDER BY id
+    </select>
+
+    <select id="findByParentId" resultType="Department">
+        SELECT id, name, parent_id, type FROM departments
+        WHERE parent_id = #{parentId}
+    </select>
+
+    <select id="findById" resultType="Department">
+        SELECT id, name, parent_id, type FROM departments WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO departments (name, parent_id, type)
+        VALUES (#{name}, #{parentId}, #{type})
+    </insert>
+
+</mapper>
