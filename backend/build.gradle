@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.3.2'
+    id 'org.springframework.boot' version '3.5.16'
     id 'io.spring.dependency-management' version '1.1.5'
 }
 
@@ -9,7 +9,7 @@ version = '0.0.1-SNAPSHOT'
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
+		languageVersion = JavaLanguageVersion.of(21)
 	}
 }
 
@@ -28,10 +28,13 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
 
     // MyBatis
-    implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.3'
+    implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.5'
 
     // 유효성 검사
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // CSV 파싱 (DataSeeder에서 employees.csv 읽기)
+    implementation 'org.apache.commons:commons-csv:1.10.0'
 
     // DB
     runtimeOnly 'com.mysql:mysql-connector-j'
@@ -43,7 +46,7 @@ dependencies {
 
     // 테스트
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.3'
+    testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.5'
 }
 
 

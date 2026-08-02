@@ -36,5 +36,12 @@ out/
 ### VS Code ###
 .vscode/
 
+### Node / Frontend ###
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+yarn-error.log*
+
 ### Environment ###
 .env

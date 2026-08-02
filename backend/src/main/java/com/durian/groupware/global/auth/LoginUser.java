@@ -1,3 +1,5 @@
+package com.durian.groupware.global.auth;
+
 public record LoginUser(
     Long id,
     String employeeNumber,

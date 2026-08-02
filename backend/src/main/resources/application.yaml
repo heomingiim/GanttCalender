@@ -35,6 +35,4 @@ logging:
 app:
   seed:
     enabled: true
-    csv-path: ../employees.csv
-
-logging:
+    csv-path: ../employees.csv   # 프로젝트 루트 기준 경로
