@@ -13,8 +13,9 @@
         <result property="active" column="is_active"/>
     </resultMap>
 
+    <!-- 퇴직자도 조회된다. 퇴직 여부 판단은 조회한 쪽(UserService)에서 한다 -->
     <select id="findById" resultMap="userMap">
-        SELECT * FROM users WHERE id = #{id} AND is_active = true
+        SELECT * FROM users WHERE id = #{id}
     </select>
 
     <select id="findByEmployeeNumber" resultMap="userMap">

@@ -55,6 +55,7 @@ public class DataSeeder implements ApplicationRunner {
         Map<String, Long> deptIdMap = buildDepartments();
 
         // 2. CSV 읽어서 사용자 INSERT
+        int unassigned = 0;   // 소속(department_id)을 정하지 못한 인원 수
         try (Reader reader = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8);
              CSVParser parser = CSVFormat.DEFAULT
                      .withFirstRecordAsHeader()
@@ -79,13 +80,26 @@ public class DataSeeder implements ApplicationRunner {
                     user.setResignedAt(LocalDate.parse(record.get("퇴직일자")));
                 }
 
-                // 팀 ID 찾기
+                // 팀 ID 찾기 — 팀이 비어 있으면(임원 등) 부서를 직속 소속으로 사용
                 String teamName = record.get("팀");
+                String deptName = record.get("부서");
                 Long deptId = deptIdMap.get(teamName);
+                if (deptId == null) {
+                    deptId = deptIdMap.get(deptName);
+                }
+                if (deptId == null) {
+                    unassigned++;
+                    System.out.println("[DataSeeder] 경고: 소속 확인 불가 — 사원번호="
+                            + record.get("사원번호") + ", 부서='" + deptName + "', 팀='" + teamName + "'");
+                }
                 user.setDepartmentId(deptId);
 
                 userMapper.insert(user);
             }
+        }
+        if (unassigned > 0) {
+            System.out.println("[DataSeeder] 경고: 소속 미지정 " + unassigned
+                    + "명 (department_id = NULL) — 조직도와 부서별 인원 조회에서 누락됩니다");
         }
         System.out.println("[DataSeeder] 시드 완료");
     }
@@ -144,6 +158,9 @@ public class DataSeeder implements ApplicationRunner {
             departmentMapper.insert(team);
             map.put(e.getKey(), team.getId());
         }
+
+        // 팀이 없는 인원(임원 등)이 부서로 조회할 수 있도록 부서 이름도 함께 담는다
+        map.putAll(deptNameToId);
         return map;
     }
 

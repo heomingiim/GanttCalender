@@ -29,6 +29,7 @@ public enum ErrorCode {
 
     // 기타
     SCOPE_NOT_ALLOWED(HttpStatus.FORBIDDEN, "조회 범위 권한을 초과했습니다."),
+    NO_DEPARTMENT(HttpStatus.BAD_REQUEST, "소속 부서가 없어 팀 일정을 조회할 수 없습니다."),
     CIRCULAR_PARENT(HttpStatus.BAD_REQUEST, "순환 상위 작업은 설정할 수 없습니다.");
 
     private final HttpStatus status;

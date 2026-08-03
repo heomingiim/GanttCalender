@@ -20,6 +20,7 @@ public class UserService {
     public UserProfileResponse getProfile(Long id) {
         User user = userMapper.findById(id);
         if (user == null) throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        if (!user.isActive()) throw new BusinessException(ErrorCode.USER_RESIGNED);
         return UserProfileResponse.from(user);
     }
 

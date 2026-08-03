@@ -9,10 +9,15 @@ import com.durian.groupware.global.auth.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -51,8 +56,35 @@ public class DepartmentService {
             return List.of();
         }
         if ("TEAM".equals(scope)) {
-            return List.of(loginUser.departmentId());
+            if (loginUser.departmentId() == null) {
+                throw new BusinessException(ErrorCode.NO_DEPARTMENT);
+            }
+            return collectSubtreeIds(loginUser.departmentId());
         }
         throw new BusinessException(ErrorCode.SCOPE_NOT_ALLOWED);
+    }
+
+    // 내 소속 + 그 아래 모든 하위 조직 id
+    // 팀 소속이면 자기 팀 하나, 부서 직속(임원)이면 부서 + 산하 팀 전부가 잡힌다
+    private List<Long> collectSubtreeIds(Long rootId) {
+        Map<Long, List<Long>> childrenByParent = new HashMap<>();
+        for (Department dept : departmentMapper.findAll()) {
+            if (dept.getParentId() != null) {
+                childrenByParent
+                        .computeIfAbsent(dept.getParentId(), k -> new ArrayList<>())
+                        .add(dept.getId());
+            }
+        }
+
+        Set<Long> collected = new LinkedHashSet<>();   // Set이라 순환 데이터여도 무한루프 없음
+        Deque<Long> queue = new ArrayDeque<>();
+        queue.add(rootId);
+        while (!queue.isEmpty()) {
+            Long current = queue.poll();
+            if (collected.add(current)) {
+                queue.addAll(childrenByParent.getOrDefault(current, List.of()));
+            }
+        }
+        return new ArrayList<>(collected);
     }
 }
