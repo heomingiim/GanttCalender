@@ -45,9 +45,9 @@ public class DataSeeder implements ApplicationRunner {
 
         File file = new File(csvPath);
         if (!file.exists()) {
-            System.out.println("[DataSeeder] employees.csv 없음, 기본 테스트 데이터 삽입");
-            seedDefault();
-            return;
+            // 조용히 대체 데이터를 넣지 않는다. 어느 경로를 봤는지 남기고 기동을 중단시킨다
+            throw new IllegalStateException(
+                    "employees.csv를 찾을 수 없습니다: " + file.getAbsolutePath());
         }
 
         // 1. 조직도 미리 생성 (회사 > 부 > 팀)
@@ -162,39 +162,5 @@ public class DataSeeder implements ApplicationRunner {
         // 팀이 없는 인원(임원 등)이 부서로 조회할 수 있도록 부서 이름도 함께 담는다
         map.putAll(deptNameToId);
         return map;
-    }
-
-    // employees.csv가 없을 때 테스트용 기본 데이터 삽입
-    private void seedDefault() {
-        Department company = new Department(); company.setName("두리안(주)"); company.setType("COMPANY");
-        departmentMapper.insert(company);
-        Department dev = new Department(); dev.setName("개발부"); dev.setParentId(company.getId()); dev.setType("DEPARTMENT");
-        departmentMapper.insert(dev);
-        Department sales = new Department(); sales.setName("영업부"); sales.setParentId(company.getId()); sales.setType("DEPARTMENT");
-        departmentMapper.insert(sales);
-        Department dev1 = new Department(); dev1.setName("개발1팀"); dev1.setParentId(dev.getId()); dev1.setType("TEAM");
-        departmentMapper.insert(dev1);
-        Department dev2 = new Department(); dev2.setName("개발2팀"); dev2.setParentId(dev.getId()); dev2.setType("TEAM");
-        departmentMapper.insert(dev2);
-        Department sales1 = new Department(); sales1.setName("영업1팀"); sales1.setParentId(sales.getId()); sales1.setType("TEAM");
-        departmentMapper.insert(sales1);
-
-        String[][] users = {
-            {"EMP001", "김대표",  String.valueOf(company.getId()), "CEO",           "대표이사"},
-            {"EMP002", "박본부",  String.valueOf(dev.getId()),     "DIVISION_HEAD", "본부장"},
-            {"EMP003", "이팀장",  String.valueOf(dev1.getId()),    "TEAM_LEAD",     "팀장"},
-            {"EMP004", "최사원",  String.valueOf(dev1.getId()),    "MEMBER",        "사원"},
-            {"EMP005", "정사원",  String.valueOf(dev1.getId()),    "MEMBER",        "사원"},
-            {"EMP006", "강팀장",  String.valueOf(dev2.getId()),    "TEAM_LEAD",     "팀장"},
-            {"EMP007", "윤사원",  String.valueOf(sales1.getId()),  "MEMBER",        "사원"},
-        };
-        for (String[] u : users) {
-            User user = new User();
-            user.setEmployeeNumber(u[0]); user.setName(u[1]);
-            user.setDepartmentId(Long.parseLong(u[2])); user.setRole(u[3]);
-            user.setPositionRank(u[4]); user.setActive(true);
-            userMapper.insert(user);
-        }
-        System.out.println("[DataSeeder] 기본 테스트 데이터 삽입 완료 (7명)");
     }
 }

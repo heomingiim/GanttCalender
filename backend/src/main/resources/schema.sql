@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS departments (
     parent_id   INT,
     type        VARCHAR(20) NOT NULL COMMENT 'COMPANY / DEPARTMENT / TEAM',
     created_at  DATETIME DEFAULT NOW(),
-    updated_at  DATETIME DEFAULT NOW()
+    updated_at  DATETIME DEFAULT NOW(),
+    FOREIGN KEY (parent_id) REFERENCES departments(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE IF NOT EXISTS users (
@@ -21,7 +22,8 @@ CREATE TABLE IF NOT EXISTS users (
     is_active       BOOLEAN NOT NULL DEFAULT TRUE COMMENT 'false면 로그인 차단',
     resigned_at     DATE,
     created_at      DATETIME DEFAULT NOW(),
-    updated_at      DATETIME DEFAULT NOW()
+    updated_at      DATETIME DEFAULT NOW(),
+    FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS projects (
@@ -34,7 +36,8 @@ CREATE TABLE IF NOT EXISTS projects (
     status      VARCHAR(20) NOT NULL DEFAULT 'PLANNED' COMMENT 'PLANNED / IN_PROGRESS / DONE / ON_HOLD',
     is_deleted  BOOLEAN NOT NULL DEFAULT FALSE,
     created_at  DATETIME DEFAULT NOW(),
-    updated_at  DATETIME DEFAULT NOW()
+    updated_at  DATETIME DEFAULT NOW(),
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE IF NOT EXISTS project_members (
@@ -43,7 +46,9 @@ CREATE TABLE IF NOT EXISTS project_members (
     user_id     INT NOT NULL,
     role        VARCHAR(20) NOT NULL COMMENT 'ADMIN / MEMBER',
     joined_at   DATETIME NOT NULL DEFAULT NOW(),
-    UNIQUE (project_id, user_id)
+    UNIQUE (project_id, user_id),
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id)    REFERENCES users(id)    ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS categories (
@@ -53,7 +58,9 @@ CREATE TABLE IF NOT EXISTS categories (
     name          VARCHAR(50) NOT NULL,
     color         VARCHAR(20) COMMENT '#FF5733 형식의 색상 코드',
     created_at    DATETIME DEFAULT NOW(),
-    updated_at    DATETIME DEFAULT NOW()
+    updated_at    DATETIME DEFAULT NOW(),
+    FOREIGN KEY (user_id)       REFERENCES users(id)       ON DELETE CASCADE,
+    FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS tasks (
@@ -74,7 +81,11 @@ CREATE TABLE IF NOT EXISTS tasks (
     progress_rate   INT NOT NULL DEFAULT 0 COMMENT '진행률 0~100 (직접 입력)',
     is_deleted      BOOLEAN NOT NULL DEFAULT FALSE,
     created_at      DATETIME DEFAULT NOW(),
-    updated_at      DATETIME DEFAULT NOW()
+    updated_at      DATETIME DEFAULT NOW(),
+    FOREIGN KEY (project_id)     REFERENCES projects(id)   ON DELETE RESTRICT,
+    FOREIGN KEY (parent_task_id) REFERENCES tasks(id)      ON DELETE SET NULL,
+    FOREIGN KEY (creator_id)     REFERENCES users(id)      ON DELETE RESTRICT,
+    FOREIGN KEY (category_id)    REFERENCES categories(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS task_assignees (
@@ -82,7 +93,9 @@ CREATE TABLE IF NOT EXISTS task_assignees (
     task_id     INT NOT NULL,
     user_id     INT NOT NULL,
     assigned_at DATETIME NOT NULL DEFAULT NOW(),
-    UNIQUE (task_id, user_id)
+    UNIQUE (task_id, user_id),
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS task_participants (
@@ -93,7 +106,9 @@ CREATE TABLE IF NOT EXISTS task_participants (
     response_status VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING / ACCEPTED / DECLINED / TENTATIVE',
     responded_at    DATETIME,
     created_at      DATETIME DEFAULT NOW(),
-    UNIQUE (task_id, user_id)
+    UNIQUE (task_id, user_id),
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS notifications (
@@ -104,7 +119,9 @@ CREATE TABLE IF NOT EXISTS notifications (
     message     VARCHAR(500) NOT NULL,
     is_read     BOOLEAN NOT NULL DEFAULT FALSE,
     read_at     DATETIME,
-    created_at  DATETIME DEFAULT NOW()
+    created_at  DATETIME DEFAULT NOW(),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS activity_logs (
@@ -112,7 +129,10 @@ CREATE TABLE IF NOT EXISTS activity_logs (
     task_id     INT NOT NULL,
     user_id     INT NOT NULL  COMMENT '행동한 사람',
     action      VARCHAR(20) NOT NULL COMMENT 'CREATE / UPDATE / DELETE / STATUS_CHANGE',
-    created_at  DATETIME DEFAULT NOW()
+    created_at  DATETIME DEFAULT NOW(),
+    -- 활동 이력은 보존해야 하므로 참조 대상의 실제 삭제를 막는다 (작업/사용자 모두 소프트 삭제 사용)
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE RESTRICT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT
 );
 
 CREATE INDEX idx_users_dept ON users(department_id);
