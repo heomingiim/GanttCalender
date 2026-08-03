@@ -6,7 +6,7 @@
 
 ```
 GanttCalender/
-├── backend/          Spring Boot 3.3.2 + MyBatis + MySQL (Java 17)
+├── backend/          Spring Boot 3.5.16 + MyBatis 3.0.5 + MySQL (Java 21 / Gradle 8.14.5)
 │   ├── build.gradle
 │   ├── settings.gradle
 │   ├── gradlew / gradlew.bat / gradle/
@@ -15,7 +15,9 @@ GanttCalender/
 │       │   ├── GroupwareApplication.java
 │       │   ├── config/          WebConfig (인터셉터 / ArgumentResolver / CORS)
 │       │   ├── global/auth/     세션 인증, @Login, 예외 처리
-│       │   └── user/            사용자 도메인
+│       │   ├── department/      조직도 도메인
+│       │   ├── user/            사용자 도메인
+│       │   └── seed/            DataSeeder (employees.csv 적재)
 │       └── main/resources/
 │           ├── application.yaml
 │           ├── schema.sql

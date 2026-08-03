@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -37,6 +38,7 @@ public class DataSeeder implements ApplicationRunner {
     private String csvPath;
 
     @Override
+    @Transactional(rollbackFor = Exception.class)  // 시딩 중 실패하면 전부 롤백 → 반쪽 상태 방지
     public void run(ApplicationArguments args) throws Exception {
         if (!enabled) return;
         if (userMapper.count() > 0) return;  // 이미 데이터 있으면 스킵
