@@ -1,15 +1,9 @@
 package com.durian.groupware.task.controller;
 
-import com.durian.groupware.global.auth.Login;
-import com.durian.groupware.global.auth.LoginUser;
-import com.durian.groupware.task.dto.TaskCreateRequest;
-import com.durian.groupware.task.dto.TaskProgressRequest;
-import com.durian.groupware.task.dto.TaskResponse;
-import com.durian.groupware.task.dto.TaskStatusRequest;
-import com.durian.groupware.task.dto.TaskUpdateRequest;
-import com.durian.groupware.task.service.TaskService;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -20,7 +14,22 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.durian.groupware.global.auth.Login;
+import com.durian.groupware.global.auth.LoginUser;
+import com.durian.groupware.global.auth.exception.BusinessException;
+import com.durian.groupware.global.auth.exception.ErrorCode;
+import com.durian.groupware.task.dto.TaskCreateRequest;
+import com.durian.groupware.task.dto.TaskProgressRequest;
+import com.durian.groupware.task.dto.TaskResponse;
+import com.durian.groupware.task.dto.TaskStatusRequest;
+import com.durian.groupware.task.dto.TaskUpdateRequest;
+import com.durian.groupware.task.service.TaskService;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/tasks")
@@ -32,9 +41,9 @@ public class TaskController {
     // POST /api/tasks
     @PostMapping
     public ResponseEntity<TaskResponse> create(@Login LoginUser loginUser,
-                                               @Valid @RequestBody TaskCreateRequest req) {
+            @Valid @RequestBody TaskCreateRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                             .body(taskService.create(loginUser, req));
+                .body(taskService.create(loginUser, req));
     }
 
     // GET /api/tasks/{id}
@@ -46,8 +55,8 @@ public class TaskController {
     // PUT /api/tasks/{id}
     @PutMapping("/{id}")
     public TaskResponse update(@Login LoginUser loginUser,
-                               @PathVariable Long id,
-                               @Valid @RequestBody TaskUpdateRequest req) {
+            @PathVariable Long id,
+            @Valid @RequestBody TaskUpdateRequest req) {
         return taskService.update(loginUser, id, req);
     }
 
@@ -61,16 +70,33 @@ public class TaskController {
     // PATCH /api/tasks/{id}/status
     @PatchMapping("/{id}/status")
     public TaskResponse changeStatus(@Login LoginUser loginUser,
-                                     @PathVariable Long id,
-                                     @Valid @RequestBody TaskStatusRequest req) {
+            @PathVariable Long id,
+            @Valid @RequestBody TaskStatusRequest req) {
         return taskService.changeStatus(loginUser, id, req.status());
     }
 
     // PATCH /api/tasks/{id}/progress
     @PatchMapping("/{id}/progress")
     public TaskResponse changeProgress(@Login LoginUser loginUser,
-                                       @PathVariable Long id,
-                                       @Valid @RequestBody TaskProgressRequest req) {
+            @PathVariable Long id,
+            @Valid @RequestBody TaskProgressRequest req) {
         return taskService.changeProgress(loginUser, id, req.progressRate());
+    }
+
+    @GetMapping
+    public List<TaskResponse> list(
+            @Login LoginUser loginUser,
+            @RequestParam String type,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(required = false, defaultValue = "MY") String scope,
+            @RequestParam(required = false) String keyword) {
+
+        if ("EVENT".equals(type)) {
+            return taskService.getCalendar(loginUser, from, to, scope, keyword);
+        }
+        throw new BusinessException(ErrorCode.INVALID_INPUT);
     }
 }

@@ -60,4 +60,37 @@
         WHERE id = #{id}
     </update>
 
+    <select id="searchCalendar" resultMap="taskMap">
+    SELECT DISTINCT t.* FROM tasks t
+    LEFT JOIN task_assignees ta ON t.id = ta.task_id
+    WHERE t.is_deleted = false
+      AND t.task_type = 'EVENT'
+      <if test="to != null">
+      AND t.start_date &lt;= #{to}
+      </if>
+      <if test="from != null">
+      AND t.end_date &gt;= #{from}
+      </if>
+      AND (
+          t.creator_id = #{userId}     
+          OR ta.user_id = #{userId}   
+          <if test="deptIds != null and deptIds.size() > 0">
+          OR (t.visibility = 'PUBLIC'
+              AND t.creator_id IN (
+                  SELECT id FROM users WHERE department_id IN
+                  <foreach item="id" collection="deptIds" open="(" separator="," close=")">
+                      #{id}
+                  </foreach>
+              )
+          )
+          </if>
+      )
+    <if test="keyword != null and keyword != ''">
+      AND (t.title LIKE CONCAT('%', #{keyword}, '%')
+        OR t.description LIKE CONCAT('%', #{keyword}, '%'))
+    </if>
+    ORDER BY t.start_date
+    LIMIT 500
+</select>
+
 </mapper>

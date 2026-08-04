@@ -1,5 +1,11 @@
 package com.durian.groupware.task.service;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
+import com.durian.groupware.department.service.DepartmentService;
 import com.durian.groupware.global.auth.LoginUser;
 import com.durian.groupware.global.auth.exception.BusinessException;
 import com.durian.groupware.global.auth.exception.ErrorCode;
@@ -8,13 +14,15 @@ import com.durian.groupware.task.dto.TaskCreateRequest;
 import com.durian.groupware.task.dto.TaskResponse;
 import com.durian.groupware.task.dto.TaskUpdateRequest;
 import com.durian.groupware.task.mapper.TaskMapper;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
-@Service @RequiredArgsConstructor
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
 public class TaskService {
 
     private final TaskMapper taskMapper;
+    private final DepartmentService departmentService;
 
     // 생성
     public TaskResponse create(LoginUser loginUser, TaskCreateRequest req) {
@@ -47,8 +55,12 @@ public class TaskService {
     // 조회 (권한 체크 포함)
     public TaskResponse get(LoginUser loginUser, Long id) {
         Task task = taskMapper.findByIdNotDeleted(id);
-        if (task == null) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
-        if (!canView(loginUser, task)) throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
+        if (task == null) {
+            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        }
+        if (!canView(loginUser, task)) {
+            throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
+        }
         return TaskResponse.from(task);
     }
 
@@ -104,25 +116,47 @@ public class TaskService {
     }
 
     // ============ 내부 유틸 ============
-
     private Task getEditable(LoginUser loginUser, Long id) {
         Task task = taskMapper.findByIdNotDeleted(id);
-        if (task == null) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
-        if (!canEdit(loginUser, task)) throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
+        if (task == null) {
+            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        }
+        if (!canEdit(loginUser, task)) {
+            throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
+        }
         return task;
     }
 
     private boolean canEdit(LoginUser loginUser, Task task) {
         // 생성자 본인이면 수정 가능
-        if (loginUser.id().equals(task.getCreatorId())) return true;
+        if (loginUser.id().equals(task.getCreatorId())) {
+            return true;
+        }
         // 팀 공용 EVENT는 팀장급 이상도 수정 가능
-        if ("EVENT".equals(task.getTaskType()) && !"MEMBER".equals(loginUser.role())) return true;
+        if ("EVENT".equals(task.getTaskType()) && !"MEMBER".equals(loginUser.role())) {
+            return true;
+        }
         return false;
     }
 
     private boolean canView(LoginUser loginUser, Task task) {
-        if (loginUser.id().equals(task.getCreatorId())) return true;
-        if ("TODO".equals(task.getTaskType())) return false; // 투두는 본인만
-        return "PUBLIC".equals(task.getVisibility());
+        if (loginUser.id().equals(task.getCreatorId())) {
+            return true;
+        }
+        if ("TODO".equals(task.getTaskType())) {
+            return false; // 투두는 본인만
+
+                }return "PUBLIC".equals(task.getVisibility());
+    }
+
+    public List<TaskResponse> getCalendar(LoginUser loginUser,
+            LocalDateTime from, LocalDateTime to,
+            String scope, String keyword) {
+        List<Long> deptIds = departmentService.resolveScopeDeptIds(loginUser, scope);
+
+        List<Task> tasks = taskMapper.searchCalendar(
+                loginUser.id(), deptIds, from, to, keyword
+        );
+        return tasks.stream().map(TaskResponse::from).toList();
     }
 }
