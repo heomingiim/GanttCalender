@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.durian.groupware.project.mapper.ProjectMapper">
+
+    <!-- is_deleted(DB) → deleted(Java). is_ prefix 때문에 자동 매핑이 안 된다 -->
+    <resultMap id="projectMap" type="Project">
+        <result property="deleted" column="is_deleted"/>
+    </resultMap>
+
+    <select id="findById" resultMap="projectMap">
+        SELECT * FROM projects WHERE id = #{id}
+    </select>
+
+    <select id="findByIdNotDeleted" resultMap="projectMap">
+        SELECT * FROM projects WHERE id = #{id} AND is_deleted = false
+    </select>
+
+    <select id="findByMemberId" resultMap="projectMap">
+        SELECT p.* FROM projects p
+        JOIN project_members pm ON p.id = pm.project_id
+        WHERE pm.user_id = #{userId} AND p.is_deleted = false
+        ORDER BY p.created_at DESC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO projects (name, description, owner_id, start_date, end_date, status)
+        VALUES (#{name}, #{description}, #{ownerId}, #{startDate}, #{endDate}, #{status})
+    </insert>
+
+    <update id="update">
+        UPDATE projects SET
+            name = #{name},
+            description = #{description},
+            start_date = #{startDate},
+            end_date = #{endDate},
+            status = #{status},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="softDelete">
+        UPDATE projects SET is_deleted = true, updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+</mapper>
