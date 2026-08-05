@@ -1,0 +1,113 @@
+<mapper namespace="com.durian.groupware.task.mapper.TaskMapper">
+
+    <resultMap id="taskMap" type="Task">
+        <result property="allDay"  column="is_all_day"/>
+        <result property="deleted" column="is_deleted"/>
+    </resultMap>
+
+    <select id="findById" resultMap="taskMap">
+        SELECT * FROM tasks WHERE id = #{id}
+    </select>
+
+    <select id="findByProjectId" resultMap="taskMap">
+        SELECT * FROM tasks WHERE project_id = #{projectId} ORDER BY id
+    </select>
+
+    <select id="findByIdNotDeleted" resultMap="taskMap">
+        SELECT * FROM tasks WHERE id = #{id} AND is_deleted = false
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO tasks (
+            project_id, parent_task_id, creator_id, category_id,
+            task_type, title, description, start_date, end_date,
+            is_all_day, visibility, status, priority, progress_rate, is_deleted
+        ) VALUES (
+            #{projectId}, #{parentTaskId}, #{creatorId}, #{categoryId},
+            #{taskType}, #{title}, #{description}, #{startDate}, #{endDate},
+            #{allDay}, #{visibility}, #{status}, #{priority}, #{progressRate}, false
+        )
+    </insert>
+
+    <update id="update">
+        UPDATE tasks SET
+            title = #{title},
+            description = #{description},
+            start_date = #{startDate},
+            end_date = #{endDate},
+            is_all_day = #{allDay},
+            visibility = #{visibility},
+            priority = #{priority},
+            category_id = #{categoryId},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="softDelete">
+        UPDATE tasks SET is_deleted = true, updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="changeStatus">
+        UPDATE tasks SET status = #{status}, progress_rate = #{progressRate},
+                         updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="changeProgress">
+        UPDATE tasks SET progress_rate = #{progressRate},
+                         updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <select id="searchCalendar" resultMap="taskMap">
+    SELECT DISTINCT t.* FROM tasks t
+    LEFT JOIN task_assignees ta ON t.id = ta.task_id
+    WHERE t.is_deleted = false
+      AND t.task_type = 'EVENT'
+      <if test="to != null">
+      AND t.start_date &lt;= #{to}
+      </if>
+      <if test="from != null">
+      AND t.end_date &gt;= #{from}
+      </if>
+      AND (
+          t.creator_id = #{userId}     
+          OR ta.user_id = #{userId}   
+          <if test="deptIds != null and deptIds.size() > 0">
+          OR (t.visibility = 'PUBLIC'
+              AND t.creator_id IN (
+                  SELECT id FROM users WHERE department_id IN
+                  <foreach item="id" collection="deptIds" open="(" separator="," close=")">
+                      #{id}
+                  </foreach>
+              )
+          )
+          </if>
+      )
+    <if test="keyword != null and keyword != ''">
+      AND (t.title LIKE CONCAT('%', #{keyword}, '%')
+        OR t.description LIKE CONCAT('%', #{keyword}, '%'))
+    </if>
+    ORDER BY t.start_date
+    LIMIT 500
+</select>
+
+<select id="findMyTodos" resultMap="taskMap">
+    SELECT * FROM tasks
+    WHERE creator_id = #{userId}
+      AND task_type = 'TODO'
+      AND is_deleted = false
+    <if test="status != null">
+        AND status = #{status}
+    </if>
+    <if test="projectId != null">
+        AND project_id = #{projectId}
+    </if>
+    <if test="keyword != null and keyword != ''">
+        AND title LIKE CONCAT('%', #{keyword}, '%')
+    </if>
+    ORDER BY created_at DESC
+</select>
+
+</mapper>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.durian.groupware.category.mapper.CategoryMapper">
+
+    <select id="findByUserId" resultType="Category">
+        SELECT * FROM categories WHERE user_id = #{userId} ORDER BY created_at DESC
+    </select>
+
+    <select id="findByDepartmentId" resultType="Category">
+        SELECT * FROM categories WHERE department_id = #{departmentId} ORDER BY created_at DESC
+    </select>
+
+    <select id="findById" resultType="Category">
+        SELECT * FROM categories WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO categories (user_id, department_id, name, color)
+        VALUES (#{userId}, #{departmentId}, #{name}, #{color})
+    </insert>
+
+    <update id="update">
+        UPDATE categories SET name = #{name}, color = #{color}, updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM categories WHERE id = #{id}
+    </delete>
+
+</mapper>

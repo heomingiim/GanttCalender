@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.durian.groupware.user.mapper.UserMapper">
+
+    <!--
+        is_active(DB) → active(Java) 명시 매핑.
+        boolean 필드는 DB 컬럼명과 Java 필드명이 달라 camelCase 자동 변환이 안 됨.
+        나머지 컬럼은 map-underscore-to-camel-case 설정으로 자동 변환됨.
+    -->
+    <resultMap id="userMap" type="com.durian.groupware.user.dto.User">
+        <result property="active" column="is_active"/>
+    </resultMap>
+
+    <!-- 퇴직자도 조회된다. 퇴직 여부 판단은 조회한 쪽(UserService)에서 한다 -->
+    <select id="findById" resultMap="userMap">
+        SELECT * FROM users WHERE id = #{id}
+    </select>
+
+    <select id="findByEmployeeNumber" resultMap="userMap">
+        SELECT * FROM users WHERE employee_number = #{employeeNumber}
+    </select>
+
+    <select id="findByDepartmentId" resultMap="userMap">
+        SELECT * FROM users WHERE department_id = #{departmentId} AND is_active = true
+    </select>
+
+    <select id="search" resultType="UserSummaryResponse">
+        SELECT id, employee_number, name, department_id, role, position_rank
+        FROM users
+        WHERE is_active = true
+        <if test="keyword != null and keyword != ''">
+            AND (name LIKE CONCAT('%', #{keyword}, '%')
+              OR employee_number LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="departmentId != null">
+            AND department_id = #{departmentId}
+        </if>
+        LIMIT 50
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO users (employee_number, name, department_id, role, position_rank,
+                           email, phone, hire_date, contract_type, is_active, resigned_at)
+        VALUES (#{employeeNumber}, #{name}, #{departmentId}, #{role}, #{positionRank},
+                #{email}, #{phone}, #{hireDate}, #{contractType}, #{active}, #{resignedAt})
+    </insert>
+
+    <update id="update">
+        UPDATE users SET name = #{name}, updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <select id="count" resultType="int">
+        SELECT COUNT(*) FROM users
+    </select>
+
+</mapper>
