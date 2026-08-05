@@ -159,4 +159,10 @@ public class TaskService {
         );
         return tasks.stream().map(TaskResponse::from).toList();
     }
+
+    public List<TaskResponse> getMyTodos(LoginUser loginUser, String status,
+                                      Long projectId, String keyword) {
+    List<Task> tasks = taskMapper.findMyTodos(loginUser.id(), status, projectId, keyword);
+    return tasks.stream().map(TaskResponse::from).toList();
+}
 }

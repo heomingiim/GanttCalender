@@ -83,20 +83,26 @@ public class TaskController {
         return taskService.changeProgress(loginUser, id, req.progressRate());
     }
 
-    @GetMapping
-    public List<TaskResponse> list(
-            @Login LoginUser loginUser,
-            @RequestParam String type,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
-            @RequestParam(required = false, defaultValue = "MY") String scope,
-            @RequestParam(required = false) String keyword) {
 
-        if ("EVENT".equals(type)) {
-            return taskService.getCalendar(loginUser, from, to, scope, keyword);
-        }
-        throw new BusinessException(ErrorCode.INVALID_INPUT);
+    @GetMapping
+public List<TaskResponse> list(
+        @Login LoginUser loginUser,
+        @RequestParam String type,
+        @RequestParam(required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+        @RequestParam(required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+        @RequestParam(required = false, defaultValue = "MY") String scope,
+        @RequestParam(required = false) String status,
+        @RequestParam(required = false) Long projectId,
+        @RequestParam(required = false) String keyword) {
+
+    if ("EVENT".equals(type)) {
+        return taskService.getCalendar(loginUser, from, to, scope, keyword);
     }
+    if ("TODO".equals(type)) { 
+        return taskService.getMyTodos(loginUser, status, projectId, keyword);
+    }
+    throw new BusinessException(ErrorCode.INVALID_INPUT);
+}
 }

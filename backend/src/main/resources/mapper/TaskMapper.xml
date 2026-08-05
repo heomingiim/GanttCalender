@@ -93,4 +93,21 @@
     LIMIT 500
 </select>
 
+<select id="findMyTodos" resultMap="taskMap">
+    SELECT * FROM tasks
+    WHERE creator_id = #{userId}
+      AND task_type = 'TODO'
+      AND is_deleted = false
+    <if test="status != null">
+        AND status = #{status}
+    </if>
+    <if test="projectId != null">
+        AND project_id = #{projectId}
+    </if>
+    <if test="keyword != null and keyword != ''">
+        AND title LIKE CONCAT('%', #{keyword}, '%')
+    </if>
+    ORDER BY created_at DESC
+</select>
+
 </mapper>

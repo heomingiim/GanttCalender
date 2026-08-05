@@ -1,11 +1,12 @@
 package com.durian.groupware.task.mapper;
 
-import com.durian.groupware.task.dto.Task;
+import java.time.LocalDateTime;
+import java.util.List;
+
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import com.durian.groupware.task.dto.Task;
 
 @Mapper
 public interface TaskMapper {
@@ -32,4 +33,9 @@ public interface TaskMapper {
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to,
             @Param("keyword") String keyword);
+
+    List<Task> findMyTodos(@Param("userId") Long userId,
+                        @Param("status") String status,
+                        @Param("projectId") Long projectId,
+                        @Param("keyword") String keyword);
 }
