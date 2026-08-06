@@ -1,7 +1,9 @@
 package com.durian.groupware.task.service;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 
@@ -146,7 +148,8 @@ public class TaskService {
         if ("TODO".equals(task.getTaskType())) {
             return false; // 투두는 본인만
 
-                }return "PUBLIC".equals(task.getVisibility());
+        }
+        return "PUBLIC".equals(task.getVisibility());
     }
 
     public List<TaskResponse> getCalendar(LoginUser loginUser,
@@ -161,8 +164,41 @@ public class TaskService {
     }
 
     public List<TaskResponse> getMyTodos(LoginUser loginUser, String status,
-                                      Long projectId, String keyword) {
-    List<Task> tasks = taskMapper.findMyTodos(loginUser.id(), status, projectId, keyword);
-    return tasks.stream().map(TaskResponse::from).toList();
-}
+            Long projectId, String keyword) {
+        List<Task> tasks = taskMapper.findMyTodos(loginUser.id(), status, projectId, keyword);
+        return tasks.stream().map(TaskResponse::from).toList();
+    }
+
+    public TaskResponse setParent(LoginUser loginUser, Long taskId, Long parentId) {
+        Task task = getEditable(loginUser, taskId);
+
+        if (parentId != null) {
+            // 순환 검사: parentId의 조상들 중에 taskId가 있으면 안 됨
+            if (isAncestor(taskId, parentId)) {
+                throw new BusinessException(ErrorCode.CIRCULAR_PARENT);
+            }
+        }
+
+        taskMapper.updateParent(taskId, parentId);
+        return TaskResponse.from(taskMapper.findByIdNotDeleted(taskId));
+    }
+
+// parentId 위로 올라가면서 targetId가 있는지 확인
+    private boolean isAncestor(Long targetId, Long startId) {
+        Long current = startId;
+        Set<Long> visited = new HashSet<>();
+        while (current != null) {
+            if (current.equals(targetId)) {
+                return true;
+            }
+            if (visited.contains(current)) {
+                break; // 안전장치
+
+            }
+            visited.add(current);
+            Task t = taskMapper.findByIdNotDeleted(current);
+            current = (t != null) ? t.getParentTaskId() : null;
+        }
+        return false;
+    }
 }
