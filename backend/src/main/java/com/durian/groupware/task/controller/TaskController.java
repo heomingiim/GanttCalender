@@ -22,6 +22,7 @@ import com.durian.groupware.global.auth.LoginUser;
 import com.durian.groupware.global.auth.exception.BusinessException;
 import com.durian.groupware.global.auth.exception.ErrorCode;
 import com.durian.groupware.task.dto.TaskCreateRequest;
+import com.durian.groupware.task.dto.TaskParentRequest;
 import com.durian.groupware.task.dto.TaskProgressRequest;
 import com.durian.groupware.task.dto.TaskResponse;
 import com.durian.groupware.task.dto.TaskStatusRequest;
@@ -81,6 +82,15 @@ public class TaskController {
             @PathVariable Long id,
             @Valid @RequestBody TaskProgressRequest req) {
         return taskService.changeProgress(loginUser, id, req.progressRate());
+    }
+
+    // PATCH /api/tasks/{id}/parent — 상위 작업 변경 (WBS 계층 이동)
+    // parentTaskId가 null이면 최상위로 올린다
+    @PatchMapping("/{id}/parent")
+    public TaskResponse setParent(@Login LoginUser loginUser,
+            @PathVariable Long id,
+            @RequestBody TaskParentRequest req) {
+        return taskService.setParent(loginUser, id, req.parentTaskId());
     }
 
 

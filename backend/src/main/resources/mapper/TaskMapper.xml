@@ -110,4 +110,14 @@
     ORDER BY created_at DESC
 </select>
 
+<update id="updateParent">
+    UPDATE tasks SET parent_task_id = #{parentTaskId}, updated_at = NOW()
+    WHERE id = #{id}
+</update>
+
+<select id="findByProjectIdNotDeleted" resultMap="taskMap">
+    SELECT * FROM tasks WHERE project_id = #{projectId} AND is_deleted = false
+    ORDER BY id
+</select>
+
 </mapper>

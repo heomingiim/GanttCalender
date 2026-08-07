@@ -1,8 +1,11 @@
 package com.durian.groupware.task.service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.springframework.stereotype.Service;
@@ -14,6 +17,7 @@ import com.durian.groupware.global.auth.exception.ErrorCode;
 import com.durian.groupware.task.dto.Task;
 import com.durian.groupware.task.dto.TaskCreateRequest;
 import com.durian.groupware.task.dto.TaskResponse;
+import com.durian.groupware.task.dto.TaskTreeResponse;
 import com.durian.groupware.task.dto.TaskUpdateRequest;
 import com.durian.groupware.task.mapper.TaskMapper;
 
@@ -201,4 +205,26 @@ public class TaskService {
         }
         return false;
     }
+
+    public List<TaskTreeResponse> getProjectTree(Long projectId) {
+    List<Task> all = taskMapper.findByProjectIdNotDeleted(projectId);
+
+    Map<Long, TaskTreeResponse> map = new LinkedHashMap<>();
+    for (Task t : all) {
+        map.put(t.getId(), TaskTreeResponse.from(t));
+    }
+
+    List<TaskTreeResponse> roots = new ArrayList<>();
+    for (Task t : all) {
+        if (t.getParentTaskId() == null) {
+            roots.add(map.get(t.getId()));
+        } else {
+            TaskTreeResponse parent = map.get(t.getParentTaskId());
+            if (parent != null) {
+                parent.getChildren().add(map.get(t.getId()));
+            }
+        }
+    }
+    return roots;
+}
 }
