@@ -21,8 +21,12 @@ import com.durian.groupware.global.auth.Login;
 import com.durian.groupware.global.auth.LoginUser;
 import com.durian.groupware.global.auth.exception.BusinessException;
 import com.durian.groupware.global.auth.exception.ErrorCode;
+import com.durian.groupware.task.dto.AssigneeRequest;
+import com.durian.groupware.task.dto.ParticipantInviteRequest;
+import com.durian.groupware.task.dto.ParticipantResponseRequest;
 import com.durian.groupware.task.dto.TaskCreateRequest;
 import com.durian.groupware.task.dto.TaskParentRequest;
+import com.durian.groupware.task.dto.TaskParticipantResponse;
 import com.durian.groupware.task.dto.TaskProgressRequest;
 import com.durian.groupware.task.dto.TaskResponse;
 import com.durian.groupware.task.dto.TaskStatusRequest;
@@ -93,26 +97,59 @@ public class TaskController {
         return taskService.setParent(loginUser, id, req.parentTaskId());
     }
 
+    // PUT /api/tasks/{id}/assignees — 담당자 교체
+    // 빈 리스트를 보내면 담당자 전체 해제
+    @PutMapping("/{id}/assignees")
+    public ResponseEntity<Void> replaceAssignees(@Login LoginUser loginUser,
+            @PathVariable Long id,
+            @RequestBody AssigneeRequest req) {
+        taskService.replaceAssignees(loginUser, id, req.userIds());
+        return ResponseEntity.ok().build();
+    }
 
     @GetMapping
-public List<TaskResponse> list(
-        @Login LoginUser loginUser,
-        @RequestParam String type,
-        @RequestParam(required = false)
-        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-        @RequestParam(required = false)
-        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
-        @RequestParam(required = false, defaultValue = "MY") String scope,
-        @RequestParam(required = false) String status,
-        @RequestParam(required = false) Long projectId,
-        @RequestParam(required = false) String keyword) {
+    public List<TaskResponse> list(
+            @Login LoginUser loginUser,
+            @RequestParam String type,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(required = false, defaultValue = "MY") String scope,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long projectId,
+            @RequestParam(required = false) String keyword) {
 
-    if ("EVENT".equals(type)) {
-        return taskService.getCalendar(loginUser, from, to, scope, keyword);
+        if ("EVENT".equals(type)) {
+            return taskService.getCalendar(loginUser, from, to, scope, keyword);
+        }
+        if ("TODO".equals(type)) {
+            return taskService.getMyTodos(loginUser, status, projectId, keyword);
+        }
+        throw new BusinessException(ErrorCode.INVALID_INPUT);
     }
-    if ("TODO".equals(type)) { 
-        return taskService.getMyTodos(loginUser, status, projectId, keyword);
+
+    @PostMapping("/{id}/participants")
+    public ResponseEntity<Void> invite(@Login LoginUser loginUser,
+            @PathVariable Long id,
+            @RequestBody ParticipantInviteRequest req) {
+        taskService.inviteParticipants(loginUser, id, req.userIds(), req.required());
+        return ResponseEntity.ok().build();
     }
-    throw new BusinessException(ErrorCode.INVALID_INPUT);
-}
+
+// GET /api/tasks/{id}/participants
+    @GetMapping("/{id}/participants")
+    public List<TaskParticipantResponse> participants(@Login LoginUser loginUser,
+            @PathVariable Long id) {
+        return taskService.getParticipants(loginUser, id);
+    }
+
+// PATCH /api/tasks/{id}/participants/me
+    @PatchMapping("/{id}/participants/me")
+    public ResponseEntity<Void> respond(@Login LoginUser loginUser,
+            @PathVariable Long id,
+            @Valid @RequestBody ParticipantResponseRequest req) {
+        taskService.respondToInvite(loginUser, id, req.responseStatus());
+        return ResponseEntity.ok().build();
+    }
 }

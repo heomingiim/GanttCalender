@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.durian.groupware.task.mapper.TaskParticipantMapper">
+
+    <resultMap id="participantMap" type="TaskParticipant">
+        <result property="required" column="is_required"/>
+    </resultMap>
+
+    <select id="findByTaskId" resultMap="participantMap">
+        SELECT * FROM task_participants WHERE task_id = #{taskId} ORDER BY id
+    </select>
+
+    <select id="findUserIdsByTaskId" resultType="long">
+        SELECT user_id FROM task_participants WHERE task_id = #{taskId}
+    </select>
+
+    <insert id="insertBatch">
+        INSERT IGNORE INTO task_participants (task_id, user_id, is_required, response_status)
+        VALUES
+        <foreach item="userId" collection="userIds" separator=",">
+            (#{taskId}, #{userId}, #{required}, 'PENDING')
+        </foreach>
+    </insert>
+
+    <update id="updateResponse">
+        UPDATE task_participants
+        SET response_status = #{responseStatus}, responded_at = NOW()
+        WHERE task_id = #{taskId} AND user_id = #{userId}
+    </update>
+
+</mapper>

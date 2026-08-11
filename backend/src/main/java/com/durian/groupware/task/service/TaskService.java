@@ -16,10 +16,13 @@ import com.durian.groupware.global.auth.exception.BusinessException;
 import com.durian.groupware.global.auth.exception.ErrorCode;
 import com.durian.groupware.task.dto.Task;
 import com.durian.groupware.task.dto.TaskCreateRequest;
+import com.durian.groupware.task.dto.TaskParticipantResponse;
 import com.durian.groupware.task.dto.TaskResponse;
 import com.durian.groupware.task.dto.TaskTreeResponse;
 import com.durian.groupware.task.dto.TaskUpdateRequest;
+import com.durian.groupware.task.mapper.TaskAssigneeMapper;
 import com.durian.groupware.task.mapper.TaskMapper;
+import com.durian.groupware.task.mapper.TaskParticipantMapper;
 
 import lombok.RequiredArgsConstructor;
 
@@ -29,9 +32,9 @@ public class TaskService {
 
     private final TaskMapper taskMapper;
     private final DepartmentService departmentService;
-    private final TaskAssigneeMapper assigneeMapper;    
-    private final TaskParticipantMapper participantMapper; 
-    private final NotificationService notificationService; 
+    private final TaskAssigneeMapper assigneeMapper;
+    private final TaskParticipantMapper participantMapper;
+    private final NotificationService notificationService;
 
     // 생성
     public TaskResponse create(LoginUser loginUser, TaskCreateRequest req) {
@@ -98,6 +101,14 @@ public class TaskService {
     // 삭제 (소프트)
     public void delete(LoginUser loginUser, Long id) {
         Task task = getEditable(loginUser, id);
+
+        // 삭제 전에 참석자들에게 취소 알림 발송
+        List<Long> participantIds = participantMapper.findUserIdsByTaskId(id);
+        for (Long uid : participantIds) {
+            notificationService.notifyNow(uid, id, "CANCEL",
+                    "'" + task.getTitle() + "' 일정이 취소되었습니다.");
+        }
+
         taskMapper.softDelete(id);
     }
 
@@ -210,24 +221,81 @@ public class TaskService {
     }
 
     public List<TaskTreeResponse> getProjectTree(Long projectId) {
-    List<Task> all = taskMapper.findByProjectIdNotDeleted(projectId);
+        List<Task> all = taskMapper.findByProjectIdNotDeleted(projectId);
 
-    Map<Long, TaskTreeResponse> map = new LinkedHashMap<>();
-    for (Task t : all) {
-        map.put(t.getId(), TaskTreeResponse.from(t));
+        Map<Long, TaskTreeResponse> map = new LinkedHashMap<>();
+        for (Task t : all) {
+            map.put(t.getId(), TaskTreeResponse.from(t));
+        }
+
+        List<TaskTreeResponse> roots = new ArrayList<>();
+        for (Task t : all) {
+            if (t.getParentTaskId() == null) {
+                roots.add(map.get(t.getId()));
+            } else {
+                TaskTreeResponse parent = map.get(t.getParentTaskId());
+                if (parent != null) {
+                    parent.getChildren().add(map.get(t.getId()));
+                }
+            }
+        }
+        return roots;
     }
 
-    List<TaskTreeResponse> roots = new ArrayList<>();
-    for (Task t : all) {
-        if (t.getParentTaskId() == null) {
-            roots.add(map.get(t.getId()));
-        } else {
-            TaskTreeResponse parent = map.get(t.getParentTaskId());
-            if (parent != null) {
-                parent.getChildren().add(map.get(t.getId()));
+    public void replaceAssignees(LoginUser loginUser, Long taskId, List<Long> userIds) {
+        getEditable(loginUser, taskId); // 권한 확인
+        assigneeMapper.deleteByTaskId(taskId);
+        if (userIds != null && !userIds.isEmpty()) {
+            assigneeMapper.insertBatch(taskId, userIds);
+            // 제목을 루프 밖에서 한 번만 조회 (N+1 방지)
+            String title = taskMapper.findByIdNotDeleted(taskId).getTitle();
+            for (Long uid : userIds) {
+                notificationService.notifyNow(uid, taskId, "ASSIGN",
+                        "'" + title + "' 작업의 담당자로 지정되었습니다.");
             }
         }
     }
-    return roots;
+
+    public void inviteParticipants(LoginUser loginUser, Long taskId,
+            List<Long> userIds, Boolean required) {
+        getEditable(loginUser, taskId); // 권한 확인
+        if (userIds == null || userIds.isEmpty()) {
+            return;
+        }
+
+        participantMapper.insertBatch(taskId, userIds, Boolean.TRUE.equals(required));
+
+        String title = taskMapper.findByIdNotDeleted(taskId).getTitle();
+        for (Long uid : userIds) {
+            notificationService.notifyNow(uid, taskId, "INVITE",
+                    "'" + title + "' 일정에 초대되었습니다.");
+        }
+    }
+
+// 참석자 목록
+    public List<TaskParticipantResponse> getParticipants(LoginUser loginUser, Long taskId) {
+        Task task = taskMapper.findByIdNotDeleted(taskId);
+        if (task == null) {
+            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        }
+        if (!canView(loginUser, task)) {
+            throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
+        }
+
+        return participantMapper.findByTaskId(taskId)
+                .stream().map(TaskParticipantResponse::from).toList();
+    }
+
+// 내 응답 변경 — 본인 응답만 바꾸므로 편집 권한은 필요 없다
+    public void respondToInvite(LoginUser loginUser, Long taskId, String responseStatus) {
+        participantMapper.updateResponse(taskId, loginUser.id(), responseStatus);
+    }
+    // 삭제 전에 참석자들에게 취소 알림 발송
+    List<Long> participantIds = participantMapper.findUserIdsByTaskId(id);
+
+    for (Long uid : participantIds) {
+    notificationService.notifyNow(uid, id, "CANCEL",
+        "'" + task.getTitle() + "' 일정이 취소되었습니다.");
 }
+    taskMapper.softDelete (id);
 }
