@@ -2,11 +2,24 @@ spring:
   application:
     name: groupware
 
+  # .env 파일 읽기.
+  # 스프링은 .env를 기본 지원하지 않지만, .env는 KEY=VALUE 형식이라 properties와 같다.
+  # [.properties] 는 "확장자가 없어도 properties로 취급하라"는 뜻이고,
+  # optional: 은 "파일이 없어도 에러 내지 말라"는 뜻이다.
+  #   file:.env     → 실행 위치 기준 (./gradlew bootRun 이면 backend/.env)
+  #   file:../.env  → 프로젝트 루트의 .env
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
+
   datasource:
-    url: jdbc:mysql://localhost:3306/groupware?createDatabaseIfNotExist=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    # .env에 DB_URL / DB_USERNAME / DB_PASSWORD 를 적으면 그 값이 쓰이고,
+    # 없으면 아래 기본값(: 뒤)이 쓰인다.
+    url: "${DB_URL:jdbc:mysql://localhost:3306/groupware?createDatabaseIfNotExist=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8}"
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    driver-class-name: ${DB_DRIVER:com.mysql.cj.jdbc.Driver}
 
   sql:
     init:

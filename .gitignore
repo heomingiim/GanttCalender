@@ -43,6 +43,12 @@ dist/
 npm-debug.log*
 yarn-error.log*
 
+# `npm run build` 결과물 (Vite → Spring 정적 리소스). 생성물이므로 커밋하지 않는다.
+backend/src/main/resources/static/
+
+# 개인 학습용 문서 (커밋 제외)
+frontend/FRONTEND_GUIDE.md
+
 ### Environment ###
 .env
 

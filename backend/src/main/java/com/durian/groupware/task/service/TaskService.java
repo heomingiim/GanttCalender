@@ -29,6 +29,9 @@ public class TaskService {
 
     private final TaskMapper taskMapper;
     private final DepartmentService departmentService;
+    private final TaskAssigneeMapper assigneeMapper;    
+    private final TaskParticipantMapper participantMapper; 
+    private final NotificationService notificationService; 
 
     // 생성
     public TaskResponse create(LoginUser loginUser, TaskCreateRequest req) {

@@ -1,0 +1,239 @@
+import { useCallback, useEffect, useState } from 'react';
+import {
+  Box,
+  Card,
+  CardContent,
+  Chip,
+  Collapse,
+  IconButton,
+  InputAdornment,
+  List,
+  ListItemButton,
+  ListItemText,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from '@mui/material';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import SearchIcon from '@mui/icons-material/Search';
+
+import { getTree, getUsersByDept } from '../api/departments';
+import { searchUsers } from '../api/users';
+import { useToast } from '../contexts/ToastContext';
+import { USER_ROLE } from '../utils/constants';
+
+/**
+ * STEP 3 — 조직도 + 사용자 검색.
+ *
+ * 볼 만한 부분: DepartmentNode가 자기 자신을 다시 렌더링하는 재귀 컴포넌트라는 점.
+ * 서버가 children이 중첩된 트리를 주므로, 깊이를 몰라도 재귀로 전부 그릴 수 있다.
+ */
+export default function OrgPage() {
+  const toast = useToast();
+
+  const [tree, setTree] = useState([]);
+  const [selectedDept, setSelectedDept] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [keyword, setKeyword] = useState('');
+
+  useEffect(() => {
+    getTree()
+      .then((data) => setTree(Array.isArray(data) ? data : []))
+      .catch((err) => toast.apiError(err));
+  }, [toast]);
+
+  // 부서를 고르면 그 부서 사용자 목록을 불러온다
+  const handleSelectDept = useCallback(
+    async (dept) => {
+      setSelectedDept(dept);
+      setKeyword('');
+      try {
+        const list = await getUsersByDept(dept.id);
+        setUsers(Array.isArray(list) ? list : []);
+      } catch (err) {
+        toast.apiError(err);
+        setUsers([]);
+      }
+    },
+    [toast]
+  );
+
+  // 검색어 입력 → 디바운스 후 전체 사용자 검색 (부서 선택과 무관하게 동작)
+  useEffect(() => {
+    const value = keyword.trim();
+    if (!value) return;
+
+    const timerId = setTimeout(() => {
+      searchUsers(value)
+        .then((list) => {
+          setUsers(Array.isArray(list) ? list : []);
+          setSelectedDept(null);
+        })
+        .catch(() => setUsers([]));
+    }, 300);
+
+    return () => clearTimeout(timerId);
+  }, [keyword]);
+
+  return (
+    <Box>
+      <Typography variant="h5" sx={{ mb: 2 }}>
+        조직도
+      </Typography>
+
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 2,
+          gridTemplateColumns: { xs: '1fr', md: '320px 1fr' },
+          alignItems: 'start',
+        }}
+      >
+        <Card variant="outlined">
+          <CardContent sx={{ p: 1 }}>
+            <List dense disablePadding>
+              {tree.map((node) => (
+                <DepartmentNode
+                  key={node.id}
+                  node={node}
+                  depth={0}
+                  selectedId={selectedDept?.id}
+                  onSelect={handleSelectDept}
+                />
+              ))}
+            </List>
+            {tree.length === 0 && (
+              <Typography color="text.secondary" sx={{ p: 2 }}>
+                조직 정보가 없습니다.
+              </Typography>
+            )}
+          </CardContent>
+        </Card>
+
+        <Box>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="이름 또는 사원번호로 전체 검색"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            sx={{ mb: 2, bgcolor: 'background.paper' }}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              },
+            }}
+          />
+
+          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+            {keyword.trim()
+              ? `검색 결과 ${users.length}명`
+              : selectedDept
+                ? `${selectedDept.name} · ${users.length}명`
+                : '부서를 선택하거나 검색어를 입력하세요.'}
+          </Typography>
+
+          <TableContainer component={Paper}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>사원번호</TableCell>
+                  <TableCell>이름</TableCell>
+                  <TableCell>직급</TableCell>
+                  <TableCell>직책</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {users.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                      표시할 사용자가 없습니다.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {users.map((u) => (
+                  <TableRow key={u.id} hover>
+                    <TableCell>{u.employeeNumber}</TableCell>
+                    <TableCell>{u.name}</TableCell>
+                    <TableCell>{u.positionRank ?? '-'}</TableCell>
+                    <TableCell>
+                      <Chip size="small" label={USER_ROLE[u.role] ?? u.role} variant="outlined" />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+
+/**
+ * ★ 재귀 컴포넌트 ★
+ * 자기 안에서 <DepartmentNode>를 다시 렌더링한다.
+ * depth는 들여쓰기용 숫자이고, 자식에게는 depth+1을 넘긴다.
+ * 펼침 여부(open)는 각 노드가 자기 state로 들고 있으므로 형제끼리 영향을 주지 않는다.
+ */
+function DepartmentNode({ node, depth, selectedId, onSelect }) {
+  const [open, setOpen] = useState(depth < 1); // 최상위만 기본으로 펼침
+  const children = node.children ?? [];
+  const hasChildren = children.length > 0;
+
+  return (
+    <>
+      <ListItemButton
+        selected={selectedId === node.id}
+        onClick={() => onSelect(node)}
+        sx={{ pl: 1 + depth * 2, borderRadius: 1 }}
+      >
+        {hasChildren ? (
+          <IconButton
+            size="small"
+            sx={{ mr: 0.5 }}
+            onClick={(e) => {
+              e.stopPropagation(); // 이게 없으면 펼치기 버튼을 눌러도 부서 선택까지 같이 실행된다
+              setOpen((v) => !v);
+            }}
+          >
+            {open ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+          </IconButton>
+        ) : (
+          <Box sx={{ width: 30 }} />
+        )}
+        <ListItemText
+          primary={node.name}
+          slotProps={{ primary: { fontSize: 14, fontWeight: depth === 0 ? 700 : 400 } }}
+        />
+      </ListItemButton>
+
+      {hasChildren && (
+        <Collapse in={open} timeout="auto" unmountOnExit>
+          <List dense disablePadding>
+            {children.map((child) => (
+              <DepartmentNode
+                key={child.id}
+                node={child}
+                depth={depth + 1}
+                selectedId={selectedId}
+                onSelect={onSelect}
+              />
+            ))}
+          </List>
+        </Collapse>
+      )}
+    </>
+  );
+}

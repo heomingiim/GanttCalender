@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.durian.groupware.task.mapper.TaskAssigneeMapper">
+
+    <select id="findUserIdsByTaskId" resultType="long">
+        SELECT user_id FROM task_assignees WHERE task_id = #{taskId}
+    </select>
+
+    <delete id="deleteByTaskId">
+        DELETE FROM task_assignees WHERE task_id = #{taskId}
+    </delete>
+
+    <!-- 여러 명을 한 번의 INSERT로 넣는다. userIds가 비어 있으면 VALUES 뒤가 비어
+         SQL 오류가 나므로, 호출하는 쪽(TaskService)에서 빈 리스트를 걸러야 한다. -->
+    <insert id="insertBatch">
+        INSERT INTO task_assignees (task_id, user_id)
+        VALUES
+        <foreach item="userId" collection="userIds" separator=",">
+            (#{taskId}, #{userId})
+        </foreach>
+    </insert>
+
+</mapper>
