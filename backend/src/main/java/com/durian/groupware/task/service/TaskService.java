@@ -14,6 +14,7 @@ import com.durian.groupware.department.service.DepartmentService;
 import com.durian.groupware.global.auth.LoginUser;
 import com.durian.groupware.global.auth.exception.BusinessException;
 import com.durian.groupware.global.auth.exception.ErrorCode;
+import com.durian.groupware.notification.service.NotificationService;
 import com.durian.groupware.task.dto.Task;
 import com.durian.groupware.task.dto.TaskCreateRequest;
 import com.durian.groupware.task.dto.TaskParticipantResponse;
@@ -290,12 +291,4 @@ public class TaskService {
     public void respondToInvite(LoginUser loginUser, Long taskId, String responseStatus) {
         participantMapper.updateResponse(taskId, loginUser.id(), responseStatus);
     }
-    // 삭제 전에 참석자들에게 취소 알림 발송
-    List<Long> participantIds = participantMapper.findUserIdsByTaskId(id);
-
-    for (Long uid : participantIds) {
-    notificationService.notifyNow(uid, id, "CANCEL",
-        "'" + task.getTitle() + "' 일정이 취소되었습니다.");
-}
-    taskMapper.softDelete (id);
 }

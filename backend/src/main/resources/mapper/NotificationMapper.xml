@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.durian.groupware.notification.mapper.NotificationMapper">
+
+    <!-- is_read(DB) → read(Java). boolean은 is_ prefix 때문에 자동 매핑이 안 된다 -->
+    <resultMap id="notificationMap" type="Notification">
+        <result property="read" column="is_read"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO notifications (user_id, task_id, type, message, is_read)
+        VALUES (#{userId}, #{taskId}, #{type}, #{message}, #{read})
+    </insert>
+
+    <select id="findByUserId" resultMap="notificationMap">
+        SELECT * FROM notifications
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+        LIMIT 50
+    </select>
+
+    <select id="countUnread" resultType="long">
+        SELECT COUNT(*) FROM notifications
+        WHERE user_id = #{userId} AND is_read = false
+    </select>
+
+    <update id="markAsRead">
+        UPDATE notifications SET is_read = true, read_at = NOW()
+        WHERE id = #{id} AND user_id = #{userId}
+    </update>
+
+    <update id="markAllAsRead">
+        UPDATE notifications SET is_read = true, read_at = NOW()
+        WHERE user_id = #{userId} AND is_read = false
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM notifications WHERE id = #{id} AND user_id = #{userId}
+    </delete>
+
+</mapper>
