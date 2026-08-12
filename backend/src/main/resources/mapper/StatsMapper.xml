@@ -24,4 +24,34 @@
         ORDER BY period, status
     </select>
 
+    <resultMap id="taskMap" type="Task">
+        <result property="allDay"  column="is_all_day"/>
+        <result property="deleted" column="is_deleted"/>
+    </resultMap>
+
+    <!-- priority는 VARCHAR라 그냥 정렬하면 MEDIUM > LOW > HIGH가 된다. FIELD로 순서를 지정한다 -->
+    <select id="findOpenTodos" resultMap="taskMap">
+        SELECT * FROM tasks
+        WHERE creator_id = #{userId}
+          AND task_type = 'TODO'
+          AND status NOT IN ('DONE', 'CANCELLED')
+          AND is_deleted = false
+        ORDER BY FIELD(priority, 'HIGH', 'MEDIUM', 'LOW'),
+                 end_date IS NULL, end_date,
+                 created_at DESC
+        LIMIT 10
+    </select>
+
+    <!-- 오늘에 걸치는 일정. DATE(start_date) = CURDATE() 로 하면 여러 날짜에 걸친 일정이 빠진다 -->
+    <select id="findTodayEvents" resultMap="taskMap">
+        SELECT DISTINCT t.* FROM tasks t
+        LEFT JOIN task_assignees ta ON t.id = ta.task_id
+        WHERE t.is_deleted = false
+          AND t.task_type = 'EVENT'
+          AND t.start_date &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+          AND t.end_date &gt;= CURDATE()
+          AND (t.creator_id = #{userId} OR ta.user_id = #{userId})
+        ORDER BY t.start_date
+    </select>
+
 </mapper>

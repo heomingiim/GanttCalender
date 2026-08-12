@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import com.durian.groupware.stats.dto.StatRow;
+import com.durian.groupware.task.dto.Task;
 
 @Mapper
 public interface StatsMapper {
@@ -14,4 +15,7 @@ public interface StatsMapper {
                            @Param("from") LocalDateTime from,
                            @Param("to") LocalDateTime to,
                            @Param("unit") String unit);
+
+    List<Task> findOpenTodos(Long userId);
+    List<Task> findTodayEvents(Long userId);
 }

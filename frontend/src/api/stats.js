@@ -4,5 +4,5 @@ import client from './client';
 export const getPersonalStats = ({ unit, from, to } = {}) =>
   client.get('/stats/personal', { params: { unit, from, to } });
 
-// ── 대시보드 (백엔드 미구현) ─────────────────────────
+// 오늘 할 일 + 오늘 일정 요약
 export const getDashboard = () => client.get('/dashboard');

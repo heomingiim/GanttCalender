@@ -15,26 +15,18 @@ import {
 } from '@mui/material';
 
 import * as statsApi from '../api/stats';
-import * as taskApi from '../api/tasks';
 import { useAuth } from '../contexts/AuthContext';
-import NotReadyNotice from '../components/NotReadyNotice';
 import TaskDetailDialog from '../components/TaskDetailDialog';
 import { PRIORITY, PRIORITY_COLOR, STATUS, STATUS_COLOR } from '../utils/constants';
-import { endOfToday, formatDateTime, startOfToday } from '../utils/date';
+import { formatDateTime } from '../utils/date';
 
-/**
- * 대시보드.
- *
- * GET /api/dashboard 가 아직 없으므로, 404가 나면 이미 구현된 API 두 개로
- * 같은 내용을 직접 조립한다(폴백). 백엔드가 생기면 자동으로 그쪽을 쓴다.
- */
+/** 대시보드 — 오늘 할 일과 오늘 일정 요약. */
 export default function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
   const [todayTodos, setTodayTodos] = useState([]);
   const [todayEvents, setTodayEvents] = useState([]);
-  const [usingFallback, setUsingFallback] = useState(false);
   const [loading, setLoading] = useState(true);
   const [detailId, setDetailId] = useState(null);
 
@@ -44,24 +36,6 @@ export default function DashboardPage() {
       const data = await statsApi.getDashboard();
       setTodayTodos(data.todayTodos ?? []);
       setTodayEvents(data.todayEvents ?? []);
-      setUsingFallback(false);
-    } catch (err) {
-      if (!err.notReady) {
-        setLoading(false);
-        return;
-      }
-      // ── 폴백 ── 구현된 API로 같은 정보를 만든다
-      setUsingFallback(true);
-      const [todos, events] = await Promise.all([
-        taskApi.getMyTodos({}).catch(() => []),
-        taskApi
-          .getCalendarEvents({ from: startOfToday(), to: endOfToday(), scope: 'MY' })
-          .catch(() => []),
-      ]);
-      setTodayTodos(
-        todos.filter((t) => t.status !== 'DONE' && t.status !== 'CANCELLED').slice(0, 10)
-      );
-      setTodayEvents(events);
     } finally {
       setLoading(false);
     }
@@ -81,14 +55,6 @@ export default function DashboardPage() {
       </Typography>
 
       {loading && <LinearProgress sx={{ mb: 2 }} />}
-
-      {usingFallback && (
-        <NotReadyNotice api="GET /api/dashboard">
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            지금은 <code>/api/tasks</code> 조회 결과로 대신 채워 보여주고 있습니다.
-          </Typography>
-        </NotReadyNotice>
-      )}
 
       <Box
         sx={{

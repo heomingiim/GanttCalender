@@ -22,22 +22,17 @@ export const AUTH_EXPIRED_EVENT = 'auth:expired';
 // - /auth/login 은 사원번호 오타 시 자체 에러 메시지를 보여줘야 한다.
 const SKIP_AUTH_REDIRECT = ['/auth/me', '/auth/login'];
 
-// ─── 아직 백엔드가 없는 엔드포인트 ────────────────────────────
+// ─── 서버에 아직 없는 엔드포인트 ──────────────────────────────
 //
-// 원래는 "404인데 body에 code가 없으면 미구현"으로 판별하려 했지만, 실제로 확인해 보니
-// 그렇게 동작하지 않는다. GlobalExceptionHandler에 @ExceptionHandler(Exception.class)가
-// 있어서, 매핑 없는 경로가 던지는 NoResourceFoundException까지 잡아
-// **500 INTERNAL_ERROR로 덮어버린다.** 즉 Spring 기본 404가 클라이언트까지 오지 않는다.
+// 화면을 서버보다 먼저 만들 때, 여기에 경로를 적어두면 에러 토스트 대신
+// "백엔드 준비 중" 안내(NotReadyNotice)가 뜬다. 구현하면 다시 지운다.
 //
-//   GET /api/dashboard  →  500 {"code":"INTERNAL_ERROR","message":"서버 오류가 발생했습니다."}
+// 응답만 보고 자동 판별할 수는 없다. GlobalExceptionHandler가
+// @ExceptionHandler(Exception.class)로 매핑 없는 경로의 예외까지 잡아
+// 500 INTERNAL_ERROR로 덮어버려서, 미구현인지 진짜 서버 버그인지 구분되지 않는다.
 //
-// 500 + INTERNAL_ERROR만 보고는 "미구현"인지 "진짜 서버 버그"인지 구분할 수 없다.
-// 그래서 응답을 추측하는 대신 경로를 명시해 둔다.
-//
-// ★ 해당 API를 구현하면 이 목록에서 지울 것 ★
-const NOT_IMPLEMENTED = [
-  /^\/dashboard/,
-];
+// 지금은 모든 API가 구현되어 비어 있다.
+const NOT_IMPLEMENTED = [];
 
 client.interceptors.response.use(
   // 성공: 매번 res.data를 꺼내 쓰기 번거로우니 여기서 벗겨서 넘긴다.
@@ -49,8 +44,7 @@ client.interceptors.response.use(
     const data = error.response?.data;
     const url = error.config?.url ?? '';
 
-    // ★ "백엔드 미구현" 판별 ★
-    // 위 NOT_IMPLEMENTED에 적힌 경로가 404/500으로 실패하면 미구현으로 본다.
+    // NOT_IMPLEMENTED에 적힌 경로가 404/500으로 실패하면 미구현으로 본다.
     // (BusinessException으로 내려오는 4xx는 정상적으로 처리된 에러이므로 제외)
     const notReady =
       (status === 404 || status === 500) && NOT_IMPLEMENTED.some((re) => re.test(url));

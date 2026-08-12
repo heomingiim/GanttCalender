@@ -11,9 +11,11 @@ import org.springframework.stereotype.Service;
 
 import com.durian.groupware.global.auth.exception.BusinessException;
 import com.durian.groupware.global.auth.exception.ErrorCode;
+import com.durian.groupware.stats.dto.DashboardResponse;
 import com.durian.groupware.stats.dto.StatsResponse;
 import com.durian.groupware.stats.dto.StatRow;
 import com.durian.groupware.stats.mapper.StatsMapper;
+import com.durian.groupware.task.dto.TaskResponse;
 
 import lombok.RequiredArgsConstructor;
 
@@ -63,6 +65,14 @@ public class StatsService {
         return new StatsResponse(
                 resolvedUnit, resolvedFrom, resolvedTo, total, statusCounts, rows
         );
+    }
+
+    public DashboardResponse getDashboard(Long userId) {
+        List<TaskResponse> todos = statsMapper.findOpenTodos(userId)
+                .stream().map(TaskResponse::from).toList();
+        List<TaskResponse> events = statsMapper.findTodayEvents(userId)
+                .stream().map(TaskResponse::from).toList();
+        return new DashboardResponse(todos, events);
     }
 
     // from을 안 주면 단위에 맞는 기본 구간을 잡는다
