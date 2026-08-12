@@ -11,9 +11,9 @@ import * as notiApi from '../api/notifications';
 import { useAuth } from './AuthContext';
 
 // ─────────────────────────────────────────────────────────────
-// STEP 14 — 알림 폴링
+// 알림 폴링
 //
-// 가이드대로 5초마다 GET /api/notifications/unread-count 를 호출해 뱃지를 갱신한다.
+// 5초마다 GET /api/notifications/unread-count 를 호출해 뱃지를 갱신한다.
 //
 // 폴링에서 반드시 지켜야 할 3가지:
 //  1) 로그인 상태에서만 돈다        → 로그아웃하면 401이 5초마다 쏟아진다

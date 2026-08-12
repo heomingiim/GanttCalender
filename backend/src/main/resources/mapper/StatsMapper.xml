@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.durian.groupware.stats.mapper.StatsMapper">
+
+    <!-- unit은 포맷 문자열 자리라 #{}로 못 넘긴다. ${}는 주입 위험이 있어 <choose>로 고정값만 고른다 -->
+    <select id="getStats" resultType="StatRow">
+        SELECT
+            <choose>
+                <when test="unit == 'DAY'">DATE_FORMAT(created_at, '%Y-%m-%d')</when>
+                <when test="unit == 'WEEK'">DATE_FORMAT(created_at, '%x-W%v')</when>
+                <otherwise>DATE_FORMAT(created_at, '%Y-%m')</otherwise>
+            </choose> AS period,
+            status,
+            COUNT(*) AS count
+        FROM tasks
+        WHERE creator_id = #{userId}
+          AND is_deleted = false
+          AND task_type != 'WBS_TASK'
+          AND created_at &gt;= #{from}
+          AND created_at &lt;= #{to}
+        GROUP BY period, status
+        ORDER BY period, status
+    </select>
+
+</mapper>

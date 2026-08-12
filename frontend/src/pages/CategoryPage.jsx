@@ -29,7 +29,7 @@ import { isTeamLeadOrAbove } from '../utils/constants';
 const DEFAULT_COLOR = '#2e6f40';
 
 /**
- * STEP 5 — 카테고리 CRUD.
+ * 카테고리 CRUD.
  * 팀 공용 카테고리는 팀장급 이상만 만들고 고칠 수 있다 (백엔드와 같은 규칙을 UI에도 반영).
  */
 export default function CategoryPage() {

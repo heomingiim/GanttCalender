@@ -30,7 +30,7 @@ import { useToast } from '../contexts/ToastContext';
 import { USER_ROLE } from '../utils/constants';
 
 /**
- * STEP 3 — 조직도 + 사용자 검색.
+ * 조직도 + 사용자 검색.
  *
  * 볼 만한 부분: DepartmentNode가 자기 자신을 다시 렌더링하는 재귀 컴포넌트라는 점.
  * 서버가 children이 중첩된 트리를 주므로, 깊이를 몰라도 재귀로 전부 그릴 수 있다.

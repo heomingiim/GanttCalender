@@ -53,7 +53,7 @@ import {
 import { formatDate, toLocalDateString } from '../utils/date';
 
 /**
- * STEP 9~11 — 프로젝트 상세.
+ * 프로젝트 상세.
  *   개요 탭 : 프로젝트 정보 수정/삭제 (ADMIN만)
  *   멤버 탭 : 멤버 추가·역할 변경·제거 (ADMIN만)
  *   WBS 탭  : 계층 구조 표, 상위 작업 변경

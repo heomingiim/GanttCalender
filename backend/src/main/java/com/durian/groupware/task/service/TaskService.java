@@ -107,11 +107,7 @@ public class TaskService {
         Task task = getEditable(loginUser, id);
 
         // 삭제 전에 참석자들에게 취소 알림 발송
-        List<Long> participantIds = participantMapper.findUserIdsByTaskId(id);
-        for (Long uid : participantIds) {
-            notificationService.notifyNow(uid, id, "CANCEL",
-                    "'" + task.getTitle() + "' 일정이 취소되었습니다.");
-        }
+        notifyCancelToParticipants(task);
 
         taskMapper.softDelete(id);
         activityLogService.log(id, loginUser.id(), "DELETE");
@@ -131,6 +127,12 @@ public class TaskService {
 
         taskMapper.changeStatus(id, status, progressRate);
         activityLogService.log(id, loginUser.id(), "STATUS_CHANGE");
+
+        // task는 변경 전 값이라, 이미 취소 상태였으면 알림을 다시 보내지 않는다
+        if ("CANCELLED".equals(status) && !"CANCELLED".equals(task.getStatus())) {
+            notifyCancelToParticipants(task);
+        }
+
         return TaskResponse.from(taskMapper.findByIdNotDeleted(id));
     }
 
@@ -142,6 +144,14 @@ public class TaskService {
     }
 
     // ============ 내부 유틸 ============
+    private void notifyCancelToParticipants(Task task) {
+        List<Long> participantIds = participantMapper.findUserIdsByTaskId(task.getId());
+        for (Long uid : participantIds) {
+            notificationService.notifyNow(uid, task.getId(), "CANCEL",
+                    "'" + task.getTitle() + "' 일정이 취소되었습니다.");
+        }
+    }
+
     private Task getEditable(LoginUser loginUser, Long id) {
         Task task = taskMapper.findByIdNotDeleted(id);
         if (task == null) {

@@ -27,7 +27,7 @@ import { PRIORITY_HEX } from '../utils/constants';
 import { fromDateTimeInputValue } from '../utils/date';
 
 /**
- * STEP 7 — 캘린더.
+ * 캘린더.
  *
  * ★ 핵심 흐름 ★
  *   FullCalendar가 보여주는 기간이 바뀔 때마다 datesSet 콜백이 불린다.

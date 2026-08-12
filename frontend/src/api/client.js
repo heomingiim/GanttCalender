@@ -22,7 +22,7 @@ export const AUTH_EXPIRED_EVENT = 'auth:expired';
 // - /auth/login 은 사원번호 오타 시 자체 에러 메시지를 보여줘야 한다.
 const SKIP_AUTH_REDIRECT = ['/auth/me', '/auth/login'];
 
-// ─── 아직 백엔드가 없는 엔드포인트 (STEP 12~17) ───────────────
+// ─── 아직 백엔드가 없는 엔드포인트 ────────────────────────────
 //
 // 원래는 "404인데 body에 code가 없으면 미구현"으로 판별하려 했지만, 실제로 확인해 보니
 // 그렇게 동작하지 않는다. GlobalExceptionHandler에 @ExceptionHandler(Exception.class)가
@@ -34,11 +34,9 @@ const SKIP_AUTH_REDIRECT = ['/auth/me', '/auth/login'];
 // 500 + INTERNAL_ERROR만 보고는 "미구현"인지 "진짜 서버 버그"인지 구분할 수 없다.
 // 그래서 응답을 추측하는 대신 경로를 명시해 둔다.
 //
-// ★ 해당 STEP을 구현하면 이 목록에서 지울 것 ★
+// ★ 해당 API를 구현하면 이 목록에서 지울 것 ★
 const NOT_IMPLEMENTED = [
-  /^\/dashboard/,                      // STEP 17
-  /^\/stats\//,                        // STEP 16
-  /^\/tasks\/\d+\/activity-logs/,      // STEP 15
+  /^\/dashboard/,
 ];
 
 client.interceptors.response.use(

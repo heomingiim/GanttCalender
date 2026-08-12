@@ -21,7 +21,7 @@ import { NOTIFICATION_TYPE } from '../utils/constants';
 import { formatDateTime } from '../utils/date';
 
 /**
- * STEP 14 — 알림 벨.
+ * 알림 벨.
  * unreadCount는 Context가 5초마다 폴링해서 갱신한다.
  * 목록은 벨을 열 때만 불러온다 (5초마다 전체 목록을 받아올 필요는 없다).
  */
@@ -37,7 +37,7 @@ export default function NotificationBell() {
 
   return (
     <>
-      <Tooltip title={available ? '알림' : '알림 API 준비 중 (STEP 14)'}>
+      <Tooltip title={available ? '알림' : '알림 API 준비 중'}>
         <span>
           <IconButton onClick={handleOpen}>
             <Badge badgeContent={unreadCount} color="error">
@@ -70,7 +70,7 @@ export default function NotificationBell() {
         {!available ? (
           <Box sx={{ p: 2 }}>
             <Typography variant="body2" color="text.secondary">
-              알림 API(<code>/api/notifications</code>)가 아직 없습니다. STEP 14를 구현하면
+              알림 API(<code>/api/notifications</code>)에 연결하지 못했습니다. 서버가 응답하면
               5초 폴링이 자동으로 다시 시작됩니다.
             </Typography>
           </Box>

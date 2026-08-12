@@ -1,7 +1,7 @@
 import client from './client';
 import { toLocalDateTimeString } from '../utils/date';
 
-// ── STEP 6 : Task CRUD ────────────────────────────────────────
+// ── Task CRUD ────────────────────────────────────────
 export const getTask = (id) => client.get(`/tasks/${id}`);
 
 export const createTask = (body) => client.post('/tasks', body);
@@ -16,7 +16,7 @@ export const changeStatus = (id, status) =>
 export const changeProgress = (id, progressRate) =>
   client.patch(`/tasks/${id}/progress`, { progressRate });
 
-// ── STEP 7 : 캘린더 조회 ──────────────────────────────────────
+// ── 캘린더 조회 ──────────────────────────────────────
 // from/to는 LocalDateTime이라 반드시 toLocalDateTimeString()으로 변환해서 보낸다.
 // (백엔드 getCalendar는 null 기본값 처리가 없으므로 항상 채워 보낸다)
 export const getCalendarEvents = ({ from, to, scope = 'MY', keyword }) =>
@@ -30,7 +30,7 @@ export const getCalendarEvents = ({ from, to, scope = 'MY', keyword }) =>
     },
   });
 
-// ── STEP 8 : 투두리스트 ───────────────────────────────────────
+// ── 투두리스트 ───────────────────────────────────────
 export const getMyTodos = ({ status, projectId, keyword } = {}) =>
   client.get('/tasks', {
     params: {
@@ -41,16 +41,16 @@ export const getMyTodos = ({ status, projectId, keyword } = {}) =>
     },
   });
 
-// ── STEP 10 : WBS 상위 작업 변경 ──────────────────────────────
+// ── WBS 상위 작업 변경 ──────────────────────────────
 // parentTaskId를 null로 보내면 최상위로 올라간다.
 export const setParent = (id, parentTaskId) =>
   client.patch(`/tasks/${id}/parent`, { parentTaskId });
 
-// ── STEP 12 : 담당자 (백엔드 미구현 — 구현 시 바로 동작) ──────
+// ── 담당자 (백엔드 미구현 — 구현 시 바로 동작) ──────
 export const replaceAssignees = (id, userIds) =>
   client.put(`/tasks/${id}/assignees`, { userIds });
 
-// ── STEP 13 : 참석자 (백엔드 미구현) ──────────────────────────
+// ── 참석자 (백엔드 미구현) ──────────────────────────
 export const getParticipants = (id) => client.get(`/tasks/${id}/participants`);
 
 export const inviteParticipants = (id, userIds, required) =>
@@ -59,5 +59,5 @@ export const inviteParticipants = (id, userIds, required) =>
 export const respondToInvite = (id, responseStatus) =>
   client.patch(`/tasks/${id}/participants/me`, { responseStatus });
 
-// ── STEP 15 : 활동 이력 (백엔드 미구현) ───────────────────────
+// ── 활동 이력 (백엔드 미구현) ───────────────────────
 export const getActivityLogs = (id) => client.get(`/tasks/${id}/activity-logs`);

@@ -33,7 +33,7 @@ import { PRIORITY, PRIORITY_COLOR, STATUS, STATUS_COLOR } from '../utils/constan
 import { formatDateTime } from '../utils/date';
 
 /**
- * STEP 8 — 투두리스트.
+ * 투두리스트.
  *
  * 볼 만한 부분: 체크박스의 낙관적 업데이트(handleToggle).
  */

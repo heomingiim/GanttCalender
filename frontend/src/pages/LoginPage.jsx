@@ -14,7 +14,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 
 /**
- * STEP 4 — 로그인.
+ * 로그인.
  * 비밀번호 없이 사원번호만으로 인증하는 사내 데모 방식이다.
  * 성공하면 서버가 Set-Cookie로 JSESSIONID를 내려주고, 이후 요청에 자동으로 실린다.
  */

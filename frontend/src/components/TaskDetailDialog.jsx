@@ -45,10 +45,10 @@ import { formatDateTime } from '../utils/date';
 
 /**
  * 작업 상세 다이얼로그.
- *  - 상세 탭   : STEP 6 (상태/진행률 변경, 삭제)
- *  - 담당자 탭 : STEP 12 (백엔드 미구현)
- *  - 참석자 탭 : STEP 13 (백엔드 미구현)
- *  - 이력 탭   : STEP 15 (백엔드 미구현)
+ *  - 상세 탭   : 상태/진행률 변경, 삭제
+ *  - 담당자 탭 : 담당자 교체
+ *  - 참석자 탭 : 초대 / 참석 응답
+ *  - 이력 탭   : 활동 이력
  */
 export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onEdit }) {
   const toast = useToast();
@@ -232,7 +232,7 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
   );
 }
 
-// ── STEP 12: 담당자 ───────────────────────────────────────────
+// ── 담당자 ───────────────────────────────────────────
 function AssigneeTab({ taskId }) {
   const toast = useToast();
   const [selected, setSelected] = useState([]);
@@ -264,13 +264,13 @@ function AssigneeTab({ taskId }) {
         </Button>
       </Box>
       {notReady && (
-        <NotReadyNotice step="STEP 12" api="PUT /api/tasks/{id}/assignees" />
+        <NotReadyNotice api="PUT /api/tasks/{id}/assignees" />
       )}
     </Box>
   );
 }
 
-// ── STEP 13: 참석자 ───────────────────────────────────────────
+// ── 참석자 ───────────────────────────────────────────
 function ParticipantTab({ taskId }) {
   const toast = useToast();
   const [list, setList] = useState([]);
@@ -366,13 +366,13 @@ function ParticipantTab({ taskId }) {
       )}
 
       {notReady && (
-        <NotReadyNotice step="STEP 13" api="/api/tasks/{id}/participants" />
+        <NotReadyNotice api="/api/tasks/{id}/participants" />
       )}
     </Box>
   );
 }
 
-// ── STEP 15: 활동 이력 ────────────────────────────────────────
+// ── 활동 이력 ────────────────────────────────────────
 function ActivityTab({ taskId }) {
   const [logs, setLogs] = useState([]);
   const [notReady, setNotReady] = useState(false);
@@ -393,7 +393,7 @@ function ActivityTab({ taskId }) {
   }, [taskId]);
 
   if (notReady) {
-    return <NotReadyNotice step="STEP 15" api="GET /api/tasks/{id}/activity-logs" />;
+    return <NotReadyNotice api="GET /api/tasks/{id}/activity-logs" />;
   }
 
   if (logs.length === 0) {

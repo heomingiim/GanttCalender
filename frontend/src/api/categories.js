@@ -1,6 +1,6 @@
 import client from './client';
 
-// STEP 5 — 카테고리 CRUD
+// 카테고리 CRUD
 // 응답: [{ id, name, color, team }]  ← team이 true면 팀 공용
 export const listCategories = () => client.get('/categories');
 

@@ -22,7 +22,7 @@ import { PROJECT_STATUS, PROJECT_STATUS_COLOR } from '../utils/constants';
 import { formatDate } from '../utils/date';
 
 /**
- * STEP 9 — 내가 속한 프로젝트 목록 + 생성.
+ * 내가 속한 프로젝트 목록 + 생성.
  * 생성하면 서버가 나를 자동으로 ADMIN 멤버로 넣어준다.
  */
 export default function ProjectListPage() {

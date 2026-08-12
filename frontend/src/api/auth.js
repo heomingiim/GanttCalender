@@ -1,6 +1,6 @@
 import client from './client';
 
-// STEP 4 — 로그인 / 로그아웃
+// 로그인 / 로그아웃
 export const login = (employeeNumber) =>
   client.post('/auth/login', { employeeNumber });
 

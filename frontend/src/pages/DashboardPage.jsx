@@ -23,7 +23,7 @@ import { PRIORITY, PRIORITY_COLOR, STATUS, STATUS_COLOR } from '../utils/constan
 import { endOfToday, formatDateTime, startOfToday } from '../utils/date';
 
 /**
- * STEP 17 — 대시보드.
+ * 대시보드.
  *
  * GET /api/dashboard 가 아직 없으므로, 404가 나면 이미 구현된 API 두 개로
  * 같은 내용을 직접 조립한다(폴백). 백엔드가 생기면 자동으로 그쪽을 쓴다.
@@ -83,7 +83,7 @@ export default function DashboardPage() {
       {loading && <LinearProgress sx={{ mb: 2 }} />}
 
       {usingFallback && (
-        <NotReadyNotice step="STEP 17" api="GET /api/dashboard">
+        <NotReadyNotice api="GET /api/dashboard">
           <Typography variant="body2" sx={{ mt: 1 }}>
             지금은 <code>/api/tasks</code> 조회 결과로 대신 채워 보여주고 있습니다.
           </Typography>
