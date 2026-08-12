@@ -21,6 +21,7 @@ import com.durian.groupware.global.auth.Login;
 import com.durian.groupware.global.auth.LoginUser;
 import com.durian.groupware.global.auth.exception.BusinessException;
 import com.durian.groupware.global.auth.exception.ErrorCode;
+import com.durian.groupware.task.dto.ActivityLog;
 import com.durian.groupware.task.dto.AssigneeRequest;
 import com.durian.groupware.task.dto.ParticipantInviteRequest;
 import com.durian.groupware.task.dto.ParticipantResponseRequest;
@@ -31,6 +32,7 @@ import com.durian.groupware.task.dto.TaskProgressRequest;
 import com.durian.groupware.task.dto.TaskResponse;
 import com.durian.groupware.task.dto.TaskStatusRequest;
 import com.durian.groupware.task.dto.TaskUpdateRequest;
+import com.durian.groupware.task.service.ActivityLogService;
 import com.durian.groupware.task.service.TaskService;
 
 import jakarta.validation.Valid;
@@ -42,6 +44,7 @@ import lombok.RequiredArgsConstructor;
 public class TaskController {
 
     private final TaskService taskService;
+    private final ActivityLogService activityLogService;
 
     // POST /api/tasks
     @PostMapping
@@ -151,5 +154,12 @@ public class TaskController {
             @Valid @RequestBody ParticipantResponseRequest req) {
         taskService.respondToInvite(loginUser, id, req.responseStatus());
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{id}/activity-logs")
+    public List<ActivityLog> activityLogs(@Login LoginUser loginUser,
+            @PathVariable Long id) {
+        taskService.get(loginUser, id);   // 조회 권한 확인
+        return activityLogService.getByTaskId(id);
     }
 }

@@ -36,11 +36,8 @@ const SKIP_AUTH_REDIRECT = ['/auth/me', '/auth/login'];
 //
 // ★ 해당 STEP을 구현하면 이 목록에서 지울 것 ★
 const NOT_IMPLEMENTED = [
-  /^\/notifications/,                  // STEP 14
   /^\/dashboard/,                      // STEP 17
   /^\/stats\//,                        // STEP 16
-  /^\/tasks\/\d+\/assignees/,          // STEP 12
-  /^\/tasks\/\d+\/participants/,       // STEP 13
   /^\/tasks\/\d+\/activity-logs/,      // STEP 15
 ];
 

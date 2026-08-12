@@ -36,6 +36,7 @@ public class TaskService {
     private final TaskAssigneeMapper assigneeMapper;
     private final TaskParticipantMapper participantMapper;
     private final NotificationService notificationService;
+    private final ActivityLogService activityLogService;
 
     // 생성
     public TaskResponse create(LoginUser loginUser, TaskCreateRequest req) {
@@ -62,6 +63,7 @@ public class TaskService {
         task.setProgressRate(0);
 
         taskMapper.insert(task);
+        activityLogService.log(task.getId(), loginUser.id(), "CREATE");
         return TaskResponse.from(taskMapper.findByIdNotDeleted(task.getId()));
     }
 
@@ -95,6 +97,7 @@ public class TaskService {
         task.setPriority(req.priority());
         task.setCategoryId(req.categoryId());
         taskMapper.update(task);
+        activityLogService.log(id, loginUser.id(), "UPDATE");
 
         return TaskResponse.from(taskMapper.findByIdNotDeleted(id));
     }
@@ -111,6 +114,7 @@ public class TaskService {
         }
 
         taskMapper.softDelete(id);
+        activityLogService.log(id, loginUser.id(), "DELETE");
     }
 
     // 상태 변경 — 상태와 진행률을 함께 동기화
@@ -126,6 +130,7 @@ public class TaskService {
         // IN_PROGRESS / CANCELLED는 진행률 그대로 유지
 
         taskMapper.changeStatus(id, status, progressRate);
+        activityLogService.log(id, loginUser.id(), "STATUS_CHANGE");
         return TaskResponse.from(taskMapper.findByIdNotDeleted(id));
     }
 
