@@ -83,8 +83,7 @@ export function NotificationProvider({ children }) {
   }, [isLoggedIn, available, fetchUnreadCount]);
 
   // 폴링이 꺼진 뒤의 저속 재시도.
-  // 이게 없으면 15초짜리 네트워크 장애 한 번에 뱃지가 영구히 멈춘다
-  // (available을 되돌리는 코드가 어디에도 없었다).
+  // 이게 없으면 잠깐의 네트워크 장애로 뱃지가 영구히 멈춘다.
   useEffect(() => {
     if (!isLoggedIn || available) return;
 

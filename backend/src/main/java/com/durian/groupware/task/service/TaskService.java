@@ -263,8 +263,7 @@ public class TaskService {
     }
 
     public List<TaskTreeResponse> getProjectTree(LoginUser loginUser, Long projectId) {
-        // 프로젝트 멤버라도 남의 비공개 작업·개인 투두까지 볼 수 있으면 안 된다.
-        // (단건 조회 get()은 canView를 타는데 트리 조회만 빠져 있었다)
+        // 프로젝트 멤버라도 남의 비공개 작업·개인 투두까지 볼 수 있으면 안 된다
         List<Task> all = taskMapper.findByProjectIdNotDeleted(projectId).stream()
                 .filter(t -> canView(loginUser, t))
                 .toList();
@@ -284,8 +283,7 @@ public class TaskService {
                 parent.getChildren().add(map.get(t.getId()));
             } else {
                 // 최상위이거나, 부모가 이 목록에 없는 경우(삭제됨 / 볼 권한 없음 / 다른 프로젝트).
-                // 예전처럼 그냥 버리면 자기 자신은 물론 하위 트리까지 통째로 화면에서
-                // 사라지고 UI로는 되살릴 방법이 없다. 최상위로 끌어올려 보이게 한다.
+                // 여기서 버리면 하위 트리까지 화면에서 사라지므로 최상위로 끌어올린다.
                 roots.add(map.get(t.getId()));
             }
         }

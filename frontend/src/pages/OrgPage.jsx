@@ -70,16 +70,27 @@ export default function OrgPage() {
     const value = keyword.trim();
     if (!value) return;
 
+    // 타이머만 지우면 "이미 날아간" 요청은 못 막는다.
+    // 300ms가 지나 요청이 출발한 뒤 검색어를 지우면, 늦게 도착한 응답이
+    // 비워둔 표를 다시 채운다. cancelled 플래그로 그 응답을 버린다.
+    let cancelled = false;
+
     const timerId = setTimeout(() => {
       searchUsers(value)
         .then((list) => {
+          if (cancelled) return;
           setUsers(Array.isArray(list) ? list : []);
           setSelectedDept(null);
         })
-        .catch(() => setUsers([]));
+        .catch(() => {
+          if (!cancelled) setUsers([]);
+        });
     }, 300);
 
-    return () => clearTimeout(timerId);
+    return () => {
+      cancelled = true;
+      clearTimeout(timerId);
+    };
   }, [keyword]);
 
   return (
@@ -126,9 +137,8 @@ export default function OrgPage() {
             onChange={(e) => {
               const next = e.target.value;
               setKeyword(next);
-              // 검색어를 직접 지웠는데 목록을 그대로 두면, 헤더는 "부서를 선택하거나
-              // 검색어를 입력하세요"인데 표에는 이전 검색 결과가 남는다.
-              // (부서 선택 시의 초기화는 handleSelectDept가 따로 처리하므로 여기서 제외)
+              // 검색어를 지우면 이전 검색 결과도 함께 치운다.
+              // (부서 선택 시의 초기화는 handleSelectDept가 따로 처리한다)
               if (!next.trim() && !selectedDept) setUsers([]);
             }}
             sx={{ mb: 2, bgcolor: 'background.paper' }}

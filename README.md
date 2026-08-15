@@ -142,8 +142,9 @@ DB_DRIVER=com.mysql.cj.jdbc.Driver
 > 스프링은 `.env` 를 기본 지원하지 않습니다. `application.yaml` 의 `spring.config.import` 가
 > `.env` 를 properties 파일로 읽도록 설정해 둔 것입니다.
 >
-> **MySQL 설치가 귀찮다면** — `.env.example` 아래쪽 H2 설정 블록을 대신 쓰면
-> MySQL 없이, 비밀번호 없이 바로 실행됩니다. 데이터는 `backend/data/` 에 파일로 남습니다.
+> **H2는 지원하지 않습니다.** 통계·대시보드 쿼리가 `DATE_FORMAT` / `FIELD` / `DATE_ADD` 같은
+> MySQL 전용 문법을 쓰기 때문에, H2로 띄우면 앱은 떠도 `/api/stats/personal` 과
+> `/api/dashboard` 가 500으로 실패합니다. MySQL을 사용해 주세요.
 
 ### 4-2. 프론트엔드 패키지 설치
 

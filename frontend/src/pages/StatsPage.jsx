@@ -229,7 +229,7 @@ export default function StatsPage() {
                   {/*
                     바깥 Box는 회색 트랙(가로 전체), 안쪽 Box가 실제 막대다.
                     flexGrow와 width%를 한 요소에 같이 주면 flex가 남은 공간을
-                    전부 흡수해 모든 막대가 100%로 그려진다(= 구간별 크기 차이가 사라짐).
+                    전부 흡수해 모든 막대가 100%로 그려지므로 반드시 분리한다.
                   */}
                   <Box
                     sx={{

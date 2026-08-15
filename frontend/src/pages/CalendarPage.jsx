@@ -74,7 +74,7 @@ export default function CalendarPage() {
             id: String(t.id),
             title: t.title,
             start: t.startDate,
-            end: t.endDate,
+            end: exclusiveEnd(t),
             allDay: Boolean(t.allDay),
             backgroundColor: PRIORITY_HEX[t.priority] ?? PRIORITY_HEX.MEDIUM,
             borderColor: 'transparent',
@@ -261,12 +261,24 @@ export default function CalendarPage() {
 }
 
 /**
- * FullCalendar의 종일 이벤트 end는 exclusive다.
- * 8/12 하루짜리 종일 일정을 드래그하면 end가 8/13 00:00으로 온다.
- * 그대로 저장하면 다시 그릴 때 또 exclusive로 해석되어 막대가 하루씩 늘어나므로,
- * 종일일 때만 하루를 빼서 inclusive(서버 저장 형식)로 되돌린다.
- * 시간 지정 일정의 end는 원래 inclusive라 건드리지 않는다.
+ * ★ 아래 두 함수는 반드시 짝으로 쓴다 ★
+ *
+ * 서버는 종료일을 inclusive로 저장한다(8/12~8/14 = 3일짜리).
+ * 그런데 FullCalendar의 종일 이벤트 end는 exclusive다(8/15가 3일짜리).
+ *
+ * 그래서 그릴 때 하루를 더하고(exclusiveEnd), 저장할 때 하루를 뺀다(inclusiveEnd).
+ * 한쪽만 하면 드래그할 때마다 막대가 하루씩 밀린다.
+ * 시간 지정 일정은 양쪽 다 inclusive라 건드리지 않는다.
  */
+function exclusiveEnd(task) {
+  if (!task.endDate || !task.allDay) return task.endDate;
+
+  const end = new Date(task.endDate);
+  end.setDate(end.getDate() + 1);
+  return end;
+}
+
+/** exclusiveEnd의 역변환. 자세한 설명은 위 주석 참고 */
 function inclusiveEnd(event) {
   if (!event.end) return event.start;
   if (!event.allDay) return event.end;

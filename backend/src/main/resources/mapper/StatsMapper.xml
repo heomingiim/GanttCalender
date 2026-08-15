@@ -49,9 +49,11 @@
         WHERE t.is_deleted = false
           AND t.task_type = 'EVENT'
           AND t.start_date &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
-          <!-- end_date는 NULL 허용이다. NULL &gt;= CURDATE()는 NULL(=거짓 취급)이라
-               "종료일 없이 오늘 시작하는 일정"이 통째로 빠진다 -->
-          AND (t.end_date IS NULL OR t.end_date &gt;= CURDATE())
+          <!-- end_date는 NULL 허용이라 NULL &gt;= CURDATE()가 NULL(=거짓)로 평가된다.
+               종료일이 없는 일정은 시작일 하루짜리로 취급한다.
+               IS NULL만 허용하면 하한이 없어져 과거의 종료일 없는 일정이 매일 남는다. -->
+          AND (t.end_date &gt;= CURDATE()
+               OR (t.end_date IS NULL AND t.start_date &gt;= CURDATE()))
           AND (t.creator_id = #{userId} OR ta.user_id = #{userId})
         ORDER BY t.start_date
     </select>

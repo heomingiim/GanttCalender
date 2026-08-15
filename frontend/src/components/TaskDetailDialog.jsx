@@ -27,6 +27,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 
 import * as taskApi from '../api/tasks';
+import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import NotReadyNotice from './NotReadyNotice';
 import UserPicker from './UserPicker';
@@ -240,6 +241,9 @@ function AssigneeTab({ taskId }) {
   const [notReady, setNotReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  // 조회에 실패하면 "담당자 없음"과 구분이 안 된다. 그 상태로 저장하면
+  // 전체 교체라 기존 담당자가 날아가므로 저장 자체를 막는다.
+  const [loadFailed, setLoadFailed] = useState(false);
 
   // PUT /assignees는 전체 교체다. 현재 담당자를 먼저 채워두지 않으면
   // 한 명을 추가하려던 저장이 기존 담당자를 전부 지우는 결과가 된다.
@@ -251,9 +255,11 @@ function AssigneeTab({ taskId }) {
       .then((list) => {
         if (cancelled) return;
         setSelected(Array.isArray(list) ? list : []);
+        setLoadFailed(false);
       })
       .catch((err) => {
         if (cancelled) return;
+        setLoadFailed(true);
         if (err.notReady) setNotReady(true);
         else toast.apiError(err);
       })
@@ -283,17 +289,34 @@ function AssigneeTab({ taskId }) {
       <Typography variant="body2" color="text.secondary">
         담당자를 저장하면 지정된 사람에게 알림이 발송됩니다.
       </Typography>
-      <Alert severity="info">
-        저장하면 <b>여기 있는 목록으로 전체 교체</b>됩니다. 빼고 싶은 사람은 목록에서
-        제거한 뒤 저장하세요.
-      </Alert>
+      {loadFailed ? (
+        <Alert severity="error">
+          현재 담당자를 불러오지 못했습니다. 이 상태로 저장하면 기존 담당자가 지워지므로
+          저장을 막았습니다. 잠시 후 다시 열어주세요.
+        </Alert>
+      ) : (
+        <Alert severity="info">
+          저장하면 <b>여기 있는 목록으로 전체 교체</b>됩니다. 빼고 싶은 사람은 목록에서
+          제거한 뒤 저장하세요.
+        </Alert>
+      )}
       {loading ? (
         <LinearProgress />
       ) : (
-        <UserPicker multiple value={selected} onChange={setSelected} label="담당자 검색" />
+        <UserPicker
+          multiple
+          value={selected}
+          onChange={setSelected}
+          label="담당자 검색"
+          disabled={loadFailed}
+        />
       )}
       <Box>
-        <Button variant="contained" onClick={handleSave} disabled={saving || loading}>
+        <Button
+          variant="contained"
+          onClick={handleSave}
+          disabled={saving || loading || loadFailed}
+        >
           담당자 저장
         </Button>
       </Box>
@@ -307,6 +330,7 @@ function AssigneeTab({ taskId }) {
 // ── 참석자 ───────────────────────────────────────────
 function ParticipantTab({ taskId }) {
   const toast = useToast();
+  const { user } = useAuth();
   const [list, setList] = useState([]);
   const [selected, setSelected] = useState([]);
   const [required, setRequired] = useState(false);
@@ -318,7 +342,7 @@ function ParticipantTab({ taskId }) {
       setList(Array.isArray(res) ? res : []);
       setNotReady(false);
     } catch (err) {
-      // NOT_IMPLEMENTED 목록이 비어 notReady는 이제 항상 false다.
+      // NOT_IMPLEMENTED가 비어 있으면 notReady는 항상 false다.
       // else가 없으면 403·500이 조용히 사라지고 "참석자 없음"처럼 보인다.
       if (err.notReady) setNotReady(true);
       else toast.apiError(err);
@@ -367,18 +391,28 @@ function ParticipantTab({ taskId }) {
       </Box>
 
       <Divider />
-      <Box>
-        <Typography variant="caption" color="text.secondary">
-          내 응답
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
-          {['ACCEPTED', 'TENTATIVE', 'DECLINED'].map((s) => (
-            <Button key={s} size="small" variant="outlined" onClick={() => handleRespond(s)}>
-              {PARTICIPANT_RESPONSE[s]}
-            </Button>
-          ))}
+      {/*
+        참석자 본인만 응답할 수 있다. 서버가 비참석자에게 403(NOT_PARTICIPANT)을 주므로,
+        버튼을 모두에게 보여주면 자기를 참석자로 안 넣은 작성자가 누를 때마다 에러가 뜬다.
+      */}
+      {list.some((p) => p.userId === user?.id) ? (
+        <Box>
+          <Typography variant="caption" color="text.secondary">
+            내 응답
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
+            {['ACCEPTED', 'TENTATIVE', 'DECLINED'].map((s) => (
+              <Button key={s} size="small" variant="outlined" onClick={() => handleRespond(s)}>
+                {PARTICIPANT_RESPONSE[s]}
+              </Button>
+            ))}
+          </Box>
         </Box>
-      </Box>
+      ) : (
+        <Typography variant="caption" color="text.secondary">
+          이 일정의 참석자가 아니라 응답할 수 없습니다.
+        </Typography>
+      )}
 
       {list.length > 0 && (
         <List dense>
@@ -424,8 +458,7 @@ function ActivityTab({ taskId }) {
       })
       .catch((err) => {
         if (cancelled) return;
-        // notReady는 항상 false이므로, else가 없으면 실패가 통째로 묻히고
-        // "기록된 활동이 없습니다"만 뜬다.
+        // else가 없으면 실패가 묻히고 "기록된 활동이 없습니다"만 뜬다.
         if (err.notReady) setNotReady(true);
         else toast.apiError(err);
       });
