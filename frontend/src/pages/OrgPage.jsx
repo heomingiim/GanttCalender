@@ -123,7 +123,14 @@ export default function OrgPage() {
             size="small"
             placeholder="이름 또는 사원번호로 전체 검색"
             value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
+            onChange={(e) => {
+              const next = e.target.value;
+              setKeyword(next);
+              // 검색어를 직접 지웠는데 목록을 그대로 두면, 헤더는 "부서를 선택하거나
+              // 검색어를 입력하세요"인데 표에는 이전 검색 결과가 남는다.
+              // (부서 선택 시의 초기화는 handleSelectDept가 따로 처리하므로 여기서 제외)
+              if (!next.trim() && !selectedDept) setUsers([]);
+            }}
             sx={{ mb: 2, bgcolor: 'background.paper' }}
             slotProps={{
               input: {

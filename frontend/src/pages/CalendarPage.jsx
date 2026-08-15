@@ -144,7 +144,7 @@ export default function CalendarPage() {
         title: raw.title,
         description: raw.description,
         startDate: fromDateTimeInputValue(toInputLocal(info.event.start)),
-        endDate: fromDateTimeInputValue(toInputLocal(info.event.end ?? info.event.start)),
+        endDate: fromDateTimeInputValue(toInputLocal(inclusiveEnd(info.event))),
         allDay: info.event.allDay,
         visibility: raw.visibility,
         priority: raw.priority,
@@ -258,6 +258,23 @@ export default function CalendarPage() {
       />
     </Box>
   );
+}
+
+/**
+ * FullCalendar의 종일 이벤트 end는 exclusive다.
+ * 8/12 하루짜리 종일 일정을 드래그하면 end가 8/13 00:00으로 온다.
+ * 그대로 저장하면 다시 그릴 때 또 exclusive로 해석되어 막대가 하루씩 늘어나므로,
+ * 종일일 때만 하루를 빼서 inclusive(서버 저장 형식)로 되돌린다.
+ * 시간 지정 일정의 end는 원래 inclusive라 건드리지 않는다.
+ */
+function inclusiveEnd(event) {
+  if (!event.end) return event.start;
+  if (!event.allDay) return event.end;
+
+  const end = new Date(event.end);
+  end.setDate(end.getDate() - 1);
+  // 하루를 뺐더니 시작보다 앞서면 시작일로 맞춘다 (하루짜리 방어)
+  return end < event.start ? event.start : end;
 }
 
 // Date → 'YYYY-MM-DDTHH:mm' (datetime-local 형식). 위 fromDateTimeInputValue와 짝

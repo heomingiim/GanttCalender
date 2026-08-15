@@ -74,6 +74,8 @@ public class ProjectController {
             @PathVariable Long id) {
  
         projectMemberService.checkMember(loginUser.id(), id);
-        return taskService.getProjectTree(id);
+        // 멤버 확인만으로는 부족하다. 트리 안에서 작업별 열람 권한(canView)을 또 걸러야
+        // 남의 비공개 작업·개인 투두가 목록에 섞이지 않는다.
+        return taskService.getProjectTree(loginUser, id);
     }
 }

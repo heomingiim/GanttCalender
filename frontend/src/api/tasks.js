@@ -47,6 +47,8 @@ export const setParent = (id, parentTaskId) =>
   client.patch(`/tasks/${id}/parent`, { parentTaskId });
 
 // ── 담당자 (백엔드 미구현 — 구현 시 바로 동작) ──────
+export const getAssignees = (id) => client.get(`/tasks/${id}/assignees`);
+
 export const replaceAssignees = (id, userIds) =>
   client.put(`/tasks/${id}/assignees`, { userIds });
 

@@ -23,6 +23,7 @@ import com.durian.groupware.global.auth.exception.BusinessException;
 import com.durian.groupware.global.auth.exception.ErrorCode;
 import com.durian.groupware.task.dto.ActivityLog;
 import com.durian.groupware.task.dto.AssigneeRequest;
+import com.durian.groupware.user.dto.UserSummaryResponse;
 import com.durian.groupware.task.dto.ParticipantInviteRequest;
 import com.durian.groupware.task.dto.ParticipantResponseRequest;
 import com.durian.groupware.task.dto.TaskCreateRequest;
@@ -98,6 +99,14 @@ public class TaskController {
             @PathVariable Long id,
             @RequestBody TaskParentRequest req) {
         return taskService.setParent(loginUser, id, req.parentTaskId());
+    }
+
+    // GET /api/tasks/{id}/assignees — 현재 담당자 목록
+    // PUT이 전체 교체라, 화면이 이걸 먼저 읽어야 기존 담당자를 실수로 지우지 않는다
+    @GetMapping("/{id}/assignees")
+    public List<UserSummaryResponse> getAssignees(@Login LoginUser loginUser,
+            @PathVariable Long id) {
+        return taskService.getAssignees(loginUser, id);
     }
 
     // PUT /api/tasks/{id}/assignees — 담당자 교체

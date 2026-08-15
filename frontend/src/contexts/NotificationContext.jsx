@@ -24,6 +24,9 @@ import { useAuth } from './AuthContext';
 
 const POLL_INTERVAL_MS = 5000;
 const MAX_FAILURES = 3;
+// 폴링이 꺼진 뒤의 재시도 주기. 5초 폴링을 계속 돌릴 수는 없지만,
+// 일시적인 장애였다면 새로고침 없이도 스스로 복구되어야 한다.
+const RETRY_INTERVAL_MS = 60000;
 
 const NotificationContext = createContext(null);
 
@@ -43,6 +46,7 @@ export function NotificationProvider({ children }) {
       const res = await notiApi.getUnreadCount();
       setUnreadCount(res?.count ?? 0);
       failureCountRef.current = 0; // 성공하면 카운터 리셋
+      setAvailable(true); // 복구되면 5초 폴링을 다시 켠다
     } catch (err) {
       failureCountRef.current += 1;
       if (failureCountRef.current >= MAX_FAILURES) {
@@ -78,12 +82,28 @@ export function NotificationProvider({ children }) {
     return () => clearInterval(timerId);
   }, [isLoggedIn, available, fetchUnreadCount]);
 
+  // 폴링이 꺼진 뒤의 저속 재시도.
+  // 이게 없으면 15초짜리 네트워크 장애 한 번에 뱃지가 영구히 멈춘다
+  // (available을 되돌리는 코드가 어디에도 없었다).
+  useEffect(() => {
+    if (!isLoggedIn || available) return;
+
+    const timerId = setInterval(() => {
+      // 성공하면 fetchUnreadCount가 available을 true로 돌리고,
+      // 위의 5초 폴링 effect가 다시 살아난다.
+      fetchUnreadCount().catch(() => {});
+    }, RETRY_INTERVAL_MS);
+
+    return () => clearInterval(timerId);
+  }, [isLoggedIn, available, fetchUnreadCount]);
+
   // 로그아웃하면 남아있던 뱃지 숫자를 지운다
   useEffect(() => {
     if (!isLoggedIn) {
       setUnreadCount(0);
       setItems([]);
       failureCountRef.current = 0;
+      setAvailable(true); // 다음 로그인은 깨끗한 상태에서 시작해야 한다
     }
   }, [isLoggedIn]);
 

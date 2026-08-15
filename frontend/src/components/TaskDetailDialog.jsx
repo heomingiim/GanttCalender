@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Chip,
@@ -238,6 +239,31 @@ function AssigneeTab({ taskId }) {
   const [selected, setSelected] = useState([]);
   const [notReady, setNotReady] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // PUT /assignees는 전체 교체다. 현재 담당자를 먼저 채워두지 않으면
+  // 한 명을 추가하려던 저장이 기존 담당자를 전부 지우는 결과가 된다.
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    taskApi
+      .getAssignees(taskId)
+      .then((list) => {
+        if (cancelled) return;
+        setSelected(Array.isArray(list) ? list : []);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        if (err.notReady) setNotReady(true);
+        else toast.apiError(err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [taskId, toast]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -257,9 +283,17 @@ function AssigneeTab({ taskId }) {
       <Typography variant="body2" color="text.secondary">
         담당자를 저장하면 지정된 사람에게 알림이 발송됩니다.
       </Typography>
-      <UserPicker multiple value={selected} onChange={setSelected} label="담당자 검색" />
+      <Alert severity="info">
+        저장하면 <b>여기 있는 목록으로 전체 교체</b>됩니다. 빼고 싶은 사람은 목록에서
+        제거한 뒤 저장하세요.
+      </Alert>
+      {loading ? (
+        <LinearProgress />
+      ) : (
+        <UserPicker multiple value={selected} onChange={setSelected} label="담당자 검색" />
+      )}
       <Box>
-        <Button variant="contained" onClick={handleSave} disabled={saving}>
+        <Button variant="contained" onClick={handleSave} disabled={saving || loading}>
           담당자 저장
         </Button>
       </Box>
@@ -284,10 +318,13 @@ function ParticipantTab({ taskId }) {
       setList(Array.isArray(res) ? res : []);
       setNotReady(false);
     } catch (err) {
+      // NOT_IMPLEMENTED 목록이 비어 notReady는 이제 항상 false다.
+      // else가 없으면 403·500이 조용히 사라지고 "참석자 없음"처럼 보인다.
       if (err.notReady) setNotReady(true);
+      else toast.apiError(err);
       setList([]);
     }
-  }, [taskId]);
+  }, [taskId, toast]);
 
   useEffect(() => {
     load();
@@ -374,6 +411,7 @@ function ParticipantTab({ taskId }) {
 
 // ── 활동 이력 ────────────────────────────────────────
 function ActivityTab({ taskId }) {
+  const toast = useToast();
   const [logs, setLogs] = useState([]);
   const [notReady, setNotReady] = useState(false);
 
@@ -385,12 +423,16 @@ function ActivityTab({ taskId }) {
         if (!cancelled) setLogs(Array.isArray(res) ? res : []);
       })
       .catch((err) => {
-        if (!cancelled && err.notReady) setNotReady(true);
+        if (cancelled) return;
+        // notReady는 항상 false이므로, else가 없으면 실패가 통째로 묻히고
+        // "기록된 활동이 없습니다"만 뜬다.
+        if (err.notReady) setNotReady(true);
+        else toast.apiError(err);
       });
     return () => {
       cancelled = true;
     };
-  }, [taskId]);
+  }, [taskId, toast]);
 
   if (notReady) {
     return <NotReadyNotice api="GET /api/tasks/{id}/activity-logs" />;

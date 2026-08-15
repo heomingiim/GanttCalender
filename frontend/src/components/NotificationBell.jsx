@@ -70,8 +70,8 @@ export default function NotificationBell() {
         {!available ? (
           <Box sx={{ p: 2 }}>
             <Typography variant="body2" color="text.secondary">
-              알림 API(<code>/api/notifications</code>)에 연결하지 못했습니다. 서버가 응답하면
-              5초 폴링이 자동으로 다시 시작됩니다.
+              알림 API(<code>/api/notifications</code>)에 연결하지 못했습니다.
+              1분마다 재시도하며, 서버가 응답하면 5초 폴링이 자동으로 다시 시작됩니다.
             </Typography>
           </Box>
         ) : items.length === 0 ? (

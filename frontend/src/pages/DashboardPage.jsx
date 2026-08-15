@@ -16,6 +16,7 @@ import {
 
 import * as statsApi from '../api/stats';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import TaskDetailDialog from '../components/TaskDetailDialog';
 import { PRIORITY, PRIORITY_COLOR, STATUS, STATUS_COLOR } from '../utils/constants';
 import { formatDateTime } from '../utils/date';
@@ -24,6 +25,7 @@ import { formatDateTime } from '../utils/date';
 export default function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [todayTodos, setTodayTodos] = useState([]);
   const [todayEvents, setTodayEvents] = useState([]);
@@ -36,10 +38,15 @@ export default function DashboardPage() {
       const data = await statsApi.getDashboard();
       setTodayTodos(data.todayTodos ?? []);
       setTodayEvents(data.todayEvents ?? []);
+    } catch (err) {
+      // catch가 없으면 조회 실패와 "정말 비어 있음"이 화면에서 구분되지 않는다.
+      toast.apiError(err);
+      setTodayTodos([]);
+      setTodayEvents([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     load();

@@ -8,6 +8,15 @@
         SELECT user_id FROM task_assignees WHERE task_id = #{taskId}
     </select>
 
+    <!-- 화면에서 "현재 담당자"를 보여주려면 id만으로는 부족해 users와 조인해서 준다 -->
+    <select id="findAssigneesByTaskId" resultType="UserSummaryResponse">
+        SELECT u.id, u.employee_number, u.name, u.department_id, u.role, u.position_rank
+        FROM task_assignees ta
+        JOIN users u ON u.id = ta.user_id
+        WHERE ta.task_id = #{taskId}
+        ORDER BY u.name
+    </select>
+
     <delete id="deleteByTaskId">
         DELETE FROM task_assignees WHERE task_id = #{taskId}
     </delete>

@@ -226,6 +226,11 @@ export default function StatsPage() {
                   <Typography variant="body2" sx={{ width: 60, flexShrink: 0 }}>
                     {periodLabel(p.period)}
                   </Typography>
+                  {/*
+                    바깥 Box는 회색 트랙(가로 전체), 안쪽 Box가 실제 막대다.
+                    flexGrow와 width%를 한 요소에 같이 주면 flex가 남은 공간을
+                    전부 흡수해 모든 막대가 100%로 그려진다(= 구간별 크기 차이가 사라짐).
+                  */}
                   <Box
                     sx={{
                       flexGrow: 1,
@@ -233,25 +238,32 @@ export default function StatsPage() {
                       bgcolor: 'action.hover',
                       borderRadius: 1,
                       overflow: 'hidden',
-                      display: 'flex',
-                      width: `${(p.sum / maxPeriodSum) * 100}%`,
-                      minWidth: 4,
                     }}
                   >
-                    {Object.keys(STATUS).map((code) => {
-                      const count = p.counts[code] ?? 0;
-                      if (count === 0) return null;
-                      return (
-                        <Tooltip key={code} title={`${STATUS[code]} ${count}건`}>
-                          <Box
-                            sx={{
-                              width: `${(count / p.sum) * 100}%`,
-                              bgcolor: STATUS_BAR_COLOR[code],
-                            }}
-                          />
-                        </Tooltip>
-                      );
-                    })}
+                    <Box
+                      sx={{
+                        height: '100%',
+                        display: 'flex',
+                        width: `${(p.sum / maxPeriodSum) * 100}%`,
+                        minWidth: 4,
+                        transition: 'width .3s ease',
+                      }}
+                    >
+                      {Object.keys(STATUS).map((code) => {
+                        const count = p.counts[code] ?? 0;
+                        if (count === 0) return null;
+                        return (
+                          <Tooltip key={code} title={`${STATUS[code]} ${count}건`}>
+                            <Box
+                              sx={{
+                                width: `${(count / p.sum) * 100}%`,
+                                bgcolor: STATUS_BAR_COLOR[code],
+                              }}
+                            />
+                          </Tooltip>
+                        );
+                      })}
+                    </Box>
                   </Box>
                   <Typography variant="body2" sx={{ width: 50, flexShrink: 0, textAlign: 'right' }}>
                     {p.sum}건

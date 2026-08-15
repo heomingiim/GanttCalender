@@ -6,9 +6,12 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.durian.groupware.department.service.DepartmentService;
 import com.durian.groupware.global.auth.LoginUser;
@@ -17,6 +20,7 @@ import com.durian.groupware.global.auth.exception.ErrorCode;
 import com.durian.groupware.notification.service.NotificationService;
 import com.durian.groupware.task.dto.Task;
 import com.durian.groupware.task.dto.TaskCreateRequest;
+import com.durian.groupware.task.dto.TaskParticipant;
 import com.durian.groupware.task.dto.TaskParticipantResponse;
 import com.durian.groupware.task.dto.TaskResponse;
 import com.durian.groupware.task.dto.TaskTreeResponse;
@@ -24,6 +28,7 @@ import com.durian.groupware.task.dto.TaskUpdateRequest;
 import com.durian.groupware.task.mapper.TaskAssigneeMapper;
 import com.durian.groupware.task.mapper.TaskMapper;
 import com.durian.groupware.task.mapper.TaskParticipantMapper;
+import com.durian.groupware.user.dto.UserSummaryResponse;
 
 import lombok.RequiredArgsConstructor;
 
@@ -38,7 +43,12 @@ public class TaskService {
     private final NotificationService notificationService;
     private final ActivityLogService activityLogService;
 
+    // task_participants.response_status에 허용되는 값
+    private static final Set<String> ALLOWED_RESPONSES =
+            Set.of("PENDING", "ACCEPTED", "DECLINED", "TENTATIVE");
+
     // 생성
+    @Transactional
     public TaskResponse create(LoginUser loginUser, TaskCreateRequest req) {
         // 날짜 유효성 검사
         if (req.startDate() != null && req.endDate() != null
@@ -80,6 +90,7 @@ public class TaskService {
     }
 
     // 수정
+    @Transactional
     public TaskResponse update(LoginUser loginUser, Long id, TaskUpdateRequest req) {
         Task task = getEditable(loginUser, id);
 
@@ -103,6 +114,7 @@ public class TaskService {
     }
 
     // 삭제 (소프트)
+    @Transactional
     public void delete(LoginUser loginUser, Long id) {
         Task task = getEditable(loginUser, id);
 
@@ -114,6 +126,7 @@ public class TaskService {
     }
 
     // 상태 변경 — 상태와 진행률을 함께 동기화
+    @Transactional
     public TaskResponse changeStatus(LoginUser loginUser, Long id, String status) {
         Task task = getEditable(loginUser, id);
         int progressRate = task.getProgressRate();
@@ -137,6 +150,7 @@ public class TaskService {
     }
 
     // 진행률 변경 (상태 변경은 changeStatus 사용)
+    @Transactional
     public TaskResponse changeProgress(LoginUser loginUser, Long id, int rate) {
         Task task = getEditable(loginUser, id);
         taskMapper.changeProgress(id, rate);
@@ -203,10 +217,22 @@ public class TaskService {
         return tasks.stream().map(TaskResponse::from).toList();
     }
 
+    @Transactional
     public TaskResponse setParent(LoginUser loginUser, Long taskId, Long parentId) {
         Task task = getEditable(loginUser, taskId);
 
         if (parentId != null) {
+            // 부모 존재 확인.
+            // 없는 id를 그대로 넘기면 parent_task_id FK 위반이 500으로 튀고,
+            // 삭제된(is_deleted) 부모를 넘기면 이 작업이 조용히 고아가 된다.
+            Task parent = taskMapper.findByIdNotDeleted(parentId);
+            if (parent == null) {
+                throw new BusinessException(ErrorCode.PARENT_NOT_FOUND);
+            }
+            // 다른 프로젝트의 작업을 부모로 두면 어느 쪽 트리에도 온전히 속하지 않는다
+            if (!Objects.equals(parent.getProjectId(), task.getProjectId())) {
+                throw new BusinessException(ErrorCode.PARENT_OTHER_PROJECT);
+            }
             // 순환 검사: parentId의 조상들 중에 taskId가 있으면 안 됨
             if (isAncestor(taskId, parentId)) {
                 throw new BusinessException(ErrorCode.CIRCULAR_PARENT);
@@ -236,8 +262,12 @@ public class TaskService {
         return false;
     }
 
-    public List<TaskTreeResponse> getProjectTree(Long projectId) {
-        List<Task> all = taskMapper.findByProjectIdNotDeleted(projectId);
+    public List<TaskTreeResponse> getProjectTree(LoginUser loginUser, Long projectId) {
+        // 프로젝트 멤버라도 남의 비공개 작업·개인 투두까지 볼 수 있으면 안 된다.
+        // (단건 조회 get()은 canView를 타는데 트리 조회만 빠져 있었다)
+        List<Task> all = taskMapper.findByProjectIdNotDeleted(projectId).stream()
+                .filter(t -> canView(loginUser, t))
+                .toList();
 
         Map<Long, TaskTreeResponse> map = new LinkedHashMap<>();
         for (Task t : all) {
@@ -246,32 +276,51 @@ public class TaskService {
 
         List<TaskTreeResponse> roots = new ArrayList<>();
         for (Task t : all) {
-            if (t.getParentTaskId() == null) {
-                roots.add(map.get(t.getId()));
+            TaskTreeResponse parent = (t.getParentTaskId() == null)
+                    ? null
+                    : map.get(t.getParentTaskId());
+
+            if (parent != null) {
+                parent.getChildren().add(map.get(t.getId()));
             } else {
-                TaskTreeResponse parent = map.get(t.getParentTaskId());
-                if (parent != null) {
-                    parent.getChildren().add(map.get(t.getId()));
-                }
+                // 최상위이거나, 부모가 이 목록에 없는 경우(삭제됨 / 볼 권한 없음 / 다른 프로젝트).
+                // 예전처럼 그냥 버리면 자기 자신은 물론 하위 트리까지 통째로 화면에서
+                // 사라지고 UI로는 되살릴 방법이 없다. 최상위로 끌어올려 보이게 한다.
+                roots.add(map.get(t.getId()));
             }
         }
         return roots;
     }
 
+    // 담당자 전체 교체.
+    // ★ @Transactional 필수 ★ delete 후 insert가 실패하면(존재하지 않는 user_id로 FK 위반 등)
+    // 트랜잭션이 없을 때는 delete만 커밋되어 담당자가 0명인 채로 남는다.
+    @Transactional
     public void replaceAssignees(LoginUser loginUser, Long taskId, List<Long> userIds) {
         getEditable(loginUser, taskId); // 권한 확인
+
+        // 이미 담당자인 사람에게 또 알림을 보내지 않기 위해 교체 전 명단을 기억해둔다
+        Set<Long> before = new HashSet<>(assigneeMapper.findUserIdsByTaskId(taskId));
+
         assigneeMapper.deleteByTaskId(taskId);
         if (userIds != null && !userIds.isEmpty()) {
-            assigneeMapper.insertBatch(taskId, userIds);
+            // 같은 사람이 두 번 들어오면 UNIQUE(task_id, user_id) 위반이 난다
+            List<Long> targets = userIds.stream().distinct().toList();
+            assigneeMapper.insertBatch(taskId, targets);
+
             // 제목을 루프 밖에서 한 번만 조회 (N+1 방지)
             String title = taskMapper.findByIdNotDeleted(taskId).getTitle();
-            for (Long uid : userIds) {
+            for (Long uid : targets) {
+                if (before.contains(uid)) {
+                    continue; // 원래 담당자였던 사람은 새 지정이 아니다
+                }
                 notificationService.notifyNow(uid, taskId, "ASSIGN",
                         "'" + title + "' 작업의 담당자로 지정되었습니다.");
             }
         }
     }
 
+    @Transactional
     public void inviteParticipants(LoginUser loginUser, Long taskId,
             List<Long> userIds, Boolean required) {
         getEditable(loginUser, taskId); // 권한 확인
@@ -279,12 +328,31 @@ public class TaskService {
             return;
         }
 
-        participantMapper.insertBatch(taskId, userIds, Boolean.TRUE.equals(required));
+        // 기존 참석자를 "필수 여부까지" 기억해둔다.
+        // 누가 새로 초대됐는지, 누가 선택 → 필수로 바뀌었는지 구분해야
+        // 초대 버튼을 다시 눌렀을 때 중복 알림이 가지 않는다.
+        Map<Long, Boolean> beforeRequired = participantMapper.findByTaskId(taskId).stream()
+                .collect(Collectors.toMap(TaskParticipant::getUserId,
+                        TaskParticipant::isRequired));
+
+        List<Long> targets = userIds.stream().distinct().toList();
+        boolean nowRequired = Boolean.TRUE.equals(required);
+
+        participantMapper.insertBatch(taskId, targets, nowRequired);
 
         String title = taskMapper.findByIdNotDeleted(taskId).getTitle();
-        for (Long uid : userIds) {
-            notificationService.notifyNow(uid, taskId, "INVITE",
-                    "'" + title + "' 일정에 초대되었습니다.");
+        for (Long uid : targets) {
+            Boolean wasRequired = beforeRequired.get(uid);
+
+            if (wasRequired == null) {
+                notificationService.notifyNow(uid, taskId, "INVITE",
+                        "'" + title + "' 일정에 초대되었습니다.");
+            } else if (nowRequired && !wasRequired) {
+                // 이미 참석자지만 선택 → 필수로 승격됐다. 알릴 만한 변화다.
+                notificationService.notifyNow(uid, taskId, "INVITE",
+                        "'" + title + "' 일정의 필수 참석자로 변경되었습니다.");
+            }
+            // 그 외(변화 없음, 필수 → 선택)는 알리지 않는다
         }
     }
 
@@ -302,8 +370,32 @@ public class TaskService {
                 .stream().map(TaskParticipantResponse::from).toList();
     }
 
+    // 담당자 목록 — PUT /assignees가 전체 교체라, 화면이 현재 담당자를 먼저 읽어야
+    // "안 보이는 사람을 실수로 지우는" 사고를 막을 수 있다.
+    public List<UserSummaryResponse> getAssignees(LoginUser loginUser, Long taskId) {
+        Task task = taskMapper.findByIdNotDeleted(taskId);
+        if (task == null) {
+            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        }
+        if (!canView(loginUser, task)) {
+            throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
+        }
+        return assigneeMapper.findAssigneesByTaskId(taskId);
+    }
+
 // 내 응답 변경 — 본인 응답만 바꾸므로 편집 권한은 필요 없다
+    @Transactional
     public void respondToInvite(LoginUser loginUser, Long taskId, String responseStatus) {
-        participantMapper.updateResponse(taskId, loginUser.id(), responseStatus);
+        // @NotNull만으로는 아무 문자열이나 통과한다. 화면은 코드값을 그대로 렌더링하고,
+        // VARCHAR(20)을 넘으면 DB에서 잘리거나 에러가 난다.
+        if (!ALLOWED_RESPONSES.contains(responseStatus)) {
+            throw new BusinessException(ErrorCode.INVALID_PARTICIPANT_RESPONSE);
+        }
+
+        int updated = participantMapper.updateResponse(taskId, loginUser.id(), responseStatus);
+        if (updated == 0) {
+            // 참석자가 아니면 0건이 갱신된다. 그대로 200을 주면 호출자가 성공으로 오해한다.
+            throw new BusinessException(ErrorCode.NOT_PARTICIPANT);
+        }
     }
 }
