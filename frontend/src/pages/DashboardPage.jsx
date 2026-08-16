@@ -29,6 +29,7 @@ export default function DashboardPage() {
 
   const [todayTodos, setTodayTodos] = useState([]);
   const [todayEvents, setTodayEvents] = useState([]);
+  const [todayWbsTasks, setTodayWbsTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [detailId, setDetailId] = useState(null);
 
@@ -38,11 +39,13 @@ export default function DashboardPage() {
       const data = await statsApi.getDashboard();
       setTodayTodos(data.todayTodos ?? []);
       setTodayEvents(data.todayEvents ?? []);
+      setTodayWbsTasks(data.todayWbsTasks ?? []);
     } catch (err) {
       // catch가 없으면 조회 실패와 "정말 비어 있음"이 화면에서 구분되지 않는다.
       toast.apiError(err);
       setTodayTodos([]);
       setTodayEvents([]);
+      setTodayWbsTasks([]);
     } finally {
       setLoading(false);
     }
@@ -67,7 +70,7 @@ export default function DashboardPage() {
         sx={{
           display: 'grid',
           gap: 2,
-          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr', lg: '1fr 1fr 1fr' },
           alignItems: 'start',
         }}
       >
@@ -135,6 +138,38 @@ export default function DashboardPage() {
                       ? '종일'
                       : `${formatDateTime(t.startDate)} ~ ${formatDateTime(t.endDate)}`
                   }
+                />
+              </ListItemButton>
+            ))}
+          </List>
+        </Card>
+
+        <Card variant="outlined">
+          <CardContent>
+            <Typography variant="subtitle1" fontWeight={700}>
+              오늘 WBS 작업 ({todayWbsTasks.length})
+            </Typography>
+          </CardContent>
+          <Divider />
+          <List dense disablePadding>
+            {todayWbsTasks.length === 0 && (
+              <ListItem>
+                <ListItemText
+                  primary="오늘 걸쳐 있는 WBS 작업이 없습니다."
+                  slotProps={{ primary: { color: 'text.secondary' } }}
+                />
+              </ListItem>
+            )}
+            {todayWbsTasks.map((t) => (
+              <ListItemButton key={t.id} divider onClick={() => setDetailId(t.id)}>
+                <ListItemText
+                  primary={t.title}
+                  secondary={t.endDate ? `마감 ${formatDateTime(t.endDate)}` : '마감 없음'}
+                />
+                <Chip
+                  size="small"
+                  color={STATUS_COLOR[t.status]}
+                  label={STATUS[t.status] ?? t.status}
                 />
               </ListItemButton>
             ))}

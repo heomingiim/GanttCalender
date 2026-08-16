@@ -9,6 +9,8 @@ import java.util.Set;
 
 import org.springframework.stereotype.Service;
 
+import com.durian.groupware.department.service.DepartmentService;
+import com.durian.groupware.global.auth.LoginUser;
 import com.durian.groupware.global.auth.exception.BusinessException;
 import com.durian.groupware.global.auth.exception.ErrorCode;
 import com.durian.groupware.stats.dto.DashboardResponse;
@@ -24,12 +26,13 @@ import lombok.RequiredArgsConstructor;
 public class StatsService {
 
     private final StatsMapper statsMapper;
+    private final DepartmentService departmentService;
 
     private static final Set<String> UNITS = Set.of("DAY", "WEEK", "MONTH");
     private static final long MAX_DAYS = 366;
 
-    public StatsResponse getPersonalStats(Long userId, String unit,
-            LocalDate from, LocalDate to) {
+    public StatsResponse getPersonalStats(LoginUser loginUser, String unit,
+            LocalDate from, LocalDate to, String scope) {
 
         String resolvedUnit = (unit == null || unit.isBlank())
                 ? "MONTH"
@@ -48,8 +51,12 @@ public class StatsService {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
 
+        // 캘린더 팀 스코프와 같은 방식: MY면 빈 리스트(= 본인만), TEAM이면 부서 id들
+        List<Long> deptIds = departmentService.resolveScopeDeptIds(loginUser, scope);
+
         List<StatRow> rows = statsMapper.getStats(
-                userId,
+                loginUser.id(),
+                deptIds,
                 resolvedFrom.atStartOfDay(),
                 resolvedTo.atTime(23, 59, 59),
                 resolvedUnit
@@ -72,7 +79,9 @@ public class StatsService {
                 .stream().map(TaskResponse::from).toList();
         List<TaskResponse> events = statsMapper.findTodayEvents(userId)
                 .stream().map(TaskResponse::from).toList();
-        return new DashboardResponse(todos, events);
+        List<TaskResponse> wbsTasks = statsMapper.findTodayWbsTasks(userId)
+                .stream().map(TaskResponse::from).toList();
+        return new DashboardResponse(todos, events, wbsTasks);
     }
 
     // from을 안 주면 단위에 맞는 기본 구간을 잡는다

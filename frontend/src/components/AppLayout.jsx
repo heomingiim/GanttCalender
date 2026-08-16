@@ -55,15 +55,17 @@ export default function AppLayout() {
 
   // NavLink는 현재 경로와 일치하면 isActive=true를 넘겨준다.
   // end 옵션이 없으면 '/'가 모든 경로에 매칭되어 항상 활성화된다.
+  // 사이드바 전체를 세로 flex로 두고 nav List만 flexGrow시켜서,
+  // 아래쪽 사용자 정보 블록이 항상 바닥에 붙어 있게 만든다.
   const drawerContent = (
-    <Box>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Toolbar>
         <Typography variant="h6" color="primary" noWrap>
           두리안 그룹웨어
         </Typography>
       </Toolbar>
       <Divider />
-      <List>
+      <List sx={{ flexGrow: 1 }}>
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.to}
@@ -88,6 +90,42 @@ export default function AppLayout() {
           </NavLink>
         ))}
       </List>
+
+      <Divider />
+      {/*
+        ListItemButton은 MUI가 내부적으로 최소 높이·패딩 클래스를 갖고 있어서
+        sx로 py를 줄여도 위아래 여백이 잘 안 줄었다. 그래서 여기만 일반 Box +
+        onClick으로 바꿔서 패딩을 코드에 쓴 값 그대로 확실하게 반영시킨다.
+      */}
+      <Box
+        onClick={(e) => setAnchorEl(e.currentTarget)}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          px: 1.5,
+          py: '10px',
+          cursor: 'pointer',
+          '&:hover': { bgcolor: 'action.hover' },
+        }}
+      >
+        <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 14, flexShrink: 0 }}>
+          {user?.name?.charAt(0) ?? '?'}
+        </Avatar>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography noWrap sx={{ fontSize: 12, fontWeight: 700, lineHeight: 1.4 }}>
+            {user?.name}
+            {user?.role ? ` · ${USER_ROLE[user.role] ?? user.role}` : ''}
+          </Typography>
+          <Typography color="text.secondary" noWrap sx={{ fontSize: 10, lineHeight: 1.4, display: 'block' }}>
+            {user?.positionRank ? `${user.positionRank} · ` : ''}
+            {user?.departmentName ?? '부서 없음'}
+          </Typography>
+          <Typography color="text.secondary" noWrap sx={{ fontSize: 10, lineHeight: 1.4, display: 'block' }}>
+            {user?.employeeNumber}
+          </Typography>
+        </Box>
+      </Box>
     </Box>
   );
 
@@ -131,10 +169,16 @@ export default function AppLayout() {
               <Box>
                 <Typography variant="body2" fontWeight={700}>
                   {user?.name} ({USER_ROLE[user?.role] ?? user?.role})
+                  {user?.positionRank ? ` · ${user.positionRank}` : ''}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {user?.employeeNumber}
+                <Typography variant="caption" color="text.secondary" component="div">
+                  {user?.departmentName ?? '부서 없음'} · {user?.employeeNumber}
                 </Typography>
+                {user?.email && (
+                  <Typography variant="caption" color="text.secondary" component="div">
+                    {user.email}
+                  </Typography>
+                )}
               </Box>
             </MenuItem>
             <Divider />

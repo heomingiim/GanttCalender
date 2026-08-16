@@ -22,7 +22,7 @@ public class StatsController {
 
     private final StatsService statsService;
 
-    // GET /api/stats/personal?unit=WEEK&from=2026-07-01&to=2026-08-12
+    // GET /api/stats/personal?unit=WEEK&from=2026-07-01&to=2026-08-12&scope=TEAM
     @GetMapping("/personal")
     public StatsResponse personal(
             @Login LoginUser loginUser,
@@ -30,8 +30,9 @@ public class StatsController {
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false, defaultValue = "MY") String scope) {
 
-        return statsService.getPersonalStats(loginUser.id(), unit, from, to);
+        return statsService.getPersonalStats(loginUser, unit, from, to, scope);
     }
 }

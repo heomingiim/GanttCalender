@@ -7,11 +7,15 @@ import {
   LinearProgress,
   MenuItem,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from '@mui/material';
 
 import * as statsApi from '../api/stats';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { STATUS, STATUS_BAR_COLOR } from '../utils/constants';
 
 const UNITS = [
@@ -19,6 +23,24 @@ const UNITS = [
   { value: 'WEEK', label: '주별' },
   { value: 'MONTH', label: '월별' },
 ];
+
+// statusCounts를 CSS conic-gradient 문자열로 바꾼다. 차트 라이브러리 없이
+// <Box>의 background만으로 원형 그래프를 그리는 방법 — 도넛 하나에 색 구간을
+// 각도(0~360deg)로 순서대로 이어 붙이면 된다. 값이 없으면 회색 원 하나로 채운다.
+function buildConicGradient(statusCounts, total) {
+  if (total === 0) return 'conic-gradient(#e0e0e0 0deg 360deg)';
+
+  let angle = 0;
+  const stops = [];
+  for (const code of Object.keys(STATUS)) {
+    const count = statusCounts[code] ?? 0;
+    if (count === 0) continue;
+    const next = angle + (count / total) * 360;
+    stops.push(`${STATUS_BAR_COLOR[code]} ${angle}deg ${next}deg`);
+    angle = next;
+  }
+  return `conic-gradient(${stops.join(', ')})`;
+}
 
 // 2026-08 → 8월, 2026-W33 → 33주차, 2026-08-12 → 8/12
 function periodLabel(period) {
@@ -41,7 +63,11 @@ function periodLabel(period) {
  * (의존성을 늘리지 않으려는 선택이자, 비율 → 픽셀 환산이 어떻게 되는지 보여주는 예)
  */
 export default function StatsPage() {
+  const { user } = useAuth();
+  const toast = useToast();
+
   const [unit, setUnit] = useState('MONTH');
+  const [scope, setScope] = useState('MY');
   // 빈 문자열이면 서버가 기본 구간을 정한다
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -68,6 +94,7 @@ export default function StatsPage() {
         unit,
         from: from || undefined,
         to: to || undefined,
+        scope,
       });
       if (requestId !== requestIdRef.current) return; // 그 사이 더 최신 요청이 나감
 
@@ -92,7 +119,7 @@ export default function StatsPage() {
     } finally {
       if (requestId === requestIdRef.current) setLoading(false);
     }
-  }, [unit, from, to]);
+  }, [unit, scope, from, to]);
 
   useEffect(() => {
     // 방금 load()가 서버 기본값으로 from/to를 채운 것 때문에 이 effect가
@@ -109,6 +136,15 @@ export default function StatsPage() {
     setUnit(value);
     setFrom('');
     setTo('');
+  };
+
+  const handleScopeChange = (_e, next) => {
+    if (!next) return; // 같은 버튼을 다시 누르면 null이 온다 — 무시
+    if (next === 'TEAM' && !user?.departmentId) {
+      toast.error('소속 부서가 없어 팀 통계를 조회할 수 없습니다.');
+      return;
+    }
+    setScope(next);
   };
 
   const maxCount = Math.max(1, ...Object.values(statusCounts));
@@ -131,8 +167,12 @@ export default function StatsPage() {
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
         <Typography variant="h5" sx={{ flexGrow: 1 }}>
-          개인 통계
+          {scope === 'TEAM' ? '팀 통계' : '개인 통계'}
         </Typography>
+        <ToggleButtonGroup value={scope} exclusive size="small" onChange={handleScopeChange}>
+          <ToggleButton value="MY">개인</ToggleButton>
+          <ToggleButton value="TEAM">팀</ToggleButton>
+        </ToggleButtonGroup>
         <TextField
           select
           size="small"
@@ -178,14 +218,51 @@ export default function StatsPage() {
             상태별 작업 수
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            전체 {total}건
+            {scope === 'TEAM' ? '부서 전체' : '전체'} {total}건
           </Typography>
 
           {total === 0 && (
             <Typography color="text.secondary">집계할 작업이 없습니다.</Typography>
           )}
 
-          <Box sx={{ display: 'grid', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+            {/*
+              도넛은 바깥 원(conic-gradient)과 안쪽에 배경색으로 덮은 작은 원,
+              이렇게 두 겹으로 만든다 — 링 두께를 border 대신 이 방식으로 주면
+              conic-gradient 각도 계산이 안쪽 반지름까지 신경 쓸 필요가 없어 더 단순하다.
+            */}
+            <Box
+              sx={{
+                position: 'relative',
+                width: 140,
+                height: 140,
+                borderRadius: '50%',
+                background: buildConicGradient(statusCounts, total),
+                flexShrink: 0,
+              }}
+            >
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 22,
+                  borderRadius: '50%',
+                  bgcolor: 'background.paper',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Typography variant="h6" fontWeight={700} lineHeight={1.1}>
+                  {total}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  건
+                </Typography>
+              </Box>
+            </Box>
+
+          <Box sx={{ display: 'grid', gap: 2, flexGrow: 1, minWidth: 240 }}>
             {Object.entries(STATUS).map(([code, label]) => {
               const count = statusCounts[code] ?? 0;
               // 가장 큰 값을 100%로 두고 나머지를 상대 비율로 그린다
@@ -221,6 +298,7 @@ export default function StatsPage() {
                 </Box>
               );
             })}
+          </Box>
           </Box>
         </CardContent>
       </Card>
