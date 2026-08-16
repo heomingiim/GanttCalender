@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -11,15 +11,20 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  InputAdornment,
+  MenuItem,
   TextField,
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from '@mui/icons-material/Search';
 
 import * as projectApi from '../api/projects';
 import { useToast } from '../contexts/ToastContext';
+import DateRangePickerField from '../components/DateRangePickerField';
 import { PROJECT_STATUS, PROJECT_STATUS_COLOR } from '../utils/constants';
 import { formatDate } from '../utils/date';
+import { pillSearchSx } from '../utils/uiStyles';
 
 /**
  * 내가 속한 프로젝트 목록 + 생성.
@@ -30,6 +35,10 @@ export default function ProjectListPage() {
   const navigate = useNavigate();
 
   const [projects, setProjects] = useState([]);
+  const [keyword, setKeyword] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: '', description: '', startDate: '', endDate: '' });
   const [saving, setSaving] = useState(false);
@@ -46,6 +55,25 @@ export default function ProjectListPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const filteredProjects = useMemo(() => {
+    const q = keyword.trim().toLowerCase();
+    return projects.filter((p) => {
+      if (q && !p.name?.toLowerCase().includes(q) && !p.description?.toLowerCase().includes(q)) {
+        return false;
+      }
+      if (statusFilter && p.status !== statusFilter) {
+        return false;
+      }
+      if (fromDate && p.endDate && p.endDate < fromDate) {
+        return false;
+      }
+      if (toDate && p.startDate && p.startDate > toDate) {
+        return false;
+      }
+      return true;
+    });
+  }, [projects, keyword, statusFilter, fromDate, toDate]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -77,10 +105,50 @@ export default function ProjectListPage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1, flexWrap: 'wrap' }}>
         <Typography variant="h5" sx={{ flexGrow: 1 }}>
           프로젝트
         </Typography>
+        <TextField
+          size="small"
+          placeholder="이름·설명 검색"
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          sx={pillSearchSx}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+        <TextField
+          select
+          size="small"
+          label="상태"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          sx={{ minWidth: 110, '& .MuiInputBase-root': { height: 40 } }}
+        >
+          <MenuItem value="">전체</MenuItem>
+          {Object.entries(PROJECT_STATUS).map(([code, label]) => (
+            <MenuItem key={code} value={code}>
+              {label}
+            </MenuItem>
+          ))}
+        </TextField>
+        <DateRangePickerField
+          from={fromDate}
+          to={toDate}
+          onChange={(f, t) => {
+            setFromDate(f);
+            setToDate(t);
+          }}
+          placeholder="기간"
+        />
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>
           프로젝트 생성
         </Button>
@@ -98,8 +166,11 @@ export default function ProjectListPage() {
             참여 중인 프로젝트가 없습니다. 새로 만들어 보세요.
           </Typography>
         )}
+        {projects.length > 0 && filteredProjects.length === 0 && (
+          <Typography color="text.secondary">검색 결과가 없습니다.</Typography>
+        )}
 
-        {projects.map((p) => (
+        {filteredProjects.map((p) => (
           <Card key={p.id} variant="outlined">
             <CardActionArea onClick={() => navigate(`/projects/${p.id}`)}>
               <CardContent>

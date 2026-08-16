@@ -24,6 +24,7 @@ public class Task {
     private String status;     // TODO / IN_PROGRESS / DONE / CANCELLED
     private String priority;   // LOW / MEDIUM / HIGH
     private int progressRate;
+    private int sortOrder;
     private boolean deleted;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

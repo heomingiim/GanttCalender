@@ -27,6 +27,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/Delete';
 
 import * as projectApi from '../api/projects';
+import * as taskApi from '../api/tasks';
 import { listCategories } from '../api/categories';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -390,6 +391,7 @@ function MemberTab({ projectId, members, isAdmin, onChanged }) {
 
 // ── WBS · 간트 탭 ────────────────────────────────────────────
 function WbsGanttTab({ project, projectId, flatTasks, categories, onChanged }) {
+  const toast = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [detailId, setDetailId] = useState(null);
@@ -399,6 +401,15 @@ function WbsGanttTab({ project, projectId, flatTasks, categories, onChanged }) {
     setEditingTask(null);
     setParentForNew(parentTaskId);
     setFormOpen(true);
+  };
+
+  const handleReorder = async (ids) => {
+    try {
+      await taskApi.reorderTasks(ids);
+      onChanged();
+    } catch (err) {
+      toast.apiError(err);
+    }
   };
 
   return (
@@ -415,6 +426,7 @@ function WbsGanttTab({ project, projectId, flatTasks, categories, onChanged }) {
         rangeEnd={project?.endDate}
         onRowClick={setDetailId}
         onAddChild={openCreate}
+        onReorder={handleReorder}
       />
 
       <TaskFormDialog

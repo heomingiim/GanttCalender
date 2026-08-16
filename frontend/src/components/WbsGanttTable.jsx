@@ -12,6 +12,8 @@ import {
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 
 import {
   buildWorkdayColumns,
@@ -64,8 +66,21 @@ export default function WbsGanttTable({
   rangeEnd,
   onRowClick,
   onAddChild,
+  onReorder,
 }) {
   const numbered = withDisplayNumbers(tasks);
+
+  const siblingIds = (parentTaskId) =>
+    numbered.filter((t) => t.parentTaskId === parentTaskId).map((t) => t.id);
+
+  const moveSibling = (t, direction) => {
+    const group = siblingIds(t.parentTaskId);
+    const idx = group.indexOf(t.id);
+    const target = idx + direction;
+    if (target < 0 || target >= group.length) return;
+    [group[idx], group[target]] = [group[target], group[idx]];
+    onReorder?.(group);
+  };
 
   let start = rangeStart;
   let end = rangeEnd;
@@ -88,7 +103,7 @@ export default function WbsGanttTable({
     );
   }
 
-  const totalCols = 9;
+  const totalCols = 10;
 
   return (
     <TableContainer sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
@@ -101,6 +116,7 @@ export default function WbsGanttTable({
       >
         <TableHead>
           <TableRow>
+            <TableCell rowSpan={2} sx={{ width: 56 }}>순서</TableCell>
             <TableCell rowSpan={2} sx={{ width: 44 }}>No</TableCell>
             <TableCell rowSpan={2} sx={{ width: 260 }}>작업</TableCell>
             <TableCell rowSpan={2} sx={{ width: 90 }}>담당자</TableCell>
@@ -147,11 +163,24 @@ export default function WbsGanttTable({
 
         <TableBody>
           {numbered.map((t) => {
+            const group = siblingIds(t.parentTaskId);
+            const idx = group.indexOf(t.id);
+            const canMoveUp = idx > 0;
+            const canMoveDown = idx < group.length - 1;
+
             if (t.depth === 0) {
               return (
                 <TableRow key={t.id} hover sx={{ bgcolor: 'action.hover' }}>
+                  <TableCell sx={{ p: 0 }} onClick={(e) => e.stopPropagation()}>
+                    <IconButton size="small" disabled={!canMoveUp} onClick={() => moveSibling(t, -1)}>
+                      <ArrowUpwardIcon fontSize="inherit" />
+                    </IconButton>
+                    <IconButton size="small" disabled={!canMoveDown} onClick={() => moveSibling(t, 1)}>
+                      <ArrowDownwardIcon fontSize="inherit" />
+                    </IconButton>
+                  </TableCell>
                   <TableCell
-                    colSpan={totalCols}
+                    colSpan={totalCols - 1}
                     sx={{ cursor: 'pointer' }}
                     onClick={() => onRowClick?.(t.id)}
                   >
@@ -179,6 +208,14 @@ export default function WbsGanttTable({
 
             return (
               <TableRow key={t.id} hover>
+                <TableCell sx={{ p: 0 }}>
+                  <IconButton size="small" disabled={!canMoveUp} onClick={() => moveSibling(t, -1)}>
+                    <ArrowUpwardIcon fontSize="inherit" />
+                  </IconButton>
+                  <IconButton size="small" disabled={!canMoveDown} onClick={() => moveSibling(t, 1)}>
+                    <ArrowDownwardIcon fontSize="inherit" />
+                  </IconButton>
+                </TableCell>
                 <TableCell sx={{ fontSize: 12, color: 'text.secondary' }}>{t.displayNo}</TableCell>
                 <TableCell
                   sx={{ pl: 1 + t.depth * 2, cursor: 'pointer' }}

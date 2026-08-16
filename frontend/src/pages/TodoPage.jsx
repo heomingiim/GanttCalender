@@ -21,6 +21,8 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 
 import * as taskApi from '../api/tasks';
 import { listCategories } from '../api/categories';
@@ -30,8 +32,18 @@ import { useAuth } from '../contexts/AuthContext';
 import TaskFormDialog from '../components/TaskFormDialog';
 import TaskDetailDialog from '../components/TaskDetailDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
+import DateRangePickerField from '../components/DateRangePickerField';
 import { PRIORITY, PRIORITY_COLOR, STATUS, STATUS_COLOR, TASK_TYPE } from '../utils/constants';
-import { formatDateTime } from '../utils/date';
+import { formatDate, isSameDay } from '../utils/date';
+import { pillSearchSx } from '../utils/uiStyles';
+
+function dueUrgency(todo) {
+  if (!todo.endDate || ['DONE', 'CANCELLED'].includes(todo.status)) return null;
+  const today = new Date();
+  if (isSameDay(todo.endDate, today)) return 'TODAY';
+  if (new Date(todo.endDate) < today) return 'OVERDUE';
+  return null;
+}
 
 /**
  * 투두리스트.
@@ -48,6 +60,8 @@ export default function TodoPage() {
   const [projectId, setProjectId] = useState('');
   const [keyword, setKeyword] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   const [categories, setCategories] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -60,7 +74,13 @@ export default function TodoPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const list = await taskApi.getMyTodos({ status, projectId, keyword });
+      const list = await taskApi.getMyTodos({
+        status,
+        projectId,
+        keyword,
+        from: fromDate,
+        to: toDate,
+      });
       setTodos(Array.isArray(list) ? list : []);
     } catch (err) {
       toast.apiError(err);
@@ -68,7 +88,7 @@ export default function TodoPage() {
     } finally {
       setLoading(false);
     }
-  }, [status, projectId, keyword, toast]);
+  }, [status, projectId, keyword, fromDate, toDate, toast]);
 
   // status/projectId/keyword가 바뀌면 load 함수가 새로 만들어지고,
   // 그걸 의존성으로 걸어둔 이 effect가 다시 돌면서 재조회한다.
@@ -122,6 +142,23 @@ export default function TodoPage() {
     setKeyword(searchInput);
   };
 
+  const moveRow = async (index, direction) => {
+    const target = index + direction;
+    if (target < 0 || target >= todos.length) return;
+
+    const snapshot = todos;
+    const next = [...todos];
+    [next[index], next[target]] = [next[target], next[index]];
+    setTodos(next);
+
+    try {
+      await taskApi.reorderTasks(next.map((t) => t.id));
+    } catch (err) {
+      setTodos(snapshot);
+      toast.apiError(err);
+    }
+  };
+
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1, flexWrap: 'wrap' }}>
@@ -135,7 +172,7 @@ export default function TodoPage() {
           label="상태"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          sx={{ minWidth: 120 }}
+          sx={{ minWidth: 120, '& .MuiInputBase-root': { height: 40 } }}
         >
           <MenuItem value="">전체</MenuItem>
           {Object.entries(STATUS).map(([code, label]) => (
@@ -151,7 +188,7 @@ export default function TodoPage() {
           label="프로젝트"
           value={projectId}
           onChange={(e) => setProjectId(e.target.value)}
-          sx={{ minWidth: 160 }}
+          sx={{ minWidth: 160, '& .MuiInputBase-root': { height: 40 } }}
         >
           <MenuItem value="">전체</MenuItem>
           {projects.map((p) => (
@@ -161,12 +198,23 @@ export default function TodoPage() {
           ))}
         </TextField>
 
+        <DateRangePickerField
+          from={fromDate}
+          to={toDate}
+          onChange={(f, t) => {
+            setFromDate(f);
+            setToDate(t);
+          }}
+          placeholder="기간"
+        />
+
         <Box component="form" onSubmit={handleSearch}>
           <TextField
             size="small"
             placeholder="제목 검색"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
+            sx={pillSearchSx}
             slotProps={{
               input: {
                 startAdornment: (
@@ -197,32 +245,56 @@ export default function TodoPage() {
         <Table size="small">
           <TableHead>
             <TableRow>
+              <TableCell width={64} />
               <TableCell padding="checkbox" />
               <TableCell>제목</TableCell>
               <TableCell width={90}>구분</TableCell>
               <TableCell width={90}>상태</TableCell>
               <TableCell width={90}>우선순위</TableCell>
               <TableCell width={80}>진행률</TableCell>
-              <TableCell width={150}>마감</TableCell>
+              <TableCell width={260}>기간</TableCell>
               <TableCell width={60} />
             </TableRow>
           </TableHead>
           <TableBody>
             {todos.length === 0 && !loading && (
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 5, color: 'text.secondary' }}>
+                <TableCell colSpan={9} align="center" sx={{ py: 5, color: 'text.secondary' }}>
                   할 일이 없습니다.
                 </TableCell>
               </TableRow>
             )}
 
-            {todos.map((todo) => {
+            {todos.map((todo, index) => {
               const done = todo.status === 'DONE';
               // WBS 작업은 담당자로 지정만 되어도 이 목록에 뜬다. 상태 변경·삭제는
               // 작성자만 할 수 있어서(canEdit), 남이 만든 걸 여기서 건드리면 403이 난다.
               const mine = todo.creatorId === user?.id;
+              const urgency = dueUrgency(todo);
               return (
-                <TableRow key={todo.id} hover>
+                <TableRow
+                  key={todo.id}
+                  hover
+                  sx={
+                    urgency === 'OVERDUE'
+                      ? { bgcolor: 'rgba(211, 47, 47, 0.14)' }
+                      : urgency === 'TODAY'
+                        ? { bgcolor: 'rgba(211, 47, 47, 0.08)' }
+                        : undefined
+                  }
+                >
+                  <TableCell sx={{ p: 0 }}>
+                    <IconButton size="small" disabled={index === 0} onClick={() => moveRow(index, -1)}>
+                      <ArrowUpwardIcon fontSize="inherit" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      disabled={index === todos.length - 1}
+                      onClick={() => moveRow(index, 1)}
+                    >
+                      <ArrowDownwardIcon fontSize="inherit" />
+                    </IconButton>
+                  </TableCell>
                   <TableCell padding="checkbox">
                     <Checkbox
                       checked={done}
@@ -264,7 +336,22 @@ export default function TodoPage() {
                     />
                   </TableCell>
                   <TableCell>{todo.progressRate}%</TableCell>
-                  <TableCell>{formatDateTime(todo.endDate)}</TableCell>
+                  <TableCell sx={{ fontSize: 13 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                      {todo.startDate || todo.endDate
+                        ? `${formatDate(todo.startDate)} ~ ${formatDate(todo.endDate)}`
+                        : '-'}
+                      {urgency && (
+                        <Chip
+                          size="small"
+                          color="error"
+                          variant={urgency === 'OVERDUE' ? 'filled' : 'outlined'}
+                          label={urgency === 'OVERDUE' ? '마감 지남' : '오늘 마감'}
+                          sx={{ fontWeight: 700 }}
+                        />
+                      )}
+                    </Box>
+                  </TableCell>
                   <TableCell>
                     {mine && (
                       <IconButton size="small" onClick={() => setDeleteTarget(todo)}>
@@ -287,7 +374,6 @@ export default function TodoPage() {
         categories={categories}
         defaultType="TODO"
         lockType
-        projects={projects}
       />
 
       <TaskDetailDialog

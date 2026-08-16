@@ -4,7 +4,6 @@
 
 <mapper namespace="com.durian.groupware.stats.mapper.StatsMapper">
 
-    <!-- unit은 포맷 문자열 자리라 #{}로 못 넘긴다. ${}는 주입 위험이 있어 <choose>로 고정값만 고른다 -->
     <sql id="periodExpr">
         <choose>
             <when test="unit == 'DAY'">DATE_FORMAT(t.created_at, '%Y-%m-%d')</when>
@@ -13,13 +12,6 @@
         </choose>
     </sql>
 
-    <!--
-        TODO/EVENT는 "내가 만든 것", WBS_TASK는 "내가 담당자인 것" — findOpenTodos와
-        같은 기준이다. 예전엔 WBS_TASK를 통계에서 통째로 뺐는데, 그러면 담당 WBS 작업이
-        대시보드·투두·캘린더에는 다 잡히면서 통계에서만 안 보이는 모순이 생긴다.
-        TEAM 스코프도 마찬가지로 TODO/EVENT는 부서원의 creator 기준, WBS_TASK는
-        부서원이 담당자로 걸린 것 기준으로 맞춘다.
-    -->
     <select id="getStats" resultType="StatRow">
         SELECT period, status, COUNT(*) AS count FROM (
             SELECT <include refid="periodExpr"/> AS period, t.status AS status

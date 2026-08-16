@@ -3,9 +3,9 @@ import { createTheme } from '@mui/material/styles';
 // MUI 테마. 색/폰트/컴포넌트 기본값을 한 곳에서 정한다.
 const theme = createTheme({
   palette: {
-    primary: { main: '#2e6f40' },   // 두리안 그린
-    secondary: { main: '#f9a825' },
-    background: { default: '#f5f6f8' },
+    primary: { main: '#567C83', dark: '#425F65', light: '#3AAEA9' },
+    secondary: { main: '#A2D5AB' },
+    background: { default: '#F3F7E4' },
   },
   typography: {
     fontFamily:

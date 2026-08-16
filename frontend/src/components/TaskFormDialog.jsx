@@ -39,7 +39,6 @@ const EMPTY = {
   status: 'TODO',
   priority: 'MEDIUM',
   categoryId: '',
-  projectId: '', // ''(빈 값) = 개인 투두. projects prop이 있을 때만 화면에 노출
   parentTaskId: '', // 상위 작업. parentOptions prop이 있는 수정 화면에서만 노출
 };
 
@@ -63,7 +62,6 @@ export default function TaskFormDialog({
   projectId = null,     // WBS 작업 생성 시: 고정된 프로젝트(선택 UI 없음)
   parentTaskId = null,
   lockType = false,     // 타입 선택 막기 (투두 페이지 등)
-  projects = null,      // 있으면 "프로젝트" 선택 필드를 보여준다 (투두 페이지 등)
   parentOptions = null, // 있으면(수정 화면) "상위 작업" 선택 필드를 보여준다 (WBS만)
 }) {
   const toast = useToast();
@@ -89,7 +87,6 @@ export default function TaskFormDialog({
         status: task.status ?? 'TODO',
         priority: task.priority ?? 'MEDIUM',
         categoryId: task.categoryId ?? '',
-        projectId: task.projectId ?? '',
         parentTaskId: task.parentTaskId ?? '',
       });
     } else {
@@ -98,10 +95,9 @@ export default function TaskFormDialog({
         taskType: defaultType,
         startDate: toDateTimeInputValue(defaultStart),
         endDate: toDateTimeInputValue(defaultEnd),
-        projectId: projectId ?? '',
       });
     }
-  }, [open, task, defaultType, defaultStart, defaultEnd, projectId]);
+  }, [open, task, defaultType, defaultStart, defaultEnd]);
 
   // 입력 필드 하나를 바꾸는 공통 핸들러.
   // ...prev 로 기존 값을 복사한 뒤 한 필드만 덮어쓴다(불변성 유지).
@@ -152,14 +148,8 @@ export default function TaskFormDialog({
 
         toast.success('수정했습니다.');
       } else {
-        // projects prop이 있으면(투두 페이지) 사용자가 고른 값을, 없으면(WBS 작업 생성)
-        // 고정으로 넘어온 projectId prop을 그대로 쓴다.
-        const resolvedProjectId = projects
-          ? (form.projectId === '' ? null : Number(form.projectId))
-          : projectId;
-
         await taskApi.createTask({
-          projectId: resolvedProjectId,
+          projectId,
           parentTaskId,
           categoryId: form.categoryId === '' ? null : Number(form.categoryId),
           taskType: form.taskType,
@@ -283,24 +273,6 @@ export default function TaskFormDialog({
                   <MenuItem key={p.id} value={p.id}>
                     {'　'.repeat(p.depth)}
                     {p.title}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
-
-            {projects && !isEdit && (
-              <TextField
-                select
-                label="프로젝트"
-                value={form.projectId}
-                onChange={setField('projectId')}
-                size="small"
-                helperText="선택하면 프로젝트의 WBS·간트에도 나타납니다"
-              >
-                <MenuItem value="">개인 할 일 (프로젝트 없음)</MenuItem>
-                {projects.map((p) => (
-                  <MenuItem key={p.id} value={p.id}>
-                    {p.name}
                   </MenuItem>
                 ))}
               </TextField>

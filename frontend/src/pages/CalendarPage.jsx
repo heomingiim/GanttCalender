@@ -2,20 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
+import listPlugin from '@fullcalendar/list';
 import interactionPlugin from '@fullcalendar/interaction';
 import {
   Box,
   Button,
   Card,
   Checkbox,
-  FormControl,
+  Divider,
+  FormControlLabel,
+  FormGroup,
+  IconButton,
   InputAdornment,
-  InputLabel,
-  ListItemText,
-  MenuItem,
-  OutlinedInput,
-  Paper,
-  Select,
+  Stack,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
@@ -23,6 +22,8 @@ import {
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
 import * as taskApi from '../api/tasks';
 import { listCategories } from '../api/categories';
@@ -32,6 +33,18 @@ import TaskFormDialog from '../components/TaskFormDialog';
 import TaskDetailDialog from '../components/TaskDetailDialog';
 import { PRIORITY_HEX, TASK_TYPE } from '../utils/constants';
 import { fromDateTimeInputValue } from '../utils/date';
+import { segmentedToggleSx, pillSearchSx } from '../utils/uiStyles';
+
+const TYPE_DOT_COLOR = { TODO: '#90a4ae', EVENT: '#1976d2', WBS_TASK: '#7b1fa2' };
+
+const VIEW_OPTIONS = [
+  { value: 'dayGridMonth', label: '월간' },
+  { value: 'timeGridWeek', label: '주간' },
+  { value: 'timeGridDay', label: '일간' },
+  { value: 'listWeek', label: '목록' },
+];
+
+const segmentedSx = segmentedToggleSx;
 
 /**
  * 캘린더.
@@ -47,6 +60,7 @@ import { fromDateTimeInputValue } from '../utils/date';
 export default function CalendarPage() {
   const toast = useToast();
   const { user } = useAuth();
+  const calendarRef = useRef(null);
 
   // 서버가 준 원본 목록. FullCalendar용 변환은 typeFilter와 함께 useMemo로 파생시킨다
   // — 종류 체크박스를 눌렀다고 서버를 다시 부를 필요는 없다.
@@ -59,6 +73,10 @@ export default function CalendarPage() {
   // null = 아직 카테고리 목록을 못 받아서 필터링을 안 한다는 뜻(전부 통과).
   // 목록이 도착하면 "전체 선택" 상태로 채운다.
   const [categoryFilter, setCategoryFilter] = useState(null);
+
+  // 커스텀 툴바(제목·뷰 전환)를 직접 그리므로 FullCalendar의 헤더 대신 이 상태를 쓴다
+  const [viewType, setViewType] = useState('dayGridMonth');
+  const [title, setTitle] = useState('');
 
   // 다이얼로그 상태
   const [formOpen, setFormOpen] = useState(false);
@@ -92,6 +110,8 @@ export default function CalendarPage() {
   // 표시 기간이 바뀔 때(달 이동, 뷰 전환) 호출된다
   const handleDatesSet = (info) => {
     rangeRef.current = { start: info.start, end: info.end };
+    setViewType(info.view.type);
+    setTitle(info.view.title);
     loadEvents(info.start, info.end, scope, keyword);
   };
 
@@ -120,12 +140,24 @@ export default function CalendarPage() {
     refetch(scope, searchInput);
   };
 
-  const handleTypeFilterChange = (_e, next) => {
-    setTypeFilter(next); // 전부 해제해도 그대로 둔다 (아무것도 안 보이는 것도 유효한 선택)
+  const toggleType = (code) => {
+    setTypeFilter((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    ); // 전부 해제해도 그대로 둔다 (아무것도 안 보이는 것도 유효한 선택)
   };
 
-  const handleCategoryFilterChange = (event) => {
-    setCategoryFilter(event.target.value);
+  const toggleCategory = (id) => {
+    setCategoryFilter((prev) =>
+      (prev ?? []).includes(id) ? prev.filter((c) => c !== id) : [...(prev ?? []), id]
+    );
+  };
+
+  const goPrev = () => calendarRef.current?.getApi().prev();
+  const goNext = () => calendarRef.current?.getApi().next();
+  const goToday = () => calendarRef.current?.getApi().today();
+  const handleViewChange = (_e, next) => {
+    if (!next) return;
+    calendarRef.current?.getApi().changeView(next);
   };
 
   // 서버 Task → FullCalendar event 객체 변환 + 종류/카테고리 필터.
@@ -211,104 +243,198 @@ export default function CalendarPage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
-        <Typography variant="h5" sx={{ flexGrow: 1 }}>
-          캘린더
-        </Typography>
+      <Typography variant="h5" sx={{ mb: 2 }}>
+        캘린더
+      </Typography>
 
-        <ToggleButtonGroup value={scope} exclusive size="small" onChange={handleScopeChange}>
-          <ToggleButton value="MY">내 일정</ToggleButton>
-          <ToggleButton value="TEAM">팀 일정</ToggleButton>
-        </ToggleButtonGroup>
+      <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+        <Card
+          variant="outlined"
+          sx={{ width: 224, flexShrink: 0, p: 2, borderRadius: 3, position: 'sticky', top: 16 }}
+        >
+          <Button
+            fullWidth
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={openCreate}
+            sx={{ borderRadius: 999, mb: 2.5, boxShadow: 'none' }}
+          >
+            일정 등록
+          </Button>
 
-        <ToggleButtonGroup value={typeFilter} size="small" onChange={handleTypeFilterChange}>
-          {Object.entries(TASK_TYPE).map(([code, label]) => (
-            <ToggleButton key={code} value={code}>
-              {label}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
+          <ToggleButtonGroup
+            value={scope}
+            exclusive
+            fullWidth
+            size="small"
+            onChange={handleScopeChange}
+            sx={{ ...segmentedSx, mb: 2.5, display: 'flex' }}
+          >
+            <ToggleButton value="MY">내 일정</ToggleButton>
+            <ToggleButton value="TEAM">팀 일정</ToggleButton>
+          </ToggleButtonGroup>
 
-        {/*
-          카테고리는 사용자가 계속 만들 수 있는 값이라 개수가 늘어난다.
-          종류 필터처럼 버튼을 나열하면 카테고리가 많아질 때 줄이 끝없이 길어지므로,
-          하나로 접히는 멀티 셀렉트 드롭다운을 쓴다.
-        */}
-        {categories.length > 0 && (
-          <FormControl size="small" sx={{ minWidth: 130 }}>
-            <InputLabel id="category-filter-label">카테고리</InputLabel>
-            <Select
-              labelId="category-filter-label"
-              multiple
-              value={categoryFilter ?? []}
-              onChange={handleCategoryFilterChange}
-              input={<OutlinedInput label="카테고리" />}
-              renderValue={(selected) =>
-                selected.length === categories.length + 1
-                  ? '전체'
-                  : `${selected.length}개 선택`
-              }
-            >
-              {categories.map((c) => (
-                <MenuItem key={c.id} value={c.id}>
-                  <Checkbox size="small" checked={(categoryFilter ?? []).includes(c.id)} />
-                  <Box
+          <Typography
+            variant="overline"
+            color="text.secondary"
+            sx={{ fontWeight: 700, letterSpacing: 0.5 }}
+          >
+            종류
+          </Typography>
+          <FormGroup sx={{ mb: 2 }}>
+            {Object.entries(TASK_TYPE).map(([code, label]) => (
+              <FormControlLabel
+                key={code}
+                sx={{ ml: 0, gap: 0.5 }}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={typeFilter.includes(code)}
+                    onChange={() => toggleType(code)}
                     sx={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      bgcolor: c.color || 'grey.500',
-                      mr: 1,
-                      flexShrink: 0,
+                      color: TYPE_DOT_COLOR[code],
+                      p: 0.5,
+                      '&.Mui-checked': { color: TYPE_DOT_COLOR[code] },
                     }}
                   />
-                  <ListItemText primary={c.name} />
-                </MenuItem>
-              ))}
-              <MenuItem value="NONE">
-                <Checkbox size="small" checked={(categoryFilter ?? []).includes('NONE')} />
-                <ListItemText primary="미지정" />
-              </MenuItem>
-            </Select>
-          </FormControl>
-        )}
+                }
+                label={<Typography variant="body2">{label}</Typography>}
+              />
+            ))}
+          </FormGroup>
 
-        <Box component="form" onSubmit={handleSearch}>
-          <TextField
-            size="small"
-            placeholder="제목·설명 검색"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                ),
-              },
+          {categories.length > 0 && (
+            <>
+              <Divider sx={{ mb: 1.5 }} />
+              <Typography
+                variant="overline"
+                color="text.secondary"
+                sx={{ fontWeight: 700, letterSpacing: 0.5 }}
+              >
+                카테고리
+              </Typography>
+              <FormGroup>
+                {categories.map((c) => (
+                  <FormControlLabel
+                    key={c.id}
+                    sx={{ ml: 0, gap: 0.5 }}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={(categoryFilter ?? []).includes(c.id)}
+                        onChange={() => toggleCategory(c.id)}
+                        sx={{
+                          color: c.color || 'grey.500',
+                          p: 0.5,
+                          '&.Mui-checked': { color: c.color || 'grey.500' },
+                        }}
+                      />
+                    }
+                    label={<Typography variant="body2">{c.name}</Typography>}
+                  />
+                ))}
+                <FormControlLabel
+                  sx={{ ml: 0, gap: 0.5 }}
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={(categoryFilter ?? []).includes('NONE')}
+                      onChange={() => toggleCategory('NONE')}
+                      sx={{ p: 0.5 }}
+                    />
+                  }
+                  label={<Typography variant="body2">미지정</Typography>}
+                />
+              </FormGroup>
+            </>
+          )}
+        </Card>
+
+        <Card variant="outlined" sx={{ flexGrow: 1, minWidth: 0, borderRadius: 3, p: 2 }}>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: '1fr auto 1fr' },
+              alignItems: 'center',
+              rowGap: 1,
+              mb: 2,
             }}
-          />
-        </Box>
+          >
+            <ToggleButtonGroup
+              value={viewType}
+              exclusive
+              size="small"
+              onChange={handleViewChange}
+              sx={{ ...segmentedSx, justifySelf: { xs: 'center', md: 'start' } }}
+            >
+              {VIEW_OPTIONS.map((v) => (
+                <ToggleButton key={v.value} value={v.value}>
+                  {v.label}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
 
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-          일정 등록
-        </Button>
-      </Box>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ justifySelf: 'center' }}>
+              <IconButton size="small" onClick={goPrev}>
+                <ChevronLeftIcon fontSize="small" />
+              </IconButton>
+              <Typography
+                variant="subtitle1"
+                fontWeight={700}
+                sx={{ minWidth: 96, textAlign: 'center' }}
+              >
+                {title}
+              </Typography>
+              <IconButton size="small" onClick={goNext}>
+                <ChevronRightIcon fontSize="small" />
+              </IconButton>
+            </Stack>
 
-      <Card>
-        <Paper sx={{ p: 2 }} elevation={0}>
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={1}
+              sx={{ justifySelf: { xs: 'center', md: 'end' }, flexWrap: 'wrap' }}
+            >
+              <Button
+                size="small"
+                variant="outlined"
+                color="secondary"
+                onClick={goToday}
+                sx={{ borderRadius: 999, borderColor: '#A2D5AB', color: '#4E8A5A' }}
+              >
+                오늘
+              </Button>
+
+              <Box component="form" onSubmit={handleSearch}>
+              <TextField
+                size="small"
+                placeholder="제목·설명 검색"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                sx={pillSearchSx}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+              </Box>
+            </Stack>
+          </Box>
+
           <FullCalendar
-            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+            ref={calendarRef}
+            plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
             initialView="dayGridMonth"
             locale="ko"
             height="auto"
-            headerToolbar={{
-              left: 'prev,next today',
-              center: 'title',
-              right: 'dayGridMonth,timeGridWeek,timeGridDay',
-            }}
-            buttonText={{ today: '오늘', month: '월', week: '주', day: '일' }}
+            headerToolbar={false}
+            dayCellContent={(arg) => arg.dayNumberText.replace('일', '')}
             events={events}
             datesSet={handleDatesSet}
             dateClick={handleDateClick}
@@ -319,8 +445,8 @@ export default function CalendarPage() {
             dayMaxEvents={3}
             moreLinkText={(n) => `+${n}개 더보기`}
           />
-        </Paper>
-      </Card>
+        </Card>
+      </Box>
 
       <TaskFormDialog
         open={formOpen}

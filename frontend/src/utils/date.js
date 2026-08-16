@@ -37,13 +37,14 @@ export function toLocalDateString(date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/**
- * <input type="datetime-local"> 의 value 형식은 '2026-08-11T09:00' (초 없음).
- * 서버가 준 '2026-08-11T09:00:00'을 input에 넣으려면 뒤를 잘라야 한다.
- */
 export function toDateTimeInputValue(value) {
   if (!value) return '';
-  return String(value).slice(0, 16);
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    `T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  );
 }
 
 /** <input type="date"> 용 'YYYY-MM-DD' */

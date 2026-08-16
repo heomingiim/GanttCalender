@@ -75,7 +75,15 @@ export default function AppLayout() {
             onClick={() => setMobileOpen(false)}
           >
             {({ isActive }) => (
-              <ListItemButton selected={isActive}>
+              <ListItemButton
+                selected={isActive}
+                sx={{
+                  '&.Mui-selected': {
+                    bgcolor: 'rgba(58, 174, 169, 0.12)',
+                    '&:hover': { bgcolor: 'rgba(58, 174, 169, 0.18)' },
+                  },
+                }}
+              >
                 <ListItemIcon sx={{ minWidth: 40, color: isActive ? 'primary.main' : undefined }}>
                   {item.icon}
                 </ListItemIcon>

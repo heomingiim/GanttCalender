@@ -31,15 +31,20 @@ export const getCalendarEvents = ({ from, to, scope = 'MY', keyword }) =>
   });
 
 // ── 투두리스트 ───────────────────────────────────────
-export const getMyTodos = ({ status, projectId, keyword } = {}) =>
+export const getMyTodos = ({ status, projectId, keyword, from, to } = {}) =>
   client.get('/tasks', {
     params: {
       type: 'TODO',
       status: status || undefined,
       projectId: projectId || undefined,
       keyword: keyword || undefined,
+      from: from ? `${from}T00:00:00` : undefined,
+      to: to ? `${to}T23:59:59` : undefined,
     },
   });
+
+// ── 순서 변경 ────────────────────────────────────────
+export const reorderTasks = (ids) => client.put('/tasks/reorder', { ids });
 
 // ── WBS 상위 작업 변경 ──────────────────────────────
 // parentTaskId를 null로 보내면 최상위로 올라간다.

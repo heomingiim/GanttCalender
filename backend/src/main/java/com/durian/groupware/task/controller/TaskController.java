@@ -30,6 +30,7 @@ import com.durian.groupware.task.dto.TaskCreateRequest;
 import com.durian.groupware.task.dto.TaskParentRequest;
 import com.durian.groupware.task.dto.TaskParticipantResponse;
 import com.durian.groupware.task.dto.TaskProgressRequest;
+import com.durian.groupware.task.dto.TaskReorderRequest;
 import com.durian.groupware.task.dto.TaskResponse;
 import com.durian.groupware.task.dto.TaskStatusRequest;
 import com.durian.groupware.task.dto.TaskUpdateRequest;
@@ -136,9 +137,17 @@ public class TaskController {
             return taskService.getCalendar(loginUser, from, to, scope, keyword);
         }
         if ("TODO".equals(type)) {
-            return taskService.getMyTodos(loginUser, status, projectId, keyword);
+            return taskService.getMyTodos(loginUser, status, projectId, keyword, from, to);
         }
         throw new BusinessException(ErrorCode.INVALID_INPUT);
+    }
+
+    // PUT /api/tasks/reorder
+    @PutMapping("/reorder")
+    public ResponseEntity<Void> reorder(@Login LoginUser loginUser,
+            @RequestBody TaskReorderRequest req) {
+        taskService.reorder(loginUser, req.ids());
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{id}/participants")

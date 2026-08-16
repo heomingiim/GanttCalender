@@ -40,12 +40,16 @@ public interface TaskMapper {
     List<Task> findMyTodos(@Param("userId") Long userId,
             @Param("status") String status,
             @Param("projectId") Long projectId,
-            @Param("keyword") String keyword);
+            @Param("keyword") String keyword,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
 
     List<Task> findAssignedTasks(@Param("userId") Long userId,
             @Param("status") String status,
             @Param("projectId") Long projectId,
-            @Param("keyword") String keyword);
+            @Param("keyword") String keyword,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
 
     void updateParent(@Param("id") Long id, @Param("parentTaskId") Long parentTaskId);
 
@@ -55,4 +59,6 @@ public interface TaskMapper {
     // 담당자를 바꾸면 "교체 전 명단" 조회가 서로 겹쳐 중복 알림·유실 갱신이 생기는데,
     // 이 잠금으로 두 번째 요청이 첫 번째가 커밋될 때까지 기다리게 만들어 막는다.
     void lockForUpdate(Long id);
+
+    void updateSortOrder(@Param("id") Long id, @Param("sortOrder") int sortOrder);
 }

@@ -2,6 +2,7 @@ package com.durian.groupware.task.service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -256,12 +257,25 @@ public class TaskService {
     }
 
     public List<TaskResponse> getMyTodos(LoginUser loginUser, String status,
-            Long projectId, String keyword) {
-        List<Task> todos = taskMapper.findMyTodos(loginUser.id(), status, projectId, keyword);
-        List<Task> assigned = taskMapper.findAssignedTasks(loginUser.id(), status, projectId, keyword);
+            Long projectId, String keyword, LocalDateTime from, LocalDateTime to) {
+        List<Task> todos = taskMapper.findMyTodos(loginUser.id(), status, projectId, keyword, from, to);
+        List<Task> assigned = taskMapper.findAssignedTasks(loginUser.id(), status, projectId, keyword, from, to);
         return Stream.concat(todos.stream(), assigned.stream())
+                .sorted(Comparator.comparingInt(Task::getSortOrder).thenComparing(Task::getId))
                 .map(TaskResponse::from)
                 .toList();
+    }
+
+    @Transactional
+    public void reorder(LoginUser loginUser, List<Long> ids) {
+        int order = 0;
+        for (Long id : ids) {
+            Task task = taskMapper.findByIdNotDeleted(id);
+            if (task == null || !canView(loginUser, task)) {
+                throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
+            }
+            taskMapper.updateSortOrder(id, order++);
+        }
     }
 
     @Transactional
@@ -311,9 +325,8 @@ public class TaskService {
     }
 
     public List<TaskTreeResponse> getProjectTree(LoginUser loginUser, Long projectId) {
-        // canView가 프로젝트 멤버십을 기준으로 한 번 더 거른다.
-        // (프로젝트 없는 개인 투두는 애초에 이 목록에 안 잡히므로 여기선 해당 없음)
         List<Task> all = taskMapper.findByProjectIdNotDeleted(projectId).stream()
+                .filter(t -> "WBS_TASK".equals(t.getTaskType()))
                 .filter(t -> canView(loginUser, t))
                 .toList();
 

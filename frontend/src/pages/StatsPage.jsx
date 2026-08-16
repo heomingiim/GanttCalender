@@ -16,7 +16,9 @@ import {
 import * as statsApi from '../api/stats';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import DateRangePickerField from '../components/DateRangePickerField';
 import { STATUS, STATUS_BAR_COLOR } from '../utils/constants';
+import { segmentedToggleSx } from '../utils/uiStyles';
 
 const UNITS = [
   { value: 'DAY', label: '일별' },
@@ -169,7 +171,13 @@ export default function StatsPage() {
         <Typography variant="h5" sx={{ flexGrow: 1 }}>
           {scope === 'TEAM' ? '팀 통계' : '개인 통계'}
         </Typography>
-        <ToggleButtonGroup value={scope} exclusive size="small" onChange={handleScopeChange}>
+        <ToggleButtonGroup
+          value={scope}
+          exclusive
+          size="small"
+          onChange={handleScopeChange}
+          sx={segmentedToggleSx}
+        >
           <ToggleButton value="MY">개인</ToggleButton>
           <ToggleButton value="TEAM">팀</ToggleButton>
         </ToggleButtonGroup>
@@ -179,7 +187,7 @@ export default function StatsPage() {
           label="집계 단위"
           value={unit}
           onChange={(e) => handleUnitChange(e.target.value)}
-          sx={{ minWidth: 110 }}
+          sx={{ minWidth: 110, '& .MuiInputBase-root': { height: 40 } }}
         >
           {UNITS.map((u) => (
             <MenuItem key={u.value} value={u.value}>
@@ -187,21 +195,14 @@ export default function StatsPage() {
             </MenuItem>
           ))}
         </TextField>
-        <TextField
-          type="date"
-          size="small"
-          label="시작일"
-          value={from}
-          onChange={(e) => setFrom(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-        />
-        <TextField
-          type="date"
-          size="small"
-          label="종료일"
-          value={to}
-          onChange={(e) => setTo(e.target.value)}
-          InputLabelProps={{ shrink: true }}
+        <DateRangePickerField
+          from={from}
+          to={to}
+          onChange={(f, t) => {
+            setFrom(f);
+            setTo(t);
+          }}
+          placeholder="기간"
         />
       </Box>
 

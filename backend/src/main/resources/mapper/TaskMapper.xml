@@ -133,7 +133,13 @@
     <if test="keyword != null and keyword != ''">
         AND title LIKE CONCAT('%', #{keyword}, '%')
     </if>
-    ORDER BY created_at DESC
+    <if test="to != null">
+        AND (start_date IS NULL OR start_date &lt;= #{to})
+    </if>
+    <if test="from != null">
+        AND (end_date IS NULL OR end_date &gt;= #{from})
+    </if>
+    ORDER BY sort_order, created_at DESC
 </select>
 
 <select id="findAssignedTasks" resultMap="taskMap">
@@ -151,7 +157,13 @@
     <if test="keyword != null and keyword != ''">
         AND t.title LIKE CONCAT('%', #{keyword}, '%')
     </if>
-    ORDER BY t.end_date IS NULL, t.end_date, t.created_at DESC
+    <if test="to != null">
+        AND (t.start_date IS NULL OR t.start_date &lt;= #{to})
+    </if>
+    <if test="from != null">
+        AND (t.end_date IS NULL OR t.end_date &gt;= #{from})
+    </if>
+    ORDER BY t.sort_order, t.end_date IS NULL, t.end_date, t.created_at DESC
 </select>
 
 <update id="updateParent">
@@ -161,11 +173,15 @@
 
 <select id="findByProjectIdNotDeleted" resultMap="taskMap">
     SELECT * FROM tasks WHERE project_id = #{projectId} AND is_deleted = false
-    ORDER BY id
+    ORDER BY sort_order, id
 </select>
 
 <select id="lockForUpdate">
     SELECT id FROM tasks WHERE id = #{id} FOR UPDATE
 </select>
+
+<update id="updateSortOrder">
+    UPDATE tasks SET sort_order = #{sortOrder} WHERE id = #{id}
+</update>
 
 </mapper>

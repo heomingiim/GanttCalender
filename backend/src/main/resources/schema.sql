@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     status          VARCHAR(20) NOT NULL DEFAULT 'TODO'    COMMENT 'TODO / IN_PROGRESS / DONE / CANCELLED',
     priority        VARCHAR(20) NOT NULL DEFAULT 'MEDIUM'  COMMENT 'LOW / MEDIUM / HIGH',
     progress_rate   INT NOT NULL DEFAULT 0 COMMENT '진행률 0~100 (직접 입력)',
+    sort_order      INT NOT NULL DEFAULT 0 COMMENT '같은 목록(형제/투두) 안에서의 표시 순서 - 작을수록 위',
     is_deleted      BOOLEAN NOT NULL DEFAULT FALSE,
     created_at      DATETIME DEFAULT NOW(),
     updated_at      DATETIME DEFAULT NOW(),
@@ -151,3 +152,4 @@ CREATE INDEX idx_logs_task ON activity_logs(task_id);
 -- CREATE TABLE IF NOT EXISTS는 이미 만들어진 테이블을 고치지 않으므로 별도 보정.
 -- 재실행 시 나는 "컬럼 중복" 에러는 continue-on-error: true로 무시된다.
 ALTER TABLE tasks ADD COLUMN deliverable VARCHAR(300) COMMENT 'WBS 산출물 (예: ERD, 화면설계서)' AFTER description;
+ALTER TABLE tasks ADD COLUMN sort_order INT NOT NULL DEFAULT 0 COMMENT '같은 목록(형제/투두) 안에서의 표시 순서 - 작을수록 위' AFTER progress_rate;
