@@ -23,27 +23,3 @@ body,
 .fc-daygrid-day.fc-day-today {
   background-color: rgba(46, 111, 64, 0.08) !important;
 }
-
-/* ── frappe-gantt 막대 색상 ──────────────────────────────
-   toGanttTasks()에서 붙인 custom_class는 <g class="bar-wrapper ...">에 붙는다.
-   막대는 .bar(배경) + .bar-progress(진행분) 두 겹이라 진행분 색만 바꾼다.
-   주의: .gantt-container 는 라이브러리가 스스로 만드는 요소의 클래스이므로
-        우리 쪽 래퍼 div에는 쓰지 않는다 (높이·스크롤 규칙이 충돌한다). */
-.gantt .bar-wrapper.bar-todo .bar-progress {
-  fill: #90a4ae;
-}
-.gantt .bar-wrapper.bar-in_progress .bar-progress {
-  fill: #1976d2;
-}
-.gantt .bar-wrapper.bar-done .bar-progress {
-  fill: #2e7d32;
-}
-.gantt .bar-wrapper.bar-cancelled .bar-progress {
-  fill: #c62828;
-}
-.gantt .bar-wrapper.bar-milestone .bar-progress {
-  fill: #f9a825;
-}
-.gantt .bar-wrapper.bar-milestone .bar {
-  fill: #ffe082;
-}

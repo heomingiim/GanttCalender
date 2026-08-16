@@ -5,7 +5,6 @@ export const TASK_TYPE = {
   TODO: '투두',
   EVENT: '일정',
   WBS_TASK: 'WBS 작업',
-  MILESTONE: '마일스톤',
 };
 
 export const STATUS = {
@@ -44,9 +43,11 @@ export const PRIORITY_COLOR = {
   HIGH: 'error',
 };
 
+// 값(PUBLIC/PRIVATE)은 그대로 두고 라벨만 바꿨다.
+// PUBLIC이면 같은 부서 사람들의 "팀 일정" 조회에도 함께 나타난다.
 export const VISIBILITY = {
-  PUBLIC: '공개',
-  PRIVATE: '비공개',
+  PUBLIC: '팀',
+  PRIVATE: '개인',
 };
 
 export const PROJECT_STATUS = {

@@ -270,7 +270,7 @@ function OverviewTab({ project, isAdmin, onSaved, onDeleted }) {
 
       <ConfirmDialog
         open={confirmDelete}
-        message="프로젝트를 삭제할까요? 소프트 삭제되어 목록에서 사라집니다."
+        message="프로젝트를 삭제할까요?"
         onConfirm={handleDelete}
         onClose={() => setConfirmDelete(false)}
       />
@@ -424,6 +424,7 @@ function WbsGanttTab({ project, projectId, flatTasks, categories, onChanged }) {
         task={editingTask}
         categories={categories}
         defaultType="WBS_TASK"
+        lockType
         projectId={projectId}
         parentTaskId={parentForNew}
         parentOptions={editingTask ? selectableParents(flatTasks, editingTask.id) : null}

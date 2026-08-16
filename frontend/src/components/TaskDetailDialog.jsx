@@ -27,6 +27,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 
 import * as taskApi from '../api/tasks';
+import { listCategories } from '../api/categories';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import NotReadyNotice from './NotReadyNotice';
@@ -58,6 +59,7 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [categories, setCategories] = useState([]);
 
   const load = useCallback(async () => {
     if (taskId == null) return;
@@ -76,8 +78,13 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
     if (open) {
       setTab(0);
       load();
+      listCategories()
+        .then((list) => setCategories(Array.isArray(list) ? list : []))
+        .catch(() => setCategories([]));
     }
   }, [open, load]);
+
+  const category = categories.find((c) => c.id === task?.categoryId);
 
   const handleStatusChange = async (status) => {
     try {
@@ -166,11 +173,36 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
 
             <Box>
               <Typography variant="caption" color="text.secondary">
-                공개 범위
+                구분
               </Typography>
               <Typography variant="body2">
                 {VISIBILITY[task.visibility] ?? task.visibility}
               </Typography>
+            </Box>
+
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                카테고리
+              </Typography>
+              {category ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25 }}>
+                  <Box
+                    sx={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: '50%',
+                      bgcolor: category.color || 'grey.500',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <Typography variant="body2">
+                    {category.name}
+                    {category.team ? ' (팀 공용)' : ''}
+                  </Typography>
+                </Box>
+              ) : (
+                <Typography variant="body2">-</Typography>
+              )}
             </Box>
 
             <TextField
@@ -226,7 +258,7 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
 
       <ConfirmDialog
         open={confirmDelete}
-        message="이 작업을 삭제할까요? (소프트 삭제되어 목록에서만 사라집니다)"
+        message="이 작업을 삭제할까요?"
         onConfirm={handleDelete}
         onClose={() => setConfirmDelete(false)}
       />

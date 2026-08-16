@@ -16,7 +16,7 @@ public class TaskTreeResponse {
     private Long id;
     private Long parentTaskId;
     private String title;
-    private String taskType;      // TODO / EVENT / WBS_TASK / MILESTONE
+    private String taskType;      // TODO / EVENT / WBS_TASK
     private String status;
     private String priority;
     private String deliverable;

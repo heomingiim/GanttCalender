@@ -13,7 +13,7 @@ public class Task {
     private Long parentTaskId;
     private Long creatorId;
     private Long categoryId;
-    private String taskType;   // TODO / EVENT / WBS_TASK / MILESTONE
+    private String taskType;   // TODO / EVENT / WBS_TASK
     private String title;
     private String description;
     private String deliverable; // WBS 산출물

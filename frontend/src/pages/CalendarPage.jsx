@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -7,8 +7,15 @@ import {
   Box,
   Button,
   Card,
+  Checkbox,
+  FormControl,
   InputAdornment,
+  InputLabel,
+  ListItemText,
+  MenuItem,
+  OutlinedInput,
   Paper,
+  Select,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
@@ -23,7 +30,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import TaskFormDialog from '../components/TaskFormDialog';
 import TaskDetailDialog from '../components/TaskDetailDialog';
-import { PRIORITY_HEX } from '../utils/constants';
+import { PRIORITY_HEX, TASK_TYPE } from '../utils/constants';
 import { fromDateTimeInputValue } from '../utils/date';
 
 /**
@@ -41,11 +48,17 @@ export default function CalendarPage() {
   const toast = useToast();
   const { user } = useAuth();
 
-  const [events, setEvents] = useState([]);
+  // 서버가 준 원본 목록. FullCalendar용 변환은 typeFilter와 함께 useMemo로 파생시킨다
+  // — 종류 체크박스를 눌렀다고 서버를 다시 부를 필요는 없다.
+  const [rawTasks, setRawTasks] = useState([]);
   const [categories, setCategories] = useState([]);
   const [scope, setScope] = useState('MY');
   const [keyword, setKeyword] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [typeFilter, setTypeFilter] = useState(Object.keys(TASK_TYPE));
+  // null = 아직 카테고리 목록을 못 받아서 필터링을 안 한다는 뜻(전부 통과).
+  // 목록이 도착하면 "전체 선택" 상태로 채운다.
+  const [categoryFilter, setCategoryFilter] = useState(null);
 
   // 다이얼로그 상태
   const [formOpen, setFormOpen] = useState(false);
@@ -67,23 +80,10 @@ export default function CalendarPage() {
           scope: currentScope,
           keyword: currentKeyword,
         });
-
-        // 서버 Task → FullCalendar event 객체로 변환
-        setEvents(
-          list.map((t) => ({
-            id: String(t.id),
-            title: t.title,
-            start: t.startDate,
-            end: exclusiveEnd(t),
-            allDay: Boolean(t.allDay),
-            backgroundColor: PRIORITY_HEX[t.priority] ?? PRIORITY_HEX.MEDIUM,
-            borderColor: 'transparent',
-            extendedProps: { raw: t }, // 원본을 들고 있다가 클릭 시 사용
-          }))
-        );
+        setRawTasks(Array.isArray(list) ? list : []);
       } catch (err) {
         toast.apiError(err);
-        setEvents([]);
+        setRawTasks([]);
       }
     },
     [toast]
@@ -119,6 +119,38 @@ export default function CalendarPage() {
     setKeyword(searchInput);
     refetch(scope, searchInput);
   };
+
+  const handleTypeFilterChange = (_e, next) => {
+    setTypeFilter(next); // 전부 해제해도 그대로 둔다 (아무것도 안 보이는 것도 유효한 선택)
+  };
+
+  const handleCategoryFilterChange = (event) => {
+    setCategoryFilter(event.target.value);
+  };
+
+  // 서버 Task → FullCalendar event 객체 변환 + 종류/카테고리 필터.
+  // 필터만 바꿀 때는 서버를 다시 부르지 않는다.
+  const events = useMemo(
+    () =>
+      rawTasks
+        .filter((t) => typeFilter.includes(t.taskType))
+        .filter((t) => categoryFilter === null || categoryFilter.includes(t.categoryId ?? 'NONE'))
+        .map((t) => {
+          const category = categories.find((c) => c.id === t.categoryId);
+          return {
+            id: String(t.id),
+            title: t.title,
+            start: t.startDate,
+            end: exclusiveEnd(t),
+            allDay: Boolean(t.allDay),
+            // 카테고리를 지정했으면 그 색을, 아니면 우선순위 색을 쓴다.
+            backgroundColor: category?.color || PRIORITY_HEX[t.priority] || PRIORITY_HEX.MEDIUM,
+            borderColor: 'transparent',
+            extendedProps: { raw: t },
+          };
+        }),
+    [rawTasks, typeFilter, categoryFilter, categories]
+  );
 
   // 빈 날짜 칸 클릭 → 그 날짜로 새 일정 폼 열기
   const handleDateClick = (info) => {
@@ -169,7 +201,11 @@ export default function CalendarPage() {
   // (부수 효과는 useMemo가 아니라 useEffect에 넣어야 한다)
   useEffect(() => {
     listCategories()
-      .then((list) => setCategories(Array.isArray(list) ? list : []))
+      .then((list) => {
+        const arr = Array.isArray(list) ? list : [];
+        setCategories(arr);
+        setCategoryFilter([...arr.map((c) => c.id), 'NONE']); // 처음엔 전체 선택
+      })
       .catch(() => setCategories([]));
   }, []);
 
@@ -184,6 +220,58 @@ export default function CalendarPage() {
           <ToggleButton value="MY">내 일정</ToggleButton>
           <ToggleButton value="TEAM">팀 일정</ToggleButton>
         </ToggleButtonGroup>
+
+        <ToggleButtonGroup value={typeFilter} size="small" onChange={handleTypeFilterChange}>
+          {Object.entries(TASK_TYPE).map(([code, label]) => (
+            <ToggleButton key={code} value={code}>
+              {label}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+
+        {/*
+          카테고리는 사용자가 계속 만들 수 있는 값이라 개수가 늘어난다.
+          종류 필터처럼 버튼을 나열하면 카테고리가 많아질 때 줄이 끝없이 길어지므로,
+          하나로 접히는 멀티 셀렉트 드롭다운을 쓴다.
+        */}
+        {categories.length > 0 && (
+          <FormControl size="small" sx={{ minWidth: 130 }}>
+            <InputLabel id="category-filter-label">카테고리</InputLabel>
+            <Select
+              labelId="category-filter-label"
+              multiple
+              value={categoryFilter ?? []}
+              onChange={handleCategoryFilterChange}
+              input={<OutlinedInput label="카테고리" />}
+              renderValue={(selected) =>
+                selected.length === categories.length + 1
+                  ? '전체'
+                  : `${selected.length}개 선택`
+              }
+            >
+              {categories.map((c) => (
+                <MenuItem key={c.id} value={c.id}>
+                  <Checkbox size="small" checked={(categoryFilter ?? []).includes(c.id)} />
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      bgcolor: c.color || 'grey.500',
+                      mr: 1,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <ListItemText primary={c.name} />
+                </MenuItem>
+              ))}
+              <MenuItem value="NONE">
+                <Checkbox size="small" checked={(categoryFilter ?? []).includes('NONE')} />
+                <ListItemText primary="미지정" />
+              </MenuItem>
+            </Select>
+          </FormControl>
+        )}
 
         <Box component="form" onSubmit={handleSearch}>
           <TextField
@@ -241,6 +329,7 @@ export default function CalendarPage() {
         task={editingTask}
         categories={categories}
         defaultType="EVENT"
+        lockType
         defaultStart={defaultStart}
         defaultEnd={defaultEnd}
       />

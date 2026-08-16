@@ -44,7 +44,7 @@ const EMPTY = {
 };
 
 /**
- * 작업(일정/투두/WBS/마일스톤) 생성·수정 폼.
+ * 작업(일정/투두/WBS) 생성·수정 폼.
  *
  * ★ 제어 컴포넌트(controlled component) ★
  * 모든 <TextField>가 value={form.xxx} + onChange={...}로 묶여 있다.
@@ -244,7 +244,7 @@ export default function TaskFormDialog({
 
             <TextField
               select
-              label="공개 범위"
+              label="구분"
               value={form.visibility}
               onChange={setField('visibility')}
               size="small"

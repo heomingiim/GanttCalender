@@ -70,9 +70,32 @@
     LEFT JOIN task_assignees ta ON t.id = ta.task_id
     WHERE t.is_deleted = false
       AND (
-          t.task_type = 'EVENT'
-          OR (t.task_type IN ('WBS_TASK', 'MILESTONE')
-              AND (t.creator_id = #{userId} OR ta.user_id = #{userId}))
+          <!-- EVENT: 생성자/담당자는 항상, 팀 스코프면 같은 부서의 공개 일정도 -->
+          (t.task_type = 'EVENT' AND (
+              t.creator_id = #{userId}
+              OR ta.user_id = #{userId}
+              <if test="deptIds != null and deptIds.size() > 0">
+              OR (t.visibility = 'PUBLIC'
+                  AND t.creator_id IN (
+                      SELECT id FROM users WHERE department_id IN
+                      <foreach item="id" collection="deptIds" open="(" separator="," close=")">
+                          #{id}
+                      </foreach>
+                  )
+              )
+              </if>
+          ))
+          OR
+          <!-- WBS_TASK: 내 일정은 담당자만. 팀 스코프에서만 내가 만든 것도 같이 -->
+          (t.task_type = 'WBS_TASK' AND (
+              ta.user_id = #{userId}
+              <if test="deptIds != null and deptIds.size() > 0">
+              OR t.creator_id = #{userId}
+              </if>
+          ))
+          OR
+          <!-- TODO: 공유 개념이 없어 스코프와 무관하게 항상 본인 것만 -->
+          (t.task_type = 'TODO' AND t.creator_id = #{userId})
       )
       <if test="to != null">
       AND t.start_date &lt;= #{to}
@@ -80,20 +103,6 @@
       <if test="from != null">
       AND t.end_date &gt;= #{from}
       </if>
-      AND (
-          t.creator_id = #{userId}     
-          OR ta.user_id = #{userId}   
-          <if test="deptIds != null and deptIds.size() > 0">
-          OR (t.visibility = 'PUBLIC'
-              AND t.creator_id IN (
-                  SELECT id FROM users WHERE department_id IN
-                  <foreach item="id" collection="deptIds" open="(" separator="," close=")">
-                      #{id}
-                  </foreach>
-              )
-          )
-          </if>
-      )
     <if test="keyword != null and keyword != ''">
       AND (t.title LIKE CONCAT('%', #{keyword}, '%')
         OR t.description LIKE CONCAT('%', #{keyword}, '%'))
@@ -123,7 +132,7 @@
     SELECT DISTINCT t.* FROM tasks t
     JOIN task_assignees ta ON ta.task_id = t.id
     WHERE ta.user_id = #{userId}
-      AND t.task_type IN ('WBS_TASK', 'MILESTONE')
+      AND t.task_type = 'WBS_TASK'
       AND t.is_deleted = false
     <if test="status != null">
         AND t.status = #{status}

@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     parent_task_id  INT      COMMENT 'WBS 계층: 상위 작업 ID (최상위면 NULL)',
     creator_id      INT NOT NULL,
     category_id     INT,
-    task_type       VARCHAR(20) NOT NULL COMMENT 'TODO / EVENT / WBS_TASK / MILESTONE',
+    task_type       VARCHAR(20) NOT NULL COMMENT 'TODO / EVENT / WBS_TASK',
     title           VARCHAR(200) NOT NULL,
     description     TEXT,
     deliverable     VARCHAR(300) COMMENT 'WBS 산출물 (예: ERD, 화면설계서)',
