@@ -29,16 +29,25 @@
         <result property="deleted" column="is_deleted"/>
     </resultMap>
 
-    <!-- priority는 VARCHAR라 그냥 정렬하면 MEDIUM > LOW > HIGH가 된다. FIELD로 순서를 지정한다 -->
+    <!--
+        priority는 VARCHAR라 그냥 정렬하면 MEDIUM > LOW > HIGH가 된다. FIELD로 순서를 지정한다.
+        TaskService.getMyTodos(투두리스트 화면이 쓰는 쿼리)는 "내가 만든 TODO" +
+        "내가 담당자인 WBS 작업"을 합쳐서 보여준다. 대시보드도 같은 "내 할 일"을
+        말하는 위젯이라 여기서도 똑같이 담당 WBS를 포함해야 한다 — 안 그러면
+        같은 사람에게 화면마다 다른 "내 할 일" 목록이 보인다.
+    -->
     <select id="findOpenTodos" resultMap="taskMap">
-        SELECT * FROM tasks
-        WHERE creator_id = #{userId}
-          AND task_type = 'TODO'
-          AND status NOT IN ('DONE', 'CANCELLED')
-          AND is_deleted = false
-        ORDER BY FIELD(priority, 'HIGH', 'MEDIUM', 'LOW'),
-                 end_date IS NULL, end_date,
-                 created_at DESC
+        SELECT DISTINCT t.* FROM tasks t
+        LEFT JOIN task_assignees ta ON ta.task_id = t.id
+        WHERE t.is_deleted = false
+          AND t.status NOT IN ('DONE', 'CANCELLED')
+          AND (
+              (t.task_type = 'TODO' AND t.creator_id = #{userId})
+              OR (t.task_type = 'WBS_TASK' AND ta.user_id = #{userId})
+          )
+        ORDER BY FIELD(t.priority, 'HIGH', 'MEDIUM', 'LOW'),
+                 t.end_date IS NULL, t.end_date,
+                 t.created_at DESC
         LIMIT 10
     </select>
 

@@ -94,7 +94,7 @@ public class TaskService {
         if (!canView(loginUser, task)) {
             throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
         }
-        return TaskResponse.from(task);
+        return TaskResponse.from(task, canEdit(loginUser, task));
     }
 
     // 수정
@@ -128,8 +128,11 @@ public class TaskService {
     public void delete(LoginUser loginUser, Long id) {
         Task task = getEditable(loginUser, id);
 
-        // 삭제 전에 참석자들에게 취소 알림 발송
-        notifyCancelToParticipants(task);
+        // 삭제 전에 참석자들에게 취소 알림 발송. 이미 취소 상태였다면
+        // changeStatus에서 이미 한 번 보냈을 것이므로 중복 발송하지 않는다.
+        if (!"CANCELLED".equals(task.getStatus())) {
+            notifyCancelToParticipants(task);
+        }
 
         taskMapper.softDelete(id);
         activityLogService.log(id, loginUser.id(), "DELETE");
@@ -148,11 +151,12 @@ public class TaskService {
         }
         // IN_PROGRESS / CANCELLED는 진행률 그대로 유지
 
-        taskMapper.changeStatus(id, status, progressRate);
+        int updated = taskMapper.changeStatus(id, status, progressRate);
         activityLogService.log(id, loginUser.id(), "STATUS_CHANGE");
 
-        // task는 변경 전 값이라, 이미 취소 상태였으면 알림을 다시 보내지 않는다
-        if ("CANCELLED".equals(status) && !"CANCELLED".equals(task.getStatus())) {
+        // updated == 0이면 이미 그 상태였다는 뜻(동시 요청 포함) — DB가 원자적으로
+        // 판단해준 결과라 pre-read인 task.getStatus()보다 이게 race에 안전하다.
+        if (updated > 0 && "CANCELLED".equals(status)) {
             notifyCancelToParticipants(task);
         }
 
@@ -162,8 +166,9 @@ public class TaskService {
     // 진행률 변경 (상태 변경은 changeStatus 사용)
     @Transactional
     public TaskResponse changeProgress(LoginUser loginUser, Long id, int rate) {
-        Task task = getEditable(loginUser, id);
+        getEditable(loginUser, id);
         taskMapper.changeProgress(id, rate);
+        activityLogService.log(id, loginUser.id(), "PROGRESS_CHANGE");
         return TaskResponse.from(taskMapper.findByIdNotDeleted(id));
     }
 
@@ -223,7 +228,16 @@ public class TaskService {
         if (loginUser.id().equals(task.getCreatorId())) {
             return true;
         }
+        // 프로젝트에 속한 투두는 프로젝트 멤버에게 공개(WBS/간트에서 보이도록),
+        // 프로젝트가 없는 개인 투두는 작성자 본인만 볼 수 있다.
         if ("TODO".equals(task.getTaskType())) {
+            return task.getProjectId() != null
+                    && projectMemberService.isMember(loginUser.id(), task.getProjectId());
+        }
+        // WBS 작업은 visibility와 무관하게 프로젝트 멤버만 볼 수 있다.
+        // PUBLIC이어도 프로젝트 밖 사람에게 새면 안 된다 — getProjectTree의
+        // 멤버십 필터와 어긋나서, id만 알면 GET /api/tasks/{id}로 우회 조회가 가능해진다.
+        if ("WBS_TASK".equals(task.getTaskType())) {
             return task.getProjectId() != null
                     && projectMemberService.isMember(loginUser.id(), task.getProjectId());
         }
@@ -273,6 +287,7 @@ public class TaskService {
         }
 
         taskMapper.updateParent(taskId, parentId);
+        activityLogService.log(taskId, loginUser.id(), "PARENT_CHANGE");
         return TaskResponse.from(taskMapper.findByIdNotDeleted(taskId));
     }
 
@@ -296,7 +311,8 @@ public class TaskService {
     }
 
     public List<TaskTreeResponse> getProjectTree(LoginUser loginUser, Long projectId) {
-        // 프로젝트 멤버라도 남의 비공개 작업·개인 투두까지 볼 수 있으면 안 된다
+        // canView가 프로젝트 멤버십을 기준으로 한 번 더 거른다.
+        // (프로젝트 없는 개인 투두는 애초에 이 목록에 안 잡히므로 여기선 해당 없음)
         List<Task> all = taskMapper.findByProjectIdNotDeleted(projectId).stream()
                 .filter(t -> canView(loginUser, t))
                 .toList();
@@ -338,6 +354,10 @@ public class TaskService {
     public void replaceAssignees(LoginUser loginUser, Long taskId, List<Long> userIds) {
         getEditable(loginUser, taskId); // 권한 확인
 
+        // 동시에 같은 작업의 담당자를 바꾸는 요청이 겹치면, 아래 "교체 전 명단" 조회가
+        // 서로 다른 시점을 보게 되어 중복 알림·유실 갱신이 난다. 행을 잠가 직렬화한다.
+        taskMapper.lockForUpdate(taskId);
+
         // 이미 담당자인 사람에게 또 알림을 보내지 않기 위해 교체 전 명단을 기억해둔다
         Set<Long> before = new HashSet<>(assigneeMapper.findUserIdsByTaskId(taskId));
 
@@ -366,6 +386,8 @@ public class TaskService {
         if (userIds == null || userIds.isEmpty()) {
             return;
         }
+
+        taskMapper.lockForUpdate(taskId); // replaceAssignees와 같은 이유로 직렬화
 
         // 기존 참석자를 "필수 여부까지" 기억해둔다.
         // 누가 새로 초대됐는지, 누가 선택 → 필수로 바뀌었는지 구분해야
@@ -420,6 +442,18 @@ public class TaskService {
             throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
         }
         return assigneeMapper.findAssigneesByTaskId(taskId);
+    }
+
+    // 활동 이력 조회 권한 확인. get()과 달리 findById로 삭제된 작업도 찾는다 —
+    // 삭제 직후 "DELETE" 이력을 못 보게 되는 문제(is_deleted 필터에 걸려 404)를 막는다.
+    public void checkViewableForHistory(LoginUser loginUser, Long id) {
+        Task task = taskMapper.findById(id);
+        if (task == null) {
+            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        }
+        if (!canView(loginUser, task)) {
+            throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
+        }
     }
 
 // 내 응답 변경 — 본인 응답만 바꾸므로 편집 권한은 필요 없다

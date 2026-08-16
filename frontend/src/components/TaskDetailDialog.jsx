@@ -98,11 +98,16 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
   };
 
   const handleProgressCommit = async (_event, value) => {
+    // onChange가 드래그 중에 이미 progressRate를 낙관적으로 바꿔놨다.
+    // 서버 호출이 실패하면(예: 볼 권한만 있고 편집 권한은 없는 프로젝트 멤버)
+    // 되돌리지 않으면 슬라이더가 저장 안 된 값을 계속 보여준다.
+    const before = task.progressRate;
     try {
       setTask(await taskApi.changeProgress(task.id, value));
       onChanged?.();
     } catch (err) {
       toast.apiError(err);
+      setTask((prev) => (prev ? { ...prev, progressRate: before } : prev));
     }
   };
 
@@ -205,38 +210,59 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
               )}
             </Box>
 
-            <TextField
-              select
-              size="small"
-              label="상태 변경"
-              value={task.status}
-              onChange={(e) => handleStatusChange(e.target.value)}
-              helperText="완료로 바꾸면 진행률이 100%로, 대기로 바꾸면 0%로 함께 조정됩니다."
-            >
-              {Object.entries(STATUS).map(([code, label]) => (
-                <MenuItem key={code} value={code}>
-                  {label}
-                </MenuItem>
-              ))}
-            </TextField>
+            {/*
+              canEdit은 작성자거나(또는 EVENT면 팀장급) 여부다. 프로젝트 멤버라
+              볼 수는 있어도(canView) 고칠 수는 없는 사람에게 이 컨트롤을 그대로
+              보여주면, 만질 때마다 403만 받고 왜 안 되는지 알 방법이 없다.
+            */}
+            {task.canEdit ? (
+              <>
+                <TextField
+                  select
+                  size="small"
+                  label="상태 변경"
+                  value={task.status}
+                  onChange={(e) => handleStatusChange(e.target.value)}
+                  helperText="완료로 바꾸면 진행률이 100%로, 대기로 바꾸면 0%로 함께 조정됩니다."
+                >
+                  {Object.entries(STATUS).map(([code, label]) => (
+                    <MenuItem key={code} value={code}>
+                      {label}
+                    </MenuItem>
+                  ))}
+                </TextField>
 
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                진행률 — {task.progressRate}%
-              </Typography>
-              {/* onChange는 드래그 중 계속 발생하므로 상태만 바꾸고,
-                  실제 API 호출은 손을 뗐을 때(onChangeCommitted) 한 번만 한다 */}
-              <Slider
-                value={task.progressRate ?? 0}
-                onChange={(_e, v) => setTask((prev) => ({ ...prev, progressRate: v }))}
-                onChangeCommitted={handleProgressCommit}
-                step={5}
-                marks
-                min={0}
-                max={100}
-                valueLabelDisplay="auto"
-              />
-            </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    진행률 — {task.progressRate}%
+                  </Typography>
+                  {/* onChange는 드래그 중 계속 발생하므로 상태만 바꾸고,
+                      실제 API 호출은 손을 뗐을 때(onChangeCommitted) 한 번만 한다 */}
+                  <Slider
+                    value={task.progressRate ?? 0}
+                    onChange={(_e, v) => setTask((prev) => ({ ...prev, progressRate: v }))}
+                    onChangeCommitted={handleProgressCommit}
+                    step={5}
+                    marks
+                    min={0}
+                    max={100}
+                    valueLabelDisplay="auto"
+                  />
+                </Box>
+              </>
+            ) : (
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  진행률
+                </Typography>
+                <Typography variant="body2">
+                  {STATUS[task.status] ?? task.status} · {task.progressRate}%
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  작성자만 상태·진행률을 바꿀 수 있습니다.
+                </Typography>
+              </Box>
+            )}
           </Box>
         )}
 
@@ -246,11 +272,19 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
       </DialogContent>
 
       <DialogActions>
-        <IconButton color="error" onClick={() => setConfirmDelete(true)} disabled={!task}>
+        <IconButton
+          color="error"
+          onClick={() => setConfirmDelete(true)}
+          disabled={!task || !task.canEdit}
+        >
           <DeleteIcon />
         </IconButton>
         <Box sx={{ flexGrow: 1 }} />
-        <Button startIcon={<EditIcon />} onClick={() => onEdit?.(task)} disabled={!task}>
+        <Button
+          startIcon={<EditIcon />}
+          onClick={() => onEdit?.(task)}
+          disabled={!task || !task.canEdit}
+        >
           수정
         </Button>
         <Button onClick={onClose}>닫기</Button>

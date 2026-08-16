@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS activity_logs (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     task_id     INT NOT NULL,
     user_id     INT NOT NULL  COMMENT '행동한 사람',
-    action      VARCHAR(20) NOT NULL COMMENT 'CREATE / UPDATE / DELETE / STATUS_CHANGE',
+    action      VARCHAR(20) NOT NULL COMMENT 'CREATE / UPDATE / DELETE / STATUS_CHANGE / PROGRESS_CHANGE / PARENT_CHANGE',
     created_at  DATETIME DEFAULT NOW(),
     -- 활동 이력은 보존해야 하므로 참조 대상의 실제 삭제를 막는다 (작업/사용자 모두 소프트 삭제 사용)
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE RESTRICT,

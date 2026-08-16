@@ -168,7 +168,9 @@ public class TaskController {
     @GetMapping("/{id}/activity-logs")
     public List<ActivityLog> activityLogs(@Login LoginUser loginUser,
             @PathVariable Long id) {
-        taskService.get(loginUser, id);   // 조회 권한 확인
+        // get()은 삭제된 작업을 404로 막는데, 방금 삭제한 작업의 "DELETE" 이력을
+        // 보려는 경우가 정상적으로 있으므로 삭제 여부와 무관한 권한 확인을 쓴다.
+        taskService.checkViewableForHistory(loginUser, id);
         return activityLogService.getByTaskId(id);
     }
 }

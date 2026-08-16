@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -52,7 +52,15 @@ export default function StatsPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // 응답이 요청 순서와 다르게 도착할 때(단위를 빠르게 전환) 오래된 응답이
+  // 최신 화면을 덮어쓰지 않도록, 매 호출마다 번호를 매기고 가장 최근 것만 반영한다.
+  const requestIdRef = useRef(0);
+  // from/to를 서버 기본값으로 채운 직후엔 그 값으로 다시 fetch할 필요가 없다
+  // (이미 그 기본값으로 받아온 응답을 반영한 뒤이므로) — 아래서만 건너뛴다.
+  const skipNextFetchRef = useRef(false);
+
   const load = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     setError('');
     try {
@@ -61,23 +69,39 @@ export default function StatsPage() {
         from: from || undefined,
         to: to || undefined,
       });
+      if (requestId !== requestIdRef.current) return; // 그 사이 더 최신 요청이 나감
+
       setStatusCounts(data.statusCounts ?? {});
       setRows(data.rows ?? []);
       setTotal(data.total ?? 0);
 
-      if (!from && data.from) setFrom(data.from);
-      if (!to && data.to) setTo(data.to);
+      if (!from && data.from) {
+        skipNextFetchRef.current = true;
+        setFrom(data.from);
+      }
+      if (!to && data.to) {
+        skipNextFetchRef.current = true;
+        setTo(data.to);
+      }
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setError(err.message ?? '통계를 불러오지 못했습니다.');
       setStatusCounts({});
       setRows([]);
       setTotal(0);
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
   }, [unit, from, to]);
 
   useEffect(() => {
+    // 방금 load()가 서버 기본값으로 from/to를 채운 것 때문에 이 effect가
+    // 다시 실행된 경우라면, 이미 그 값으로 받아온 데이터가 화면에 있으므로
+    // 똑같은 요청을 한 번 더 보내지 않는다.
+    if (skipNextFetchRef.current) {
+      skipNextFetchRef.current = false;
+      return;
+    }
     load();
   }, [load]);
 

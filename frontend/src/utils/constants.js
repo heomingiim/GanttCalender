@@ -102,6 +102,8 @@ export const ACTIVITY_ACTION = {
   UPDATE: '수정',
   DELETE: '삭제',
   STATUS_CHANGE: '상태 변경',
+  PROGRESS_CHANGE: '진행률 변경',
+  PARENT_CHANGE: '상위 작업 변경',
 };
 
 // '팀 공용 카테고리'처럼 팀장급 이상만 가능한 동작 판별.

@@ -27,6 +27,7 @@ export default function UserPicker({
   useEffect(() => {
     if (inputValue.trim().length < 1) {
       setOptions([]);
+      setLoading(false); // 입력 중이던 걸 지우면 예약된 검색도 취소되므로 스피너도 꺼야 한다
       return;
     }
 
