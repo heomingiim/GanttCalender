@@ -12,14 +12,7 @@ import {
 } from '@mui/material';
 
 import * as statsApi from '../api/stats';
-import { STATUS } from '../utils/constants';
-
-const STATUS_BAR_COLOR = {
-  TODO: '#90a4ae',
-  IN_PROGRESS: '#1976d2',
-  DONE: '#2e7d32',
-  CANCELLED: '#c62828',
-};
+import { STATUS, STATUS_BAR_COLOR } from '../utils/constants';
 
 const UNITS = [
   { value: 'DAY', label: '일별' },

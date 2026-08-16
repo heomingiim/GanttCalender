@@ -24,11 +24,11 @@
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO tasks (
             project_id, parent_task_id, creator_id, category_id,
-            task_type, title, description, start_date, end_date,
+            task_type, title, description, deliverable, start_date, end_date,
             is_all_day, visibility, status, priority, progress_rate, is_deleted
         ) VALUES (
             #{projectId}, #{parentTaskId}, #{creatorId}, #{categoryId},
-            #{taskType}, #{title}, #{description}, #{startDate}, #{endDate},
+            #{taskType}, #{title}, #{description}, #{deliverable}, #{startDate}, #{endDate},
             #{allDay}, #{visibility}, #{status}, #{priority}, #{progressRate}, false
         )
     </insert>
@@ -37,6 +37,7 @@
         UPDATE tasks SET
             title = #{title},
             description = #{description},
+            deliverable = #{deliverable},
             start_date = #{startDate},
             end_date = #{endDate},
             is_all_day = #{allDay},
@@ -68,7 +69,11 @@
     SELECT DISTINCT t.* FROM tasks t
     LEFT JOIN task_assignees ta ON t.id = ta.task_id
     WHERE t.is_deleted = false
-      AND t.task_type = 'EVENT'
+      AND (
+          t.task_type = 'EVENT'
+          OR (t.task_type IN ('WBS_TASK', 'MILESTONE')
+              AND (t.creator_id = #{userId} OR ta.user_id = #{userId}))
+      )
       <if test="to != null">
       AND t.start_date &lt;= #{to}
       </if>
@@ -112,6 +117,24 @@
         AND title LIKE CONCAT('%', #{keyword}, '%')
     </if>
     ORDER BY created_at DESC
+</select>
+
+<select id="findAssignedTasks" resultMap="taskMap">
+    SELECT DISTINCT t.* FROM tasks t
+    JOIN task_assignees ta ON ta.task_id = t.id
+    WHERE ta.user_id = #{userId}
+      AND t.task_type IN ('WBS_TASK', 'MILESTONE')
+      AND t.is_deleted = false
+    <if test="status != null">
+        AND t.status = #{status}
+    </if>
+    <if test="projectId != null">
+        AND t.project_id = #{projectId}
+    </if>
+    <if test="keyword != null and keyword != ''">
+        AND t.title LIKE CONCAT('%', #{keyword}, '%')
+    </if>
+    ORDER BY t.end_date IS NULL, t.end_date, t.created_at DESC
 </select>
 
 <update id="updateParent">

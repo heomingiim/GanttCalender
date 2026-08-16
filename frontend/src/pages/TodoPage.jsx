@@ -26,10 +26,11 @@ import * as taskApi from '../api/tasks';
 import { listCategories } from '../api/categories';
 import { listProjects } from '../api/projects';
 import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
 import TaskFormDialog from '../components/TaskFormDialog';
 import TaskDetailDialog from '../components/TaskDetailDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
-import { PRIORITY, PRIORITY_COLOR, STATUS, STATUS_COLOR } from '../utils/constants';
+import { PRIORITY, PRIORITY_COLOR, STATUS, STATUS_COLOR, TASK_TYPE } from '../utils/constants';
 import { formatDateTime } from '../utils/date';
 
 /**
@@ -39,6 +40,7 @@ import { formatDateTime } from '../utils/date';
  */
 export default function TodoPage() {
   const toast = useToast();
+  const { user } = useAuth();
 
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -197,6 +199,7 @@ export default function TodoPage() {
             <TableRow>
               <TableCell padding="checkbox" />
               <TableCell>제목</TableCell>
+              <TableCell width={90}>구분</TableCell>
               <TableCell width={90}>상태</TableCell>
               <TableCell width={90}>우선순위</TableCell>
               <TableCell width={80}>진행률</TableCell>
@@ -207,7 +210,7 @@ export default function TodoPage() {
           <TableBody>
             {todos.length === 0 && !loading && (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 5, color: 'text.secondary' }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 5, color: 'text.secondary' }}>
                   할 일이 없습니다.
                 </TableCell>
               </TableRow>
@@ -215,13 +218,16 @@ export default function TodoPage() {
 
             {todos.map((todo) => {
               const done = todo.status === 'DONE';
+              // WBS 작업은 담당자로 지정만 되어도 이 목록에 뜬다. 상태 변경·삭제는
+              // 작성자만 할 수 있어서(canEdit), 남이 만든 걸 여기서 건드리면 403이 난다.
+              const mine = todo.creatorId === user?.id;
               return (
                 <TableRow key={todo.id} hover>
                   <TableCell padding="checkbox">
                     <Checkbox
                       checked={done}
+                      disabled={!mine}
                       onChange={() => handleToggle(todo)}
-                      // 행 클릭(상세 열기)과 체크박스 클릭이 겹치지 않게 전파를 끊는다
                       onClick={(e) => e.stopPropagation()}
                     />
                   </TableCell>
@@ -234,6 +240,13 @@ export default function TodoPage() {
                     }}
                   >
                     {todo.title}
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      label={todo.taskType === 'TODO' ? '개인' : (TASK_TYPE[todo.taskType] ?? todo.taskType)}
+                    />
                   </TableCell>
                   <TableCell>
                     <Chip
@@ -253,9 +266,11 @@ export default function TodoPage() {
                   <TableCell>{todo.progressRate}%</TableCell>
                   <TableCell>{formatDateTime(todo.endDate)}</TableCell>
                   <TableCell>
-                    <IconButton size="small" onClick={() => setDeleteTarget(todo)}>
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
+                    {mine && (
+                      <IconButton size="small" onClick={() => setDeleteTarget(todo)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    )}
                   </TableCell>
                 </TableRow>
               );
@@ -272,6 +287,7 @@ export default function TodoPage() {
         categories={categories}
         defaultType="TODO"
         lockType
+        projects={projects}
       />
 
       <TaskDetailDialog

@@ -6,7 +6,6 @@ import {
   Card,
   CardContent,
   Chip,
-  Divider,
   IconButton,
   LinearProgress,
   MenuItem,
@@ -21,9 +20,6 @@ import {
   TableRow,
   Tabs,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
@@ -31,33 +27,22 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/Delete';
 
 import * as projectApi from '../api/projects';
-import * as taskApi from '../api/tasks';
 import { listCategories } from '../api/categories';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import TaskFormDialog from '../components/TaskFormDialog';
 import TaskDetailDialog from '../components/TaskDetailDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
-import GanttChart from '../components/GanttChart';
+import WbsGanttTable from '../components/WbsGanttTable';
 import UserPicker from '../components/UserPicker';
-import { flattenTree, selectableParents, toGanttTasks } from '../utils/taskTree';
-import {
-  PRIORITY,
-  PRIORITY_COLOR,
-  PROJECT_MEMBER_ROLE,
-  PROJECT_STATUS,
-  STATUS,
-  STATUS_COLOR,
-  TASK_TYPE,
-} from '../utils/constants';
-import { formatDate, toLocalDateString } from '../utils/date';
+import { flattenTree, selectableParents } from '../utils/taskTree';
+import { PROJECT_MEMBER_ROLE, PROJECT_STATUS } from '../utils/constants';
 
 /**
  * 프로젝트 상세.
- *   개요 탭 : 프로젝트 정보 수정/삭제 (ADMIN만)
- *   멤버 탭 : 멤버 추가·역할 변경·제거 (ADMIN만)
- *   WBS 탭  : 계층 구조 표, 상위 작업 변경
- *   간트 탭 : frappe-gantt 시각화
+ *   개요 탭   : 프로젝트 정보 수정/삭제 (ADMIN만)
+ *   멤버 탭   : 멤버 추가·역할 변경·제거 (ADMIN만)
+ *   WBS·간트 탭 : 계층 표와 타임라인을 한 화면에 합친 뷰 (WbsGanttTable)
  */
 export default function ProjectDetailPage() {
   const { id } = useParams();
@@ -76,7 +61,6 @@ export default function ProjectDetailPage() {
   // 트리는 서버가 준 그대로 보관하고, 화면용 평탄화 배열은 파생값으로 계산한다.
   // useMemo를 쓰면 tree가 바뀔 때만 다시 계산한다 (렌더마다 재계산 방지).
   const flatTasks = useMemo(() => flattenTree(tree), [tree]);
-  const ganttTasks = useMemo(() => toGanttTasks(flatTasks), [flatTasks]);
 
   const myMembership = members.find((m) => m.userId === user?.id);
   const isAdmin = myMembership?.role === 'ADMIN';
@@ -133,8 +117,7 @@ export default function ProjectDetailPage() {
       <Tabs value={tab} onChange={(_e, v) => setTab(v)} sx={{ mb: 2 }}>
         <Tab label="개요" />
         <Tab label={`멤버 (${members.length})`} />
-        <Tab label={`WBS (${flatTasks.length})`} />
-        <Tab label="간트차트" />
+        <Tab label={`WBS · 간트 (${flatTasks.length})`} />
       </Tabs>
 
       {tab === 0 && (
@@ -154,15 +137,13 @@ export default function ProjectDetailPage() {
         />
       )}
       {tab === 2 && (
-        <WbsTab
+        <WbsGanttTab
+          project={project}
           projectId={projectId}
           flatTasks={flatTasks}
           categories={categories}
           onChanged={loadTasks}
         />
-      )}
-      {tab === 3 && (
-        <GanttTab ganttTasks={ganttTasks} onChanged={loadTasks} />
       )}
     </Box>
   );
@@ -407,28 +388,12 @@ function MemberTab({ projectId, members, isAdmin, onChanged }) {
   );
 }
 
-// ── WBS 탭 ────────────────────────────────────────────────────
-function WbsTab({ projectId, flatTasks, categories, onChanged }) {
-  const toast = useToast();
+// ── WBS · 간트 탭 ────────────────────────────────────────────
+function WbsGanttTab({ project, projectId, flatTasks, categories, onChanged }) {
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [detailId, setDetailId] = useState(null);
   const [parentForNew, setParentForNew] = useState(null);
-
-  /**
-   * 상위 작업 변경. 서버가 순환(CIRCULAR_PARENT)을 막지만,
-   * 드롭다운에서 자기 자손을 아예 못 고르게 selectableParents로 걸러둔다.
-   */
-  const handleParentChange = async (taskId, value) => {
-    const parentTaskId = value === '' ? null : Number(value);
-    try {
-      await taskApi.setParent(taskId, parentTaskId);
-      toast.success('상위 작업을 변경했습니다.');
-      onChanged();
-    } catch (err) {
-      toast.apiError(err);
-    }
-  };
 
   const openCreate = (parentTaskId = null) => {
     setEditingTask(null);
@@ -440,95 +405,17 @@ function WbsTab({ projectId, flatTasks, categories, onChanged }) {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => openCreate(null)}>
-          WBS 작업 추가
+          단계 추가
         </Button>
       </Box>
 
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>작업</TableCell>
-              <TableCell width={100}>종류</TableCell>
-              <TableCell width={90}>상태</TableCell>
-              <TableCell width={90}>우선순위</TableCell>
-              <TableCell width={200}>기간</TableCell>
-              <TableCell width={80}>진행률</TableCell>
-              <TableCell width={200}>상위 작업</TableCell>
-              <TableCell width={60} />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {flatTasks.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 5, color: 'text.secondary' }}>
-                  작업이 없습니다. WBS 작업을 추가해 보세요.
-                </TableCell>
-              </TableRow>
-            )}
-
-            {flatTasks.map((t) => (
-              <TableRow key={t.id} hover>
-                <TableCell
-                  sx={{ pl: 2 + t.depth * 3, cursor: 'pointer' }}
-                  onClick={() => setDetailId(t.id)}
-                >
-                  {/* depth만큼 들여쓰기 + 자식이 있으면 표시 */}
-                  {t.depth > 0 && (
-                    <Box component="span" sx={{ color: 'text.disabled', mr: 0.5 }}>
-                      └
-                    </Box>
-                  )}
-                  {t.title}
-                </TableCell>
-                <TableCell>{TASK_TYPE[t.taskType] ?? t.taskType}</TableCell>
-                <TableCell>
-                  <Chip size="small" color={STATUS_COLOR[t.status]} label={STATUS[t.status] ?? t.status} />
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    size="small"
-                    variant="outlined"
-                    color={PRIORITY_COLOR[t.priority]}
-                    label={PRIORITY[t.priority] ?? t.priority}
-                  />
-                </TableCell>
-                <TableCell sx={{ fontSize: 12 }}>
-                  {formatDate(t.startDate)} ~ {formatDate(t.endDate)}
-                </TableCell>
-                <TableCell>{t.progressRate ?? 0}%</TableCell>
-                <TableCell>
-                  <Select
-                    size="small"
-                    fullWidth
-                    value={t.parentTaskId ?? ''}
-                    onChange={(e) => handleParentChange(t.id, e.target.value)}
-                    displayEmpty
-                    sx={{ fontSize: 13 }}
-                  >
-                    <MenuItem value="">
-                      <em>최상위</em>
-                    </MenuItem>
-                    {selectableParents(flatTasks, t.id).map((p) => (
-                      <MenuItem key={p.id} value={p.id}>
-                        {'  '.repeat(p.depth)}
-                        {p.title}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <Tooltip title="하위 작업 추가">
-                    <IconButton size="small" onClick={() => openCreate(t.id)}>
-                      <AddIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <WbsGanttTable
+        tasks={flatTasks}
+        rangeStart={project?.startDate}
+        rangeEnd={project?.endDate}
+        onRowClick={setDetailId}
+        onAddChild={openCreate}
+      />
 
       <TaskFormDialog
         open={formOpen}
@@ -539,6 +426,7 @@ function WbsTab({ projectId, flatTasks, categories, onChanged }) {
         defaultType="WBS_TASK"
         projectId={projectId}
         parentTaskId={parentForNew}
+        parentOptions={editingTask ? selectableParents(flatTasks, editingTask.id) : null}
       />
 
       <TaskDetailDialog
@@ -552,93 +440,6 @@ function WbsTab({ projectId, flatTasks, categories, onChanged }) {
           setParentForNew(null);
           setFormOpen(true);
         }}
-      />
-    </Box>
-  );
-}
-
-// ── 간트 탭 ───────────────────────────────────────────────────
-function GanttTab({ ganttTasks, onChanged }) {
-  const toast = useToast();
-  const [viewMode, setViewMode] = useState('Week');
-  const [detailId, setDetailId] = useState(null);
-
-  /**
-   * 막대를 드래그해 기간이 바뀌었을 때.
-   *
-   * 주의: PUT /api/tasks/{id}는 "전체 교체"라서 title/visibility 등을 빼먹으면
-   * 그 값들이 null로 덮인다(visibility는 NOT NULL이라 에러). 그래서 먼저 GET으로
-   * 현재 값을 받아온 뒤 날짜만 바꿔서 되돌려 보낸다.
-   */
-  const handleDateChange = async (taskId, start, end) => {
-    try {
-      const current = await taskApi.getTask(taskId);
-      await taskApi.updateTask(taskId, {
-        title: current.title,
-        description: current.description,
-        startDate: `${toLocalDateString(start)}T00:00:00`,
-        endDate: `${toLocalDateString(end)}T23:59:59`,
-        allDay: current.allDay,
-        visibility: current.visibility,
-        priority: current.priority,
-        categoryId: current.categoryId,
-      });
-      toast.success('기간을 변경했습니다.');
-      onChanged();
-    } catch (err) {
-      toast.apiError(err);
-      onChanged(); // 실패 시 서버 기준으로 다시 그린다
-    }
-  };
-
-  const handleProgressChange = async (taskId, progress) => {
-    try {
-      await taskApi.changeProgress(taskId, Math.round(progress));
-      onChanged();
-    } catch (err) {
-      toast.apiError(err);
-      onChanged();
-    }
-  };
-
-  return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="body2" color="text.secondary">
-          막대를 드래그하면 기간이, 오른쪽 끝 핸들을 끌면 진행률이 바뀝니다.
-        </Typography>
-        <ToggleButtonGroup
-          size="small"
-          exclusive
-          value={viewMode}
-          onChange={(_e, v) => v && setViewMode(v)}
-        >
-          <ToggleButton value="Day">일</ToggleButton>
-          <ToggleButton value="Week">주</ToggleButton>
-          <ToggleButton value="Month">월</ToggleButton>
-        </ToggleButtonGroup>
-      </Box>
-
-      <Paper sx={{ p: 2, overflowX: 'auto' }}>
-        <GanttChart
-          tasks={ganttTasks}
-          viewMode={viewMode}
-          onTaskClick={setDetailId}
-          onDateChange={handleDateChange}
-          onProgressChange={handleProgressChange}
-        />
-      </Paper>
-
-      <Divider sx={{ my: 2 }} />
-      <Typography variant="caption" color="text.secondary">
-        시작일·종료일이 모두 비어 있는 작업은 간트차트에 표시되지 않습니다.
-      </Typography>
-
-      <TaskDetailDialog
-        open={detailId != null}
-        taskId={detailId}
-        onClose={() => setDetailId(null)}
-        onChanged={onChanged}
       />
     </Box>
   );

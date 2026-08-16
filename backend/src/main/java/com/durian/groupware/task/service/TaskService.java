@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,9 @@ import com.durian.groupware.global.auth.LoginUser;
 import com.durian.groupware.global.auth.exception.BusinessException;
 import com.durian.groupware.global.auth.exception.ErrorCode;
 import com.durian.groupware.notification.service.NotificationService;
+import com.durian.groupware.project.dto.Project;
+import com.durian.groupware.project.mapper.ProjectMapper;
+import com.durian.groupware.project.service.ProjectMemberService;
 import com.durian.groupware.task.dto.Task;
 import com.durian.groupware.task.dto.TaskCreateRequest;
 import com.durian.groupware.task.dto.TaskParticipant;
@@ -42,6 +46,8 @@ public class TaskService {
     private final TaskParticipantMapper participantMapper;
     private final NotificationService notificationService;
     private final ActivityLogService activityLogService;
+    private final ProjectMemberService projectMemberService;
+    private final ProjectMapper projectMapper;
 
     // task_participants.response_status에 허용되는 값
     private static final Set<String> ALLOWED_RESPONSES =
@@ -55,6 +61,7 @@ public class TaskService {
                 && req.startDate().isAfter(req.endDate())) {
             throw new BusinessException(ErrorCode.INVALID_TASK_DATE);
         }
+        checkWithinProjectRange(req.projectId(), req.startDate(), req.endDate());
 
         Task task = new Task();
         task.setCreatorId(loginUser.id());
@@ -64,6 +71,7 @@ public class TaskService {
         task.setTaskType(req.taskType());
         task.setTitle(req.title());
         task.setDescription(req.description());
+        task.setDeliverable(req.deliverable());
         task.setStartDate(req.startDate());
         task.setEndDate(req.endDate());
         task.setAllDay(Boolean.TRUE.equals(req.allDay()));
@@ -98,9 +106,11 @@ public class TaskService {
                 && req.startDate().isAfter(req.endDate())) {
             throw new BusinessException(ErrorCode.INVALID_TASK_DATE);
         }
+        checkWithinProjectRange(task.getProjectId(), req.startDate(), req.endDate());
 
         task.setTitle(req.title());
         task.setDescription(req.description());
+        task.setDeliverable(req.deliverable());
         task.setStartDate(req.startDate());
         task.setEndDate(req.endDate());
         task.setAllDay(Boolean.TRUE.equals(req.allDay()));
@@ -158,6 +168,26 @@ public class TaskService {
     }
 
     // ============ 내부 유틸 ============
+
+    private void checkWithinProjectRange(Long projectId, LocalDateTime startDate, LocalDateTime endDate) {
+        if (projectId == null) {
+            return;
+        }
+        Project project = projectMapper.findByIdNotDeleted(projectId);
+        if (project == null) {
+            return;
+        }
+        boolean startOutOfRange = startDate != null
+                && (project.getStartDate() != null && startDate.toLocalDate().isBefore(project.getStartDate())
+                    || project.getEndDate() != null && startDate.toLocalDate().isAfter(project.getEndDate()));
+        boolean endOutOfRange = endDate != null
+                && (project.getStartDate() != null && endDate.toLocalDate().isBefore(project.getStartDate())
+                    || project.getEndDate() != null && endDate.toLocalDate().isAfter(project.getEndDate()));
+        if (startOutOfRange || endOutOfRange) {
+            throw new BusinessException(ErrorCode.TASK_DATE_OUT_OF_PROJECT_RANGE);
+        }
+    }
+
     private void notifyCancelToParticipants(Task task) {
         List<Long> participantIds = participantMapper.findUserIdsByTaskId(task.getId());
         for (Long uid : participantIds) {
@@ -194,8 +224,8 @@ public class TaskService {
             return true;
         }
         if ("TODO".equals(task.getTaskType())) {
-            return false; // 투두는 본인만
-
+            return task.getProjectId() != null
+                    && projectMemberService.isMember(loginUser.id(), task.getProjectId());
         }
         return "PUBLIC".equals(task.getVisibility());
     }
@@ -213,8 +243,11 @@ public class TaskService {
 
     public List<TaskResponse> getMyTodos(LoginUser loginUser, String status,
             Long projectId, String keyword) {
-        List<Task> tasks = taskMapper.findMyTodos(loginUser.id(), status, projectId, keyword);
-        return tasks.stream().map(TaskResponse::from).toList();
+        List<Task> todos = taskMapper.findMyTodos(loginUser.id(), status, projectId, keyword);
+        List<Task> assigned = taskMapper.findAssignedTasks(loginUser.id(), status, projectId, keyword);
+        return Stream.concat(todos.stream(), assigned.stream())
+                .map(TaskResponse::from)
+                .toList();
     }
 
     @Transactional
@@ -268,9 +301,17 @@ public class TaskService {
                 .filter(t -> canView(loginUser, t))
                 .toList();
 
+        Map<Long, List<String>> namesByTaskId = new LinkedHashMap<>();
+        for (Map<String, Object> row : assigneeMapper.findAssigneeNamesByProjectId(projectId)) {
+            Long taskId = ((Number) row.get("taskId")).longValue();
+            namesByTaskId.computeIfAbsent(taskId, k -> new ArrayList<>()).add((String) row.get("name"));
+        }
+
         Map<Long, TaskTreeResponse> map = new LinkedHashMap<>();
         for (Task t : all) {
-            map.put(t.getId(), TaskTreeResponse.from(t));
+            TaskTreeResponse r = TaskTreeResponse.from(t);
+            r.setAssigneeNames(String.join(", ", namesByTaskId.getOrDefault(t.getId(), List.of())));
+            map.put(t.getId(), r);
         }
 
         List<TaskTreeResponse> roots = new ArrayList<>();

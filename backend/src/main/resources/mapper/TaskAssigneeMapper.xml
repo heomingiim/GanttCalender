@@ -17,6 +17,15 @@
         ORDER BY u.name
     </select>
 
+    <select id="findAssigneeNamesByProjectId" resultType="map">
+        SELECT ta.task_id AS taskId, u.name AS name
+        FROM task_assignees ta
+        JOIN tasks t ON t.id = ta.task_id
+        JOIN users u ON u.id = ta.user_id
+        WHERE t.project_id = #{projectId}
+        ORDER BY ta.task_id, u.name
+    </select>
+
     <delete id="deleteByTaskId">
         DELETE FROM task_assignees WHERE task_id = #{taskId}
     </delete>

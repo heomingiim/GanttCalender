@@ -23,6 +23,15 @@ export const STATUS_COLOR = {
   CANCELLED: 'error',
 };
 
+// 막대(간트/통계 그래프)에 쓰는 상태별 hex 색상. MUI Chip color prop과 달리
+// bgcolor에 직접 넣을 hex 값이 필요한 곳(간트 막대 등)에서 쓴다.
+export const STATUS_BAR_COLOR = {
+  TODO: '#90a4ae',
+  IN_PROGRESS: '#1976d2',
+  DONE: '#2e7d32',
+  CANCELLED: '#c62828',
+};
+
 export const PRIORITY = {
   LOW: '낮음',
   MEDIUM: '보통',

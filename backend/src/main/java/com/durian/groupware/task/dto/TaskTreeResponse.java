@@ -19,6 +19,8 @@ public class TaskTreeResponse {
     private String taskType;      // TODO / EVENT / WBS_TASK / MILESTONE
     private String status;
     private String priority;
+    private String deliverable;
+    private String assigneeNames; // 담당자 이름을 ", "로 이어붙인 표시용 문자열
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private Integer progressRate;
@@ -34,6 +36,7 @@ public class TaskTreeResponse {
         r.setTaskType(t.getTaskType());
         r.setStatus(t.getStatus());
         r.setPriority(t.getPriority());
+        r.setDeliverable(t.getDeliverable());
         r.setStartDate(t.getStartDate());
         r.setEndDate(t.getEndDate());
         r.setProgressRate(t.getProgressRate());

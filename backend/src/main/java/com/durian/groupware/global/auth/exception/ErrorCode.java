@@ -17,6 +17,7 @@ public enum ErrorCode {
     TASK_NOT_FOUND(HttpStatus.NOT_FOUND, "작업을 찾을 수 없습니다."),
     TASK_FORBIDDEN(HttpStatus.FORBIDDEN, "작업을 수정할 권한이 없습니다."),
     INVALID_TASK_DATE(HttpStatus.BAD_REQUEST, "시작일은 종료일보다 앞이어야 합니다."),
+    TASK_DATE_OUT_OF_PROJECT_RANGE(HttpStatus.BAD_REQUEST, "작업 기간이 프로젝트 기간을 벗어났습니다."),
     PARENT_NOT_FOUND(HttpStatus.NOT_FOUND, "상위 작업을 찾을 수 없습니다."),
     PARENT_OTHER_PROJECT(HttpStatus.BAD_REQUEST, "다른 프로젝트의 작업은 상위 작업으로 지정할 수 없습니다."),
     NOT_PARTICIPANT(HttpStatus.FORBIDDEN, "이 일정의 참석자가 아닙니다."),

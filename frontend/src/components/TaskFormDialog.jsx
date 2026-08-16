@@ -14,6 +14,7 @@ import {
 
 import * as taskApi from '../api/tasks';
 import { useToast } from '../contexts/ToastContext';
+import DateRangeField from './DateRangeField';
 import {
   PRIORITY,
   STATUS,
@@ -29,6 +30,7 @@ import {
 const EMPTY = {
   title: '',
   description: '',
+  deliverable: '', // WBS 산출물. taskType === 'WBS_TASK'일 때만 화면에 노출
   taskType: 'EVENT',
   startDate: '',
   endDate: '',
@@ -37,6 +39,8 @@ const EMPTY = {
   status: 'TODO',
   priority: 'MEDIUM',
   categoryId: '',
+  projectId: '', // ''(빈 값) = 개인 투두. projects prop이 있을 때만 화면에 노출
+  parentTaskId: '', // 상위 작업. parentOptions prop이 있는 수정 화면에서만 노출
 };
 
 /**
@@ -56,9 +60,11 @@ export default function TaskFormDialog({
   defaultType = 'EVENT',
   defaultStart = null,  // 캘린더에서 날짜를 클릭해 열었을 때 채워짐
   defaultEnd = null,
-  projectId = null,     // WBS 작업 생성 시
+  projectId = null,     // WBS 작업 생성 시: 고정된 프로젝트(선택 UI 없음)
   parentTaskId = null,
   lockType = false,     // 타입 선택 막기 (투두 페이지 등)
+  projects = null,      // 있으면 "프로젝트" 선택 필드를 보여준다 (투두 페이지 등)
+  parentOptions = null, // 있으면(수정 화면) "상위 작업" 선택 필드를 보여준다 (WBS만)
 }) {
   const toast = useToast();
   const [form, setForm] = useState(EMPTY);
@@ -74,6 +80,7 @@ export default function TaskFormDialog({
       setForm({
         title: task.title ?? '',
         description: task.description ?? '',
+        deliverable: task.deliverable ?? '',
         taskType: task.taskType ?? defaultType,
         startDate: toDateTimeInputValue(task.startDate),
         endDate: toDateTimeInputValue(task.endDate),
@@ -82,6 +89,8 @@ export default function TaskFormDialog({
         status: task.status ?? 'TODO',
         priority: task.priority ?? 'MEDIUM',
         categoryId: task.categoryId ?? '',
+        projectId: task.projectId ?? '',
+        parentTaskId: task.parentTaskId ?? '',
       });
     } else {
       setForm({
@@ -89,9 +98,10 @@ export default function TaskFormDialog({
         taskType: defaultType,
         startDate: toDateTimeInputValue(defaultStart),
         endDate: toDateTimeInputValue(defaultEnd),
+        projectId: projectId ?? '',
       });
     }
-  }, [open, task, defaultType, defaultStart, defaultEnd]);
+  }, [open, task, defaultType, defaultStart, defaultEnd, projectId]);
 
   // 입력 필드 하나를 바꾸는 공통 핸들러.
   // ...prev 로 기존 값을 복사한 뒤 한 필드만 덮어쓴다(불변성 유지).
@@ -119,10 +129,11 @@ export default function TaskFormDialog({
     try {
       if (isEdit) {
         // TaskUpdateRequest에는 status/taskType/parentTaskId가 없다.
-        // 상태는 PATCH /status, 부모는 PATCH /parent 로 따로 바꾼다.
+        // 상태는 PATCH /status로 따로 바꾼다.
         await taskApi.updateTask(task.id, {
           title: form.title.trim(),
           description: form.description || null,
+          deliverable: form.taskType === 'WBS_TASK' ? form.deliverable || null : null,
           startDate: fromDateTimeInputValue(form.startDate),
           endDate: fromDateTimeInputValue(form.endDate),
           allDay: form.allDay,
@@ -130,15 +141,31 @@ export default function TaskFormDialog({
           priority: form.priority,
           categoryId: form.categoryId === '' ? null : Number(form.categoryId),
         });
+
+        if (parentOptions) {
+          const nextParent = form.parentTaskId === '' ? null : Number(form.parentTaskId);
+          const prevParent = task.parentTaskId ?? null;
+          if (nextParent !== prevParent) {
+            await taskApi.setParent(task.id, nextParent);
+          }
+        }
+
         toast.success('수정했습니다.');
       } else {
+        // projects prop이 있으면(투두 페이지) 사용자가 고른 값을, 없으면(WBS 작업 생성)
+        // 고정으로 넘어온 projectId prop을 그대로 쓴다.
+        const resolvedProjectId = projects
+          ? (form.projectId === '' ? null : Number(form.projectId))
+          : projectId;
+
         await taskApi.createTask({
-          projectId,
+          projectId: resolvedProjectId,
           parentTaskId,
           categoryId: form.categoryId === '' ? null : Number(form.categoryId),
           taskType: form.taskType,
           title: form.title.trim(),
           description: form.description || null,
+          deliverable: form.taskType === 'WBS_TASK' ? form.deliverable || null : null,
           startDate: fromDateTimeInputValue(form.startDate),
           endDate: fromDateTimeInputValue(form.endDate),
           allDay: form.allDay,
@@ -206,21 +233,13 @@ export default function TaskFormDialog({
               ))}
             </TextField>
 
-            <TextField
-              label="시작"
-              type="datetime-local"
-              value={form.startDate}
-              onChange={setField('startDate')}
-              size="small"
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-            <TextField
-              label="종료"
-              type="datetime-local"
-              value={form.endDate}
-              onChange={setField('endDate')}
-              size="small"
-              slotProps={{ inputLabel: { shrink: true } }}
+            <DateRangeField
+              startDate={form.startDate}
+              endDate={form.endDate}
+              allDay={form.allDay}
+              onChange={(startDate, endDate) =>
+                setForm((prev) => ({ ...prev, startDate, endDate }))
+              }
             />
 
             <TextField
@@ -236,6 +255,56 @@ export default function TaskFormDialog({
                 </MenuItem>
               ))}
             </TextField>
+
+            {form.taskType === 'WBS_TASK' && (
+              <TextField
+                label="산출물"
+                value={form.deliverable}
+                onChange={setField('deliverable')}
+                size="small"
+                placeholder="예: 화면설계서, ERD"
+                sx={{ gridColumn: '1 / -1' }}
+              />
+            )}
+
+            {parentOptions && isEdit && task.taskType === 'WBS_TASK' && (
+              <TextField
+                select
+                label="상위 작업"
+                value={form.parentTaskId}
+                onChange={setField('parentTaskId')}
+                size="small"
+                sx={{ gridColumn: '1 / -1' }}
+              >
+                <MenuItem value="">
+                  <em>최상위 (단계)</em>
+                </MenuItem>
+                {parentOptions.map((p) => (
+                  <MenuItem key={p.id} value={p.id}>
+                    {'　'.repeat(p.depth)}
+                    {p.title}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+
+            {projects && !isEdit && (
+              <TextField
+                select
+                label="프로젝트"
+                value={form.projectId}
+                onChange={setField('projectId')}
+                size="small"
+                helperText="선택하면 프로젝트의 WBS·간트에도 나타납니다"
+              >
+                <MenuItem value="">개인 할 일 (프로젝트 없음)</MenuItem>
+                {projects.map((p) => (
+                  <MenuItem key={p.id} value={p.id}>
+                    {p.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
 
             <TextField
               select

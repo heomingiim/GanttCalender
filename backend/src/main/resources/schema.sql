@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     task_type       VARCHAR(20) NOT NULL COMMENT 'TODO / EVENT / WBS_TASK / MILESTONE',
     title           VARCHAR(200) NOT NULL,
     description     TEXT,
+    deliverable     VARCHAR(300) COMMENT 'WBS 산출물 (예: ERD, 화면설계서)',
     start_date      DATETIME,
     end_date        DATETIME,
     is_all_day      BOOLEAN NOT NULL DEFAULT FALSE,
@@ -146,3 +147,7 @@ CREATE INDEX idx_assignees_user   ON task_assignees(user_id);
 CREATE INDEX idx_participants_user ON task_participants(user_id);
 CREATE INDEX idx_notifications_user ON notifications(user_id, is_read);
 CREATE INDEX idx_logs_task ON activity_logs(task_id);
+
+-- CREATE TABLE IF NOT EXISTS는 이미 만들어진 테이블을 고치지 않으므로 별도 보정.
+-- 재실행 시 나는 "컬럼 중복" 에러는 continue-on-error: true로 무시된다.
+ALTER TABLE tasks ADD COLUMN deliverable VARCHAR(300) COMMENT 'WBS 산출물 (예: ERD, 화면설계서)' AFTER description;

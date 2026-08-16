@@ -39,6 +39,11 @@ public interface TaskMapper {
             @Param("projectId") Long projectId,
             @Param("keyword") String keyword);
 
+    List<Task> findAssignedTasks(@Param("userId") Long userId,
+            @Param("status") String status,
+            @Param("projectId") Long projectId,
+            @Param("keyword") String keyword);
+
     void updateParent(@Param("id") Long id, @Param("parentTaskId") Long parentTaskId);
 
     List<Task> findByProjectIdNotDeleted(Long projectId);

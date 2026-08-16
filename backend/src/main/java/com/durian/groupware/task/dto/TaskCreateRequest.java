@@ -14,6 +14,7 @@ public record TaskCreateRequest(
     @NotNull String taskType,
     @NotBlank String title,
     String description,
+    String deliverable,
     LocalDateTime startDate,
     LocalDateTime endDate,
     Boolean allDay,         // null이면 false로 처리

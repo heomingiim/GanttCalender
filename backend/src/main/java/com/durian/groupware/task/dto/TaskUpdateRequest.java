@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 public record TaskUpdateRequest(
     @NotBlank String title,
     String description,
+    String deliverable,
     LocalDateTime startDate,
     LocalDateTime endDate,
     Boolean allDay,
