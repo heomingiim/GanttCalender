@@ -15,8 +15,14 @@ GanttCalender/
 │       │   ├── GroupwareApplication.java
 │       │   ├── config/          WebConfig (인터셉터 / ArgumentResolver / CORS)
 │       │   ├── global/auth/     세션 인증, @Login, 예외 처리
+│       │   ├── auth/            로그인/세션
 │       │   ├── department/      조직도 도메인
 │       │   ├── user/            사용자 도메인
+│       │   ├── project/         프로젝트/멤버 도메인
+│       │   ├── task/            일정/투두/WBS 도메인
+│       │   ├── category/        카테고리 도메인
+│       │   ├── notification/    알림 도메인
+│       │   ├── stats/           통계/대시보드 도메인
 │       │   └── seed/            DataSeeder (employees.csv 적재)
 │       └── main/resources/
 │           ├── application.yaml
@@ -29,7 +35,7 @@ GanttCalender/
     └── src/
         ├── api/          axios 인스턴스 + 도메인별 API 함수
         ├── contexts/     Auth / Toast / Notification
-        ├── components/   AppLayout, TaskFormDialog, GanttChart, UserPicker …
+        ├── components/   AppLayout, TaskFormDialog, WbsGanttTable, UserPicker …
         ├── pages/        Login, Dashboard, Calendar, Todo, Project, Category, Org, Stats
         └── utils/        date(LocalDateTime 변환), taskTree(트리↔평탄화), constants
 ```
@@ -193,7 +199,6 @@ npm run dev                  # http://localhost:5173
 | `문서 루트 요소 "mapper"은(는) DOCTYPE 루트 "null"과(와) 일치해야 합니다` | `resources/mapper/*.xml` 맨 위에 XML 선언 + DOCTYPE 2줄이 빠짐 |
 | 화면은 뜨는데 모든 요청이 401 | 로그인이 안 된 상태. 백엔드를 재시작하면 세션이 사라지므로 다시 로그인 |
 | `npm run dev` 후 API가 전부 실패 | 백엔드(8080)가 안 떠 있음. 프론트는 `/api` 를 8080으로 넘길 뿐임 |
-| 알림·통계·대시보드가 "백엔드 준비 중" | 정상. STEP 12~17 API가 아직 미구현 |
 
 ---
 
@@ -225,7 +230,7 @@ Vite dev 서버가 `/api` 요청을 `http://localhost:8080` 으로 프록시하�
 ### 스택
 
 React 19 · Vite · MUI 7 · React Router 7 · Context API · axios(`withCredentials`) ·
-FullCalendar(캘린더) · frappe-gantt(간트차트)
+FullCalendar(캘린더) · react-day-picker(기간 선택)
 
 프론트엔드의 DOM 조작·이벤트 처리·주요 스크립트 로직 설명은 `frontend/FRONTEND_GUIDE.md`
 에 정리해 두었습니다. (개인 학습용 문서라 `.gitignore` 에 등록되어 있어 저장소에는 없습니다)
