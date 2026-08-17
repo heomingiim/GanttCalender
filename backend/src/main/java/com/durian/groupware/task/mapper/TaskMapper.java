@@ -15,6 +15,8 @@ public interface TaskMapper {
 
     Task findByIdNotDeleted(Long id);
 
+    List<Task> findByIdsNotDeleted(@Param("ids") List<Long> ids);
+
     List<Task> findByProjectId(Long projectId);
 
     void insert(Task task);

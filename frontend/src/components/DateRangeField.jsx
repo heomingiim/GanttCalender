@@ -3,6 +3,7 @@ import { Box, Button, Popover, TextField, Typography } from '@mui/material';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/style.css';
 import DateRangeIcon from '@mui/icons-material/DateRange';
+import { formatShortDate, parseDateOnly, toLocalDateString } from '../utils/date';
 
 function splitDateTime(value) {
   if (!value) return { date: '', time: '' };
@@ -15,30 +16,13 @@ function joinDateTime(date, time) {
   return `${date}T${time || '00:00'}`;
 }
 
-function parseDateOnly(dateStr) {
-  if (!dateStr) return undefined;
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d);
-}
-
-function formatDateOnly(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
 function formatSummary(startDate, endDate, allDay) {
   const start = splitDateTime(startDate);
   const end = splitDateTime(endDate);
   if (!start.date && !end.date) return '기간 선택';
 
-  const label = (date, time) => {
-    if (!date) return '-';
-    const [, m, d] = date.split('-');
-    const dateLabel = `${Number(m)}/${Number(d)}`;
-    return allDay || !time ? dateLabel : `${dateLabel} ${time}`;
-  };
+  const label = (date, time) =>
+    allDay || !time ? formatShortDate(date) : `${formatShortDate(date)} ${time}`;
   return `${label(start.date, start.time)} ~ ${label(end.date, end.time)}`;
 }
 
@@ -55,8 +39,8 @@ export default function DateRangeField({ startDate, endDate, allDay, onChange })
   const range = { from: parseDateOnly(start.date), to: parseDateOnly(end.date) };
 
   const handleRangeSelect = (next) => {
-    const nextStart = next?.from ? formatDateOnly(next.from) : '';
-    const nextEnd = next?.to ? formatDateOnly(next.to) : nextStart;
+    const nextStart = next?.from ? toLocalDateString(next.from) : '';
+    const nextEnd = next?.to ? toLocalDateString(next.to) : nextStart;
     onChange(
       joinDateTime(nextStart, start.time || '09:00'),
       joinDateTime(nextEnd, end.time || '18:00')

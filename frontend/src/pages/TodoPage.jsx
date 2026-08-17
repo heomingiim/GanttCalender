@@ -142,17 +142,27 @@ export default function TodoPage() {
     setKeyword(searchInput);
   };
 
-  const moveRow = async (index, direction) => {
-    const target = index + direction;
-    if (target < 0 || target >= todos.length) return;
+  const todoOnlyIds = todos.filter((t) => t.taskType === 'TODO').map((t) => t.id);
+
+  const moveRow = async (taskId, direction) => {
+    const idx = todoOnlyIds.indexOf(taskId);
+    const target = idx + direction;
+    if (idx === -1 || target < 0 || target >= todoOnlyIds.length) return;
+
+    const nextIds = [...todoOnlyIds];
+    [nextIds[idx], nextIds[target]] = [nextIds[target], nextIds[idx]];
 
     const snapshot = todos;
-    const next = [...todos];
-    [next[index], next[target]] = [next[target], next[index]];
-    setTodos(next);
+    const order = new Map(nextIds.map((id, i) => [id, i]));
+    setTodos((prev) =>
+      [...prev].sort((a, b) => {
+        if (a.taskType !== 'TODO' || b.taskType !== 'TODO') return 0;
+        return order.get(a.id) - order.get(b.id);
+      })
+    );
 
     try {
-      await taskApi.reorderTasks(next.map((t) => t.id));
+      await taskApi.reorderTasks(nextIds);
     } catch (err) {
       setTodos(snapshot);
       toast.apiError(err);
@@ -265,7 +275,7 @@ export default function TodoPage() {
               </TableRow>
             )}
 
-            {todos.map((todo, index) => {
+            {todos.map((todo) => {
               const done = todo.status === 'DONE';
               // WBS 작업은 담당자로 지정만 되어도 이 목록에 뜬다. 상태 변경·삭제는
               // 작성자만 할 수 있어서(canEdit), 남이 만든 걸 여기서 건드리면 403이 난다.
@@ -284,16 +294,24 @@ export default function TodoPage() {
                   }
                 >
                   <TableCell sx={{ p: 0 }}>
-                    <IconButton size="small" disabled={index === 0} onClick={() => moveRow(index, -1)}>
-                      <ArrowUpwardIcon fontSize="inherit" />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      disabled={index === todos.length - 1}
-                      onClick={() => moveRow(index, 1)}
-                    >
-                      <ArrowDownwardIcon fontSize="inherit" />
-                    </IconButton>
+                    {todo.taskType === 'TODO' && (
+                      <>
+                        <IconButton
+                          size="small"
+                          disabled={todoOnlyIds.indexOf(todo.id) === 0}
+                          onClick={() => moveRow(todo.id, -1)}
+                        >
+                          <ArrowUpwardIcon fontSize="inherit" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          disabled={todoOnlyIds.indexOf(todo.id) === todoOnlyIds.length - 1}
+                          onClick={() => moveRow(todo.id, 1)}
+                        >
+                          <ArrowDownwardIcon fontSize="inherit" />
+                        </IconButton>
+                      </>
+                    )}
                   </TableCell>
                   <TableCell padding="checkbox">
                     <Checkbox

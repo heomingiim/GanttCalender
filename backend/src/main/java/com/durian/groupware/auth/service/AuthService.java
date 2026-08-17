@@ -38,6 +38,10 @@ public class AuthService {
         if (user == null) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
+        return getUserInfo(user);
+    }
+
+    public UserInfoResponse getUserInfo(User user) {
         return UserInfoResponse.from(user, resolveDepartmentPath(user.getDepartmentId()));
     }
 

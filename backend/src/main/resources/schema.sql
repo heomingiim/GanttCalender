@@ -143,6 +143,7 @@ CREATE INDEX idx_tasks_creator    ON tasks(creator_id);
 CREATE INDEX idx_tasks_parent     ON tasks(parent_task_id);
 CREATE INDEX idx_tasks_type       ON tasks(task_type);
 CREATE INDEX idx_tasks_dates      ON tasks(start_date, end_date);
+CREATE INDEX idx_tasks_created    ON tasks(created_at);
 CREATE INDEX idx_tasks_deleted    ON tasks(is_deleted);
 CREATE INDEX idx_assignees_user   ON task_assignees(user_id);
 CREATE INDEX idx_participants_user ON task_participants(user_id);

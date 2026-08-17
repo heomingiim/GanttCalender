@@ -44,8 +44,6 @@ const VIEW_OPTIONS = [
   { value: 'listWeek', label: '목록' },
 ];
 
-const segmentedSx = segmentedToggleSx;
-
 /**
  * 캘린더.
  *
@@ -268,7 +266,7 @@ export default function CalendarPage() {
             fullWidth
             size="small"
             onChange={handleScopeChange}
-            sx={{ ...segmentedSx, mb: 2.5, display: 'flex' }}
+            sx={{ ...segmentedToggleSx, mb: 2.5, display: 'flex' }}
           >
             <ToggleButton value="MY">내 일정</ToggleButton>
             <ToggleButton value="TEAM">팀 일정</ToggleButton>
@@ -365,7 +363,7 @@ export default function CalendarPage() {
               exclusive
               size="small"
               onChange={handleViewChange}
-              sx={{ ...segmentedSx, justifySelf: { xs: 'center', md: 'start' } }}
+              sx={{ ...segmentedToggleSx, justifySelf: { xs: 'center', md: 'start' } }}
             >
               {VIEW_OPTIONS.map((v) => (
                 <ToggleButton key={v.value} value={v.value}>

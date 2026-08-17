@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   Box,
   Chip,
@@ -21,15 +22,9 @@ import {
   withDisplayNumbers,
 } from '../utils/taskTree';
 import { STATUS, STATUS_BAR_COLOR, STATUS_COLOR } from '../utils/constants';
-import { toLocalDateString } from '../utils/date';
+import { formatShortDate, toLocalDateString } from '../utils/date';
 
 const DAY_COL_WIDTH = 42;
-
-function shortDate(value) {
-  if (!value) return '-';
-  const [, m, d] = toLocalDateString(value).split('-');
-  return `${Number(m)}/${Number(d)}`;
-}
 
 // 날짜 칸에 배경색을 칠해 막대를 표현한다.
 function DayCells({ days, startDate, endDate, status }) {
@@ -68,13 +63,20 @@ export default function WbsGanttTable({
   onAddChild,
   onReorder,
 }) {
-  const numbered = withDisplayNumbers(tasks);
+  const numbered = useMemo(() => withDisplayNumbers(tasks), [tasks]);
 
-  const siblingIds = (parentTaskId) =>
-    numbered.filter((t) => t.parentTaskId === parentTaskId).map((t) => t.id);
+  const siblingGroups = useMemo(() => {
+    const map = new Map();
+    for (const t of numbered) {
+      const list = map.get(t.parentTaskId) ?? [];
+      list.push(t.id);
+      map.set(t.parentTaskId, list);
+    }
+    return map;
+  }, [numbered]);
 
   const moveSibling = (t, direction) => {
-    const group = siblingIds(t.parentTaskId);
+    const group = [...(siblingGroups.get(t.parentTaskId) ?? [])];
     const idx = group.indexOf(t.id);
     const target = idx + direction;
     if (target < 0 || target >= group.length) return;
@@ -93,7 +95,7 @@ export default function WbsGanttTable({
     }
   }
 
-  const { days, weeks } = buildWorkdayColumns(start, end);
+  const { days, weeks } = useMemo(() => buildWorkdayColumns(start, end), [start, end]);
 
   if (numbered.length === 0) {
     return (
@@ -163,7 +165,7 @@ export default function WbsGanttTable({
 
         <TableBody>
           {numbered.map((t) => {
-            const group = siblingIds(t.parentTaskId);
+            const group = siblingGroups.get(t.parentTaskId) ?? [];
             const idx = group.indexOf(t.id);
             const canMoveUp = idx > 0;
             const canMoveDown = idx < group.length - 1;
@@ -225,8 +227,8 @@ export default function WbsGanttTable({
                 </TableCell>
                 <TableCell sx={{ fontSize: 12 }}>{t.assigneeNames || '-'}</TableCell>
                 <TableCell align="center" sx={{ fontSize: 12 }}>{t.days ?? '-'}</TableCell>
-                <TableCell sx={{ fontSize: 12 }}>{shortDate(t.startDate)}</TableCell>
-                <TableCell sx={{ fontSize: 12 }}>{shortDate(t.endDate)}</TableCell>
+                <TableCell sx={{ fontSize: 12 }}>{formatShortDate(t.startDate)}</TableCell>
+                <TableCell sx={{ fontSize: 12 }}>{formatShortDate(t.endDate)}</TableCell>
                 <TableCell sx={{ fontSize: 12 }}>{t.deliverable || '-'}</TableCell>
                 <TableCell align="center" sx={{ fontSize: 12 }}>{t.progressRate ?? 0}%</TableCell>
                 <TableCell>

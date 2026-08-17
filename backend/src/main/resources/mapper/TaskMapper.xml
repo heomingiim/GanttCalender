@@ -21,6 +21,14 @@
         SELECT * FROM tasks WHERE id = #{id} AND is_deleted = false
     </select>
 
+    <select id="findByIdsNotDeleted" resultMap="taskMap">
+        SELECT * FROM tasks WHERE is_deleted = false
+        AND id IN
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO tasks (
             project_id, parent_task_id, creator_id, category_id,

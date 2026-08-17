@@ -37,6 +37,21 @@ export function toLocalDateString(date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+/** 'YYYY-MM-DD' → Date (로컬 자정) */
+export function parseDateOnly(dateStr) {
+  if (!dateStr) return undefined;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Date | 'YYYY-MM-DD...' → 'M/D' */
+export function formatShortDate(value) {
+  if (!value) return '-';
+  const dateStr = typeof value === 'string' ? value : toLocalDateString(value);
+  const [, m, d] = dateStr.slice(0, 10).split('-');
+  return `${Number(m)}/${Number(d)}`;
+}
+
 export function toDateTimeInputValue(value) {
   if (!value) return '';
   const d = value instanceof Date ? value : new Date(value);

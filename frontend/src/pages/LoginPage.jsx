@@ -95,10 +95,6 @@ export default function LoginPage() {
               {submitting ? '로그인 중…' : '로그인'}
             </Button>
           </Box>
-
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 3 }}>
-            employees.csv가 적재된 경우 EMP0001 형식, 기본 시드라면 EMP001 형식입니다.
-          </Typography>
         </CardContent>
       </Card>
     </Box>

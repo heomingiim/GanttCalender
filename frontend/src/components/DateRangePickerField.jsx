@@ -3,36 +3,20 @@ import { Box, Button, Popover, Typography } from '@mui/material';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/style.css';
 import DateRangeIcon from '@mui/icons-material/DateRange';
-
-function parseDateOnly(dateStr) {
-  if (!dateStr) return undefined;
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d);
-}
-
-function formatDateOnly(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-function label(dateStr) {
-  if (!dateStr) return null;
-  const [, m, d] = dateStr.split('-');
-  return `${Number(m)}/${Number(d)}`;
-}
+import { formatShortDate, parseDateOnly, toLocalDateString } from '../utils/date';
 
 export default function DateRangePickerField({ from, to, onChange, placeholder = '기간 선택' }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
   const range = { from: parseDateOnly(from), to: parseDateOnly(to) };
-  const summary =
-    from || to ? `${label(from) ?? '-'} ~ ${label(to) ?? '-'}` : placeholder;
+  const summary = from || to ? `${formatShortDate(from)} ~ ${formatShortDate(to)}` : placeholder;
 
   const handleSelect = (next) => {
-    onChange(next?.from ? formatDateOnly(next.from) : '', next?.to ? formatDateOnly(next.to) : '');
+    onChange(
+      next?.from ? toLocalDateString(next.from) : '',
+      next?.to ? toLocalDateString(next.to) : ''
+    );
   };
 
   const handleClear = (e) => {

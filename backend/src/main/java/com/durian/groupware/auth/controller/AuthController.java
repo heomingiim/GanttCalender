@@ -37,7 +37,7 @@ public class AuthController {
         );
         session.setAttribute(AuthInterceptor.SESSION_KEY, loginUser);
 
-        return ResponseEntity.ok(authService.getUserInfo(user.getId()));
+        return ResponseEntity.ok(authService.getUserInfo(user));
     }
 
     // POST /api/auth/logout

@@ -153,12 +153,12 @@ public class TaskService {
         // IN_PROGRESS / CANCELLED는 진행률 그대로 유지
 
         int updated = taskMapper.changeStatus(id, status, progressRate);
-        activityLogService.log(id, loginUser.id(), "STATUS_CHANGE");
 
-        // updated == 0이면 이미 그 상태였다는 뜻(동시 요청 포함) — DB가 원자적으로
-        // 판단해준 결과라 pre-read인 task.getStatus()보다 이게 race에 안전하다.
-        if (updated > 0 && "CANCELLED".equals(status)) {
-            notifyCancelToParticipants(task);
+        if (updated > 0) {
+            activityLogService.log(id, loginUser.id(), "STATUS_CHANGE");
+            if ("CANCELLED".equals(status)) {
+                notifyCancelToParticipants(task);
+            }
         }
 
         return TaskResponse.from(taskMapper.findByIdNotDeleted(id));
@@ -256,24 +256,39 @@ public class TaskService {
         return tasks.stream().map(TaskResponse::from).toList();
     }
 
+    private static final List<String> PRIORITY_ORDER = List.of("HIGH", "MEDIUM", "LOW");
+
     public List<TaskResponse> getMyTodos(LoginUser loginUser, String status,
             Long projectId, String keyword, LocalDateTime from, LocalDateTime to) {
         List<Task> todos = taskMapper.findMyTodos(loginUser.id(), status, projectId, keyword, from, to);
         List<Task> assigned = taskMapper.findAssignedTasks(loginUser.id(), status, projectId, keyword, from, to);
         return Stream.concat(todos.stream(), assigned.stream())
-                .sorted(Comparator.comparingInt(Task::getSortOrder).thenComparing(Task::getId))
-                .map(TaskResponse::from)
+                .sorted(Comparator.comparingInt(Task::getSortOrder)
+                        .thenComparingInt(t -> PRIORITY_ORDER.indexOf(t.getPriority()))
+                        .thenComparing(t -> t.getEndDate() == null ? LocalDateTime.MAX : t.getEndDate())
+                        .thenComparing(Task::getId))
+                .map(t -> TaskResponse.from(t, canEdit(loginUser, t)))
                 .toList();
     }
 
     @Transactional
     public void reorder(LoginUser loginUser, List<Long> ids) {
-        int order = 0;
+        if (ids == null || ids.isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+
+        Map<Long, Task> tasks = taskMapper.findByIdsNotDeleted(ids).stream()
+                .collect(Collectors.toMap(Task::getId, t -> t));
+
         for (Long id : ids) {
-            Task task = taskMapper.findByIdNotDeleted(id);
-            if (task == null || !canView(loginUser, task)) {
+            Task task = tasks.get(id);
+            if (task == null || !canEdit(loginUser, task)) {
                 throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
             }
+        }
+
+        int order = 0;
+        for (Long id : ids) {
             taskMapper.updateSortOrder(id, order++);
         }
     }
@@ -325,9 +340,10 @@ public class TaskService {
     }
 
     public List<TaskTreeResponse> getProjectTree(LoginUser loginUser, Long projectId) {
+        boolean isMember = projectMemberService.isMember(loginUser.id(), projectId);
         List<Task> all = taskMapper.findByProjectIdNotDeleted(projectId).stream()
                 .filter(t -> "WBS_TASK".equals(t.getTaskType()))
-                .filter(t -> canView(loginUser, t))
+                .filter(t -> isMember || loginUser.id().equals(t.getCreatorId()))
                 .toList();
 
         Map<Long, List<String>> namesByTaskId = new LinkedHashMap<>();
