@@ -32,7 +32,7 @@ import { useAuth } from '../contexts/AuthContext';
 import TaskFormDialog from '../components/TaskFormDialog';
 import TaskDetailDialog from '../components/TaskDetailDialog';
 import { PRIORITY_HEX, TASK_TYPE } from '../utils/constants';
-import { fromDateTimeInputValue } from '../utils/date';
+import { fromDateTimeInputValue, toDateTimeInputValue } from '../utils/date';
 import { segmentedToggleSx, pillSearchSx } from '../utils/uiStyles';
 
 const TYPE_DOT_COLOR = { TODO: '#90a4ae', EVENT: '#1976d2', WBS_TASK: '#7b1fa2' };
@@ -205,8 +205,8 @@ export default function CalendarPage() {
       await taskApi.updateTask(raw.id, {
         title: raw.title,
         description: raw.description,
-        startDate: fromDateTimeInputValue(toInputLocal(info.event.start)),
-        endDate: fromDateTimeInputValue(toInputLocal(inclusiveEnd(info.event))),
+        startDate: fromDateTimeInputValue(toDateTimeInputValue(info.event.start)),
+        endDate: fromDateTimeInputValue(toDateTimeInputValue(inclusiveEnd(info.event))),
         allDay: info.event.allDay,
         visibility: raw.visibility,
         priority: raw.priority,
@@ -502,12 +502,3 @@ function inclusiveEnd(event) {
   return end < event.start ? event.start : end;
 }
 
-// Date → 'YYYY-MM-DDTHH:mm' (datetime-local 형식). 위 fromDateTimeInputValue와 짝
-function toInputLocal(date) {
-  if (!date) return '';
-  const pad = (n) => String(n).padStart(2, '0');
-  return (
-    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
-    `T${pad(date.getHours())}:${pad(date.getMinutes())}`
-  );
-}

@@ -24,11 +24,12 @@ public class TaskTreeResponse {
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private Integer progressRate;
+    private boolean canEdit;
 
     // 반드시 빈 리스트로 초기화 — 아래 조립 로직이 parent.getChildren().add(...)를 호출한다
     private List<TaskTreeResponse> children = new ArrayList<>();
 
-    public static TaskTreeResponse from(Task t) {
+    public static TaskTreeResponse from(Task t, boolean canEdit) {
         TaskTreeResponse r = new TaskTreeResponse();
         r.setId(t.getId());
         r.setParentTaskId(t.getParentTaskId());
@@ -40,6 +41,7 @@ public class TaskTreeResponse {
         r.setStartDate(t.getStartDate());
         r.setEndDate(t.getEndDate());
         r.setProgressRate(t.getProgressRate());
+        r.setCanEdit(canEdit);
         return r;
     }
 }

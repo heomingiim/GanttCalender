@@ -18,6 +18,7 @@ import com.durian.groupware.stats.dto.StatsResponse;
 import com.durian.groupware.stats.dto.StatRow;
 import com.durian.groupware.stats.mapper.StatsMapper;
 import com.durian.groupware.task.dto.TaskResponse;
+import com.durian.groupware.task.service.TaskService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -27,6 +28,7 @@ public class StatsService {
 
     private final StatsMapper statsMapper;
     private final DepartmentService departmentService;
+    private final TaskService taskService;
 
     private static final Set<String> UNITS = Set.of("DAY", "WEEK", "MONTH");
     private static final long MAX_DAYS = 366;
@@ -74,12 +76,14 @@ public class StatsService {
         );
     }
 
-    public DashboardResponse getDashboard(Long userId) {
-        List<TaskResponse> todos = statsMapper.findOpenTodos(userId)
+    public DashboardResponse getDashboard(LoginUser loginUser) {
+        List<TaskResponse> todos = taskService.getMyTodos(loginUser, null, null, null, null, null).stream()
+                .filter(t -> !"DONE".equals(t.status()) && !"CANCELLED".equals(t.status()))
+                .limit(10)
+                .toList();
+        List<TaskResponse> events = statsMapper.findTodayEvents(loginUser.id())
                 .stream().map(TaskResponse::from).toList();
-        List<TaskResponse> events = statsMapper.findTodayEvents(userId)
-                .stream().map(TaskResponse::from).toList();
-        List<TaskResponse> wbsTasks = statsMapper.findTodayWbsTasks(userId)
+        List<TaskResponse> wbsTasks = statsMapper.findTodayWbsTasks(loginUser.id())
                 .stream().map(TaskResponse::from).toList();
         return new DashboardResponse(todos, events, wbsTasks);
     }

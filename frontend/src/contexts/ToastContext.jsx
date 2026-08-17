@@ -17,14 +17,8 @@ export function ToastProvider({ children }) {
   const error = useCallback((m) => show(m, 'error'), [show]);
   const info = useCallback((m) => show(m, 'info'), [show]);
 
-  /**
-   * API 에러 객체(client.js가 정규화한 형태)를 그대로 넘기면
-   * 서버가 준 한글 message를 띄운다.
-   * 단, "아직 구현 안 된 API(notReady)"는 사용자 잘못이 아니므로 조용히 넘긴다.
-   */
   const apiError = useCallback(
     (err, fallback = '요청을 처리하지 못했습니다.') => {
-      if (err?.notReady) return;
       show(err?.message || fallback, 'error');
     },
     [show]

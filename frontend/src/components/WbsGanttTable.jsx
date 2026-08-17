@@ -174,10 +174,10 @@ export default function WbsGanttTable({
               return (
                 <TableRow key={t.id} hover sx={{ bgcolor: 'action.hover' }}>
                   <TableCell sx={{ p: 0 }} onClick={(e) => e.stopPropagation()}>
-                    <IconButton size="small" disabled={!canMoveUp} onClick={() => moveSibling(t, -1)}>
+                    <IconButton size="small" disabled={!canMoveUp || !t.canEdit} onClick={() => moveSibling(t, -1)}>
                       <ArrowUpwardIcon fontSize="inherit" />
                     </IconButton>
-                    <IconButton size="small" disabled={!canMoveDown} onClick={() => moveSibling(t, 1)}>
+                    <IconButton size="small" disabled={!canMoveDown || !t.canEdit} onClick={() => moveSibling(t, 1)}>
                       <ArrowDownwardIcon fontSize="inherit" />
                     </IconButton>
                   </TableCell>
@@ -211,10 +211,10 @@ export default function WbsGanttTable({
             return (
               <TableRow key={t.id} hover>
                 <TableCell sx={{ p: 0 }}>
-                  <IconButton size="small" disabled={!canMoveUp} onClick={() => moveSibling(t, -1)}>
+                  <IconButton size="small" disabled={!canMoveUp || !t.canEdit} onClick={() => moveSibling(t, -1)}>
                     <ArrowUpwardIcon fontSize="inherit" />
                   </IconButton>
-                  <IconButton size="small" disabled={!canMoveDown} onClick={() => moveSibling(t, 1)}>
+                  <IconButton size="small" disabled={!canMoveDown || !t.canEdit} onClick={() => moveSibling(t, 1)}>
                     <ArrowDownwardIcon fontSize="inherit" />
                   </IconButton>
                 </TableCell>

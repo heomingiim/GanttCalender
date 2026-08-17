@@ -30,7 +30,6 @@ import * as taskApi from '../api/tasks';
 import { listCategories } from '../api/categories';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import NotReadyNotice from './NotReadyNotice';
 import UserPicker from './UserPicker';
 import ConfirmDialog from './ConfirmDialog';
 import {
@@ -304,7 +303,6 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
 function AssigneeTab({ taskId }) {
   const toast = useToast();
   const [selected, setSelected] = useState([]);
-  const [notReady, setNotReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   // 조회에 실패하면 "담당자 없음"과 구분이 안 된다. 그 상태로 저장하면
@@ -326,8 +324,7 @@ function AssigneeTab({ taskId }) {
       .catch((err) => {
         if (cancelled) return;
         setLoadFailed(true);
-        if (err.notReady) setNotReady(true);
-        else toast.apiError(err);
+        toast.apiError(err);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -343,8 +340,7 @@ function AssigneeTab({ taskId }) {
       await taskApi.replaceAssignees(taskId, selected.map((u) => u.id));
       toast.success('담당자를 저장했습니다.');
     } catch (err) {
-      if (err.notReady) setNotReady(true);
-      else toast.apiError(err);
+      toast.apiError(err);
     } finally {
       setSaving(false);
     }
@@ -386,9 +382,6 @@ function AssigneeTab({ taskId }) {
           담당자 저장
         </Button>
       </Box>
-      {notReady && (
-        <NotReadyNotice api="PUT /api/tasks/{id}/assignees" />
-      )}
     </Box>
   );
 }
@@ -400,18 +393,13 @@ function ParticipantTab({ taskId }) {
   const [list, setList] = useState([]);
   const [selected, setSelected] = useState([]);
   const [required, setRequired] = useState(false);
-  const [notReady, setNotReady] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const res = await taskApi.getParticipants(taskId);
       setList(Array.isArray(res) ? res : []);
-      setNotReady(false);
     } catch (err) {
-      // NOT_IMPLEMENTED가 비어 있으면 notReady는 항상 false다.
-      // else가 없으면 403·500이 조용히 사라지고 "참석자 없음"처럼 보인다.
-      if (err.notReady) setNotReady(true);
-      else toast.apiError(err);
+      toast.apiError(err);
       setList([]);
     }
   }, [taskId, toast]);
@@ -427,8 +415,7 @@ function ParticipantTab({ taskId }) {
       setSelected([]);
       load();
     } catch (err) {
-      if (err.notReady) setNotReady(true);
-      else toast.apiError(err);
+      toast.apiError(err);
     }
   };
 
@@ -438,8 +425,7 @@ function ParticipantTab({ taskId }) {
       toast.success('응답을 저장했습니다.');
       load();
     } catch (err) {
-      if (err.notReady) setNotReady(true);
-      else toast.apiError(err);
+      toast.apiError(err);
     }
   };
 
@@ -501,10 +487,6 @@ function ParticipantTab({ taskId }) {
           ))}
         </List>
       )}
-
-      {notReady && (
-        <NotReadyNotice api="/api/tasks/{id}/participants" />
-      )}
     </Box>
   );
 }
@@ -513,7 +495,6 @@ function ParticipantTab({ taskId }) {
 function ActivityTab({ taskId }) {
   const toast = useToast();
   const [logs, setLogs] = useState([]);
-  const [notReady, setNotReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -524,18 +505,12 @@ function ActivityTab({ taskId }) {
       })
       .catch((err) => {
         if (cancelled) return;
-        // else가 없으면 실패가 묻히고 "기록된 활동이 없습니다"만 뜬다.
-        if (err.notReady) setNotReady(true);
-        else toast.apiError(err);
+        toast.apiError(err);
       });
     return () => {
       cancelled = true;
     };
   }, [taskId, toast]);
-
-  if (notReady) {
-    return <NotReadyNotice api="GET /api/tasks/{id}/activity-logs" />;
-  }
 
   if (logs.length === 0) {
     return (

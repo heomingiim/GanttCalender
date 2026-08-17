@@ -19,7 +19,6 @@ public interface StatsMapper {
                            @Param("to") LocalDateTime to,
                            @Param("unit") String unit);
 
-    List<Task> findOpenTodos(Long userId);
     List<Task> findTodayEvents(Long userId);
     List<Task> findTodayWbsTasks(Long userId);
 }

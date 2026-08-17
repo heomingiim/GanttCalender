@@ -159,6 +159,8 @@ public class TaskService {
             if ("CANCELLED".equals(status)) {
                 notifyCancelToParticipants(task);
             }
+        } else {
+            taskMapper.changeProgress(id, progressRate);
         }
 
         return TaskResponse.from(taskMapper.findByIdNotDeleted(id));
@@ -253,7 +255,7 @@ public class TaskService {
         List<Task> tasks = taskMapper.searchCalendar(
                 loginUser.id(), deptIds, from, to, keyword
         );
-        return tasks.stream().map(TaskResponse::from).toList();
+        return tasks.stream().map(t -> TaskResponse.from(t, canEdit(loginUser, t))).toList();
     }
 
     private static final List<String> PRIORITY_ORDER = List.of("HIGH", "MEDIUM", "LOW");
@@ -354,7 +356,7 @@ public class TaskService {
 
         Map<Long, TaskTreeResponse> map = new LinkedHashMap<>();
         for (Task t : all) {
-            TaskTreeResponse r = TaskTreeResponse.from(t);
+            TaskTreeResponse r = TaskTreeResponse.from(t, canEdit(loginUser, t));
             r.setAssigneeNames(String.join(", ", namesByTaskId.getOrDefault(t.getId(), List.of())));
             map.put(t.getId(), r);
         }

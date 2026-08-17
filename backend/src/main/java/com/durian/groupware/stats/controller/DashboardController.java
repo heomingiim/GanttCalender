@@ -20,6 +20,6 @@ public class DashboardController {
 
     @GetMapping("/api/dashboard")
     public DashboardResponse dashboard(@Login LoginUser loginUser) {
-        return statsService.getDashboard(loginUser.id());
+        return statsService.getDashboard(loginUser);
     }
 }

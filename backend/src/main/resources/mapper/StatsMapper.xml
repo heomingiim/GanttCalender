@@ -12,6 +12,13 @@
         </choose>
     </sql>
 
+    <sql id="deptUserIds">
+        SELECT id FROM users WHERE department_id IN
+        <foreach item="id" collection="deptIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </sql>
+
     <select id="getStats" resultType="StatRow">
         SELECT period, status, COUNT(*) AS count FROM (
             SELECT <include refid="periodExpr"/> AS period, t.status AS status
@@ -22,12 +29,7 @@
               AND t.created_at &lt;= #{to}
               <choose>
                   <when test="deptIds != null and deptIds.size() > 0">
-                  AND t.creator_id IN (
-                      SELECT id FROM users WHERE department_id IN
-                      <foreach item="id" collection="deptIds" open="(" separator="," close=")">
-                          #{id}
-                      </foreach>
-                  )
+                  AND t.creator_id IN (<include refid="deptUserIds"/>)
                   </when>
                   <otherwise>
                   AND t.creator_id = #{userId}
@@ -45,12 +47,7 @@
               AND t.created_at &lt;= #{to}
               <choose>
                   <when test="deptIds != null and deptIds.size() > 0">
-                  AND ta.user_id IN (
-                      SELECT id FROM users WHERE department_id IN
-                      <foreach item="id" collection="deptIds" open="(" separator="," close=")">
-                          #{id}
-                      </foreach>
-                  )
+                  AND ta.user_id IN (<include refid="deptUserIds"/>)
                   </when>
                   <otherwise>
                   AND ta.user_id = #{userId}
@@ -61,55 +58,19 @@
         ORDER BY period, status
     </select>
 
-    <resultMap id="taskMap" type="Task">
-        <result property="allDay"  column="is_all_day"/>
-        <result property="deleted" column="is_deleted"/>
-    </resultMap>
-
-    <!--
-        priority는 VARCHAR라 그냥 정렬하면 MEDIUM > LOW > HIGH가 된다. FIELD로 순서를 지정한다.
-        TaskService.getMyTodos(투두리스트 화면이 쓰는 쿼리)는 "내가 만든 TODO" +
-        "내가 담당자인 WBS 작업"을 합쳐서 보여준다. 대시보드도 같은 "내 할 일"을
-        말하는 위젯이라 여기서도 똑같이 담당 WBS를 포함해야 한다 — 안 그러면
-        같은 사람에게 화면마다 다른 "내 할 일" 목록이 보인다.
-    -->
-    <select id="findOpenTodos" resultMap="taskMap">
-        SELECT DISTINCT t.* FROM tasks t
-        LEFT JOIN task_assignees ta ON ta.task_id = t.id
-        WHERE t.is_deleted = false
-          AND t.status NOT IN ('DONE', 'CANCELLED')
-          AND (
-              (t.task_type = 'TODO' AND t.creator_id = #{userId})
-              OR (t.task_type = 'WBS_TASK' AND ta.user_id = #{userId})
-          )
-        ORDER BY FIELD(t.priority, 'HIGH', 'MEDIUM', 'LOW'),
-                 t.end_date IS NULL, t.end_date,
-                 t.created_at DESC
-        LIMIT 10
-    </select>
-
-    <!-- 오늘에 걸치는 일정. DATE(start_date) = CURDATE() 로 하면 여러 날짜에 걸친 일정이 빠진다 -->
-    <select id="findTodayEvents" resultMap="taskMap">
+    <select id="findTodayEvents" resultMap="com.durian.groupware.task.mapper.TaskMapper.taskMap">
         SELECT DISTINCT t.* FROM tasks t
         LEFT JOIN task_assignees ta ON t.id = ta.task_id
         WHERE t.is_deleted = false
           AND t.task_type = 'EVENT'
           AND t.start_date &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
-          <!-- end_date는 NULL 허용이라 NULL &gt;= CURDATE()가 NULL(=거짓)로 평가된다.
-               종료일이 없는 일정은 시작일 하루짜리로 취급한다.
-               IS NULL만 허용하면 하한이 없어져 과거의 종료일 없는 일정이 매일 남는다. -->
           AND (t.end_date &gt;= CURDATE()
                OR (t.end_date IS NULL AND t.start_date &gt;= CURDATE()))
           AND (t.creator_id = #{userId} OR ta.user_id = #{userId})
         ORDER BY t.start_date
     </select>
 
-    <!--
-        findOpenTodos와는 다른 질문에 답한다 — "지금 열려있는 내 할 일"이 아니라
-        "오늘 날짜에 걸쳐 있는 WBS 작업"(findTodayEvents와 같은 방식의 날짜 필터).
-        완료/취소된 작업은 오늘 걸쳐 있어도 더 할 일이 없으므로 제외한다.
-    -->
-    <select id="findTodayWbsTasks" resultMap="taskMap">
+    <select id="findTodayWbsTasks" resultMap="com.durian.groupware.task.mapper.TaskMapper.taskMap">
         SELECT DISTINCT t.* FROM tasks t
         LEFT JOIN task_assignees ta ON t.id = ta.task_id
         WHERE t.is_deleted = false

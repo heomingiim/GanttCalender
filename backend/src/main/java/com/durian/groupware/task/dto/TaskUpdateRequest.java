@@ -13,7 +13,7 @@ public record TaskUpdateRequest(
     LocalDateTime startDate,
     LocalDateTime endDate,
     Boolean allDay,
-    String visibility,
-    String priority,
+    @NotBlank String visibility,
+    @NotBlank String priority,
     Long categoryId
 ) {}

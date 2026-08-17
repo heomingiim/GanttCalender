@@ -61,8 +61,7 @@ export function NotificationProvider({ children }) {
       const list = await notiApi.listNotifications();
       setItems(Array.isArray(list) ? list : []);
       setAvailable(true);
-    } catch (err) {
-      if (err?.notReady) setAvailable(false);
+    } catch {
       setItems([]);
     }
   }, []);
