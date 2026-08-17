@@ -72,7 +72,6 @@ export default function CalendarPage() {
   // 목록이 도착하면 "전체 선택" 상태로 채운다.
   const [categoryFilter, setCategoryFilter] = useState(null);
 
-  // 커스텀 툴바(제목·뷰 전환)를 직접 그리므로 FullCalendar의 헤더 대신 이 상태를 쓴다
   const [viewType, setViewType] = useState('dayGridMonth');
   const [title, setTitle] = useState('');
 

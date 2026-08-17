@@ -31,7 +31,6 @@ GanttCalender/
 └── frontend/         React 19 + Vite + MUI (개발 서버 :5173)
     ├── package.json
     ├── vite.config.js       /api 프록시 → :8080, 빌드 산출물 → backend static
-    ├── FRONTEND_GUIDE.md    DOM/이벤트/스크립트 핵심 로직 설명 (숙지용)
     └── src/
         ├── api/          axios 인스턴스 + 도메인별 API 함수
         ├── contexts/     Auth / Toast / Notification
@@ -231,6 +230,3 @@ Vite dev 서버가 `/api` 요청을 `http://localhost:8080` 으로 프록시하�
 
 React 19 · Vite · MUI 7 · React Router 7 · Context API · axios(`withCredentials`) ·
 FullCalendar(캘린더) · react-day-picker(기간 선택)
-
-프론트엔드의 DOM 조작·이벤트 처리·주요 스크립트 로직 설명은 `frontend/FRONTEND_GUIDE.md`
-에 정리해 두었습니다. (개인 학습용 문서라 `.gitignore` 에 등록되어 있어 저장소에는 없습니다)

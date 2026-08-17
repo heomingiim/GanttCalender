@@ -23,6 +23,7 @@ import com.durian.groupware.notification.service.NotificationService;
 import com.durian.groupware.project.dto.Project;
 import com.durian.groupware.project.mapper.ProjectMapper;
 import com.durian.groupware.project.service.ProjectMemberService;
+import com.durian.groupware.task.dto.AssigneeNameRow;
 import com.durian.groupware.task.dto.Task;
 import com.durian.groupware.task.dto.TaskCreateRequest;
 import com.durian.groupware.task.dto.TaskParticipant;
@@ -349,9 +350,8 @@ public class TaskService {
                 .toList();
 
         Map<Long, List<String>> namesByTaskId = new LinkedHashMap<>();
-        for (Map<String, Object> row : assigneeMapper.findAssigneeNamesByProjectId(projectId)) {
-            Long taskId = ((Number) row.get("taskId")).longValue();
-            namesByTaskId.computeIfAbsent(taskId, k -> new ArrayList<>()).add((String) row.get("name"));
+        for (AssigneeNameRow row : assigneeMapper.findAssigneeNamesByProjectId(projectId)) {
+            namesByTaskId.computeIfAbsent(row.taskId(), k -> new ArrayList<>()).add(row.name());
         }
 
         Map<Long, TaskTreeResponse> map = new LinkedHashMap<>();

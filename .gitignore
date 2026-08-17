@@ -47,7 +47,7 @@ yarn-error.log*
 backend/src/main/resources/static/
 
 # 개인 학습용 문서 (커밋 제외)
-frontend/FRONTEND_GUIDE.md
+notes.md
 
 ### Environment ###
 .env

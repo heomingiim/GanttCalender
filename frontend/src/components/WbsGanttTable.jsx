@@ -26,7 +26,6 @@ import { formatShortDate, toLocalDateString } from '../utils/date';
 
 const DAY_COL_WIDTH = 42;
 
-// 날짜 칸에 배경색을 칠해 막대를 표현한다.
 function DayCells({ days, startDate, endDate, status }) {
   const range = dayRangeIndex(days, startDate, endDate);
   const barColor = STATUS_BAR_COLOR[status] ?? STATUS_BAR_COLOR.TODO;
@@ -53,8 +52,6 @@ function DayCells({ days, startDate, endDate, status }) {
   });
 }
 
-// WBS 표 + 간트를 한 화면에 합친 뷰. 최상위 작업은 단계 라벨로,
-// 하위 작업은 담당자·기간·산출물·막대가 있는 일반 행으로 그린다.
 export default function WbsGanttTable({
   tasks,
   rangeStart,

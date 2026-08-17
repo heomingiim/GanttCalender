@@ -17,7 +17,7 @@
         ORDER BY u.name
     </select>
 
-    <select id="findAssigneeNamesByProjectId" resultType="map">
+    <select id="findAssigneeNamesByProjectId" resultType="AssigneeNameRow">
         SELECT ta.task_id AS taskId, u.name AS name
         FROM task_assignees ta
         JOIN tasks t ON t.id = ta.task_id
