@@ -48,6 +48,7 @@ backend/src/main/resources/static/
 
 # 개인 학습용 문서 (커밋 제외)
 notes.md
+TEST_PROCEDURE.md
 
 ### Environment ###
 .env

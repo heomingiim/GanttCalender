@@ -14,12 +14,14 @@ import {
   InputAdornment,
   MenuItem,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 
 import * as projectApi from '../api/projects';
+import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import DateRangePickerField from '../components/DateRangePickerField';
 import { PROJECT_STATUS, PROJECT_STATUS_COLOR } from '../utils/constants';
@@ -33,6 +35,8 @@ import { pillSearchSx } from '../utils/uiStyles';
 export default function ProjectListPage() {
   const toast = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canCreate = user?.role !== 'MEMBER';
 
   const [projects, setProjects] = useState([]);
   const [keyword, setKeyword] = useState('');
@@ -149,9 +153,18 @@ export default function ProjectListPage() {
           }}
           placeholder="기간"
         />
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>
-          프로젝트 생성
-        </Button>
+        <Tooltip title={canCreate ? '' : '팀장급 이상만 프로젝트를 생성할 수 있습니다.'}>
+          <span>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setOpen(true)}
+              disabled={!canCreate}
+            >
+              프로젝트 생성
+            </Button>
+          </span>
+        </Tooltip>
       </Box>
 
       <Box

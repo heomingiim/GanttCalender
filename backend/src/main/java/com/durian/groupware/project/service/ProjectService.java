@@ -23,6 +23,10 @@ public class ProjectService {
     private final ProjectMemberMapper memberMapper;
 
     public ProjectResponse create(LoginUser loginUser, ProjectRequest req) {
+        if ("MEMBER".equals(loginUser.role())) {
+            throw new BusinessException(ErrorCode.PROJECT_CREATE_FORBIDDEN);
+        }
+
         Project project = new Project();
         project.setName(req.name());
         project.setDescription(req.description());
