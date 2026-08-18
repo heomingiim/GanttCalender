@@ -18,6 +18,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
   Typography,
 } from '@mui/material';
@@ -44,11 +45,40 @@ export default function OrgPage() {
   const [users, setUsers] = useState([]);
   const [keyword, setKeyword] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [sortBy, setSortBy] = useState(null);
+  const [sortDir, setSortDir] = useState('asc');
 
-  const filteredUsers = useMemo(
-    () => (roleFilter ? users.filter((u) => u.role === roleFilter) : users),
-    [users, roleFilter]
-  );
+  const SORT_ACCESSOR = {
+    employeeNumber: (u) => u.employeeNumber ?? '',
+    name: (u) => u.name ?? '',
+    positionRank: (u) => u.positionRank ?? '',
+    role: (u) => u.role ?? '',
+  };
+
+  const handleSortClick = (key) => {
+    if (sortBy !== key) {
+      setSortBy(key);
+      setSortDir('asc');
+    } else if (sortDir === 'asc') {
+      setSortDir('desc');
+    } else {
+      setSortBy(null);
+    }
+  };
+
+  const filteredUsers = useMemo(() => {
+    const filtered = roleFilter ? users.filter((u) => u.role === roleFilter) : users;
+    if (!sortBy) return filtered;
+    const accessor = SORT_ACCESSOR[sortBy];
+    const sign = sortDir === 'asc' ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      const av = accessor(a);
+      const bv = accessor(b);
+      if (av < bv) return -1 * sign;
+      if (av > bv) return 1 * sign;
+      return 0;
+    });
+  }, [users, roleFilter, sortBy, sortDir]);
 
   useEffect(() => {
     getTree()
@@ -187,10 +217,42 @@ export default function OrgPage() {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>사원번호</TableCell>
-                  <TableCell>이름</TableCell>
-                  <TableCell>직급</TableCell>
-                  <TableCell>직책</TableCell>
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortBy === 'employeeNumber'}
+                      direction={sortBy === 'employeeNumber' ? sortDir : 'asc'}
+                      onClick={() => handleSortClick('employeeNumber')}
+                    >
+                      사원번호
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortBy === 'name'}
+                      direction={sortBy === 'name' ? sortDir : 'asc'}
+                      onClick={() => handleSortClick('name')}
+                    >
+                      이름
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortBy === 'positionRank'}
+                      direction={sortBy === 'positionRank' ? sortDir : 'asc'}
+                      onClick={() => handleSortClick('positionRank')}
+                    >
+                      직급
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortBy === 'role'}
+                      direction={sortBy === 'role' ? sortDir : 'asc'}
+                      onClick={() => handleSortClick('role')}
+                    >
+                      직책
+                    </TableSortLabel>
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
