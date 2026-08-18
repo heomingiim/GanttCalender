@@ -60,7 +60,13 @@ export default function AppLayout() {
   const drawerContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Toolbar>
-        <Typography variant="h6" color="primary" noWrap>
+        <Typography
+          variant="h6"
+          color="primary"
+          noWrap
+          onClick={() => navigate('/')}
+          sx={{ cursor: 'pointer' }}
+        >
           두리안 그룹웨어
         </Typography>
       </Toolbar>
