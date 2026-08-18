@@ -13,9 +13,10 @@ public class Task {
     private Long parentTaskId;
     private Long creatorId;
     private Long categoryId;
-    private String taskType;   // TODO / EVENT / WBS_TASK / MILESTONE
+    private String taskType;   // TODO / EVENT / WBS_TASK
     private String title;
     private String description;
+    private String deliverable; // WBS 산출물
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private boolean allDay;
@@ -23,6 +24,7 @@ public class Task {
     private String status;     // TODO / IN_PROGRESS / DONE / CANCELLED
     private String priority;   // LOW / MEDIUM / HIGH
     private int progressRate;
+    private int sortOrder;
     private boolean deleted;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

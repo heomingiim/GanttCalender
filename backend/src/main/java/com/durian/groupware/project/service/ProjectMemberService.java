@@ -50,6 +50,10 @@ public class ProjectMemberService {
         }
     }
 
+    public boolean isMember(Long userId, Long projectId) {
+        return memberMapper.findByProjectAndUser(projectId, userId) != null;
+    }
+
     private void checkAdmin(LoginUser loginUser, Long projectId) {
         ProjectMember member = memberMapper.findByProjectAndUser(projectId, loginUser.id());
         if (member == null || !"ADMIN".equals(member.getRole())) {

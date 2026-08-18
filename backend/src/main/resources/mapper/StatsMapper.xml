@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.durian.groupware.stats.mapper.StatsMapper">
+
+    <sql id="periodExpr">
+        <choose>
+            <when test="unit == 'DAY'">DATE_FORMAT(t.created_at, '%Y-%m-%d')</when>
+            <when test="unit == 'WEEK'">DATE_FORMAT(t.created_at, '%x-W%v')</when>
+            <otherwise>DATE_FORMAT(t.created_at, '%Y-%m')</otherwise>
+        </choose>
+    </sql>
+
+    <sql id="deptUserIds">
+        SELECT id FROM users WHERE department_id IN
+        <foreach item="id" collection="deptIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </sql>
+
+    <select id="getStats" resultType="StatRow">
+        SELECT period, status, COUNT(*) AS count FROM (
+            SELECT <include refid="periodExpr"/> AS period, t.status AS status
+            FROM tasks t
+            WHERE t.is_deleted = false
+              AND t.task_type != 'WBS_TASK'
+              AND t.created_at &gt;= #{from}
+              AND t.created_at &lt;= #{to}
+              <choose>
+                  <when test="deptIds != null and deptIds.size() > 0">
+                  AND t.creator_id IN (<include refid="deptUserIds"/>)
+                  </when>
+                  <otherwise>
+                  AND t.creator_id = #{userId}
+                  </otherwise>
+              </choose>
+
+            UNION ALL
+
+            SELECT <include refid="periodExpr"/> AS period, t.status AS status
+            FROM tasks t
+            JOIN task_assignees ta ON ta.task_id = t.id
+            WHERE t.is_deleted = false
+              AND t.task_type = 'WBS_TASK'
+              AND t.created_at &gt;= #{from}
+              AND t.created_at &lt;= #{to}
+              <choose>
+                  <when test="deptIds != null and deptIds.size() > 0">
+                  AND ta.user_id IN (<include refid="deptUserIds"/>)
+                  </when>
+                  <otherwise>
+                  AND ta.user_id = #{userId}
+                  </otherwise>
+              </choose>
+        ) combined
+        GROUP BY period, status
+        ORDER BY period, status
+    </select>
+
+    <select id="findTodayEvents" resultMap="com.durian.groupware.task.mapper.TaskMapper.taskMap">
+        SELECT DISTINCT t.* FROM tasks t
+        LEFT JOIN task_assignees ta ON t.id = ta.task_id
+        WHERE t.is_deleted = false
+          AND t.task_type = 'EVENT'
+          AND t.start_date &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+          AND (t.end_date &gt;= CURDATE()
+               OR (t.end_date IS NULL AND t.start_date &gt;= CURDATE()))
+          AND (t.creator_id = #{userId} OR ta.user_id = #{userId})
+        ORDER BY t.start_date
+    </select>
+
+    <select id="findTodayWbsTasks" resultMap="com.durian.groupware.task.mapper.TaskMapper.taskMap">
+        SELECT DISTINCT t.* FROM tasks t
+        LEFT JOIN task_assignees ta ON t.id = ta.task_id
+        WHERE t.is_deleted = false
+          AND t.task_type = 'WBS_TASK'
+          AND t.status NOT IN ('DONE', 'CANCELLED')
+          AND t.start_date &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+          AND (t.end_date &gt;= CURDATE()
+               OR (t.end_date IS NULL AND t.start_date &gt;= CURDATE()))
+          AND (t.creator_id = #{userId} OR ta.user_id = #{userId})
+        ORDER BY t.end_date IS NULL, t.end_date, t.start_date
+    </select>
+
+</mapper>

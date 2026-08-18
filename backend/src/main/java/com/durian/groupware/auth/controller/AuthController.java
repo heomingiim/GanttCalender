@@ -37,7 +37,7 @@ public class AuthController {
         );
         session.setAttribute(AuthInterceptor.SESSION_KEY, loginUser);
 
-        return ResponseEntity.ok(UserInfoResponse.from(user));
+        return ResponseEntity.ok(authService.getUserInfo(user));
     }
 
     // POST /api/auth/logout
@@ -50,6 +50,6 @@ public class AuthController {
     // GET /api/auth/me  — 현재 로그인한 사용자 정보
     @GetMapping("/me")
     public UserInfoResponse getMe(@Login LoginUser loginUser) {
-        return UserInfoResponse.fromLoginUser(loginUser);
+        return authService.getUserInfo(loginUser.id());
     }
 }

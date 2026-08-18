@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.durian.groupware.task.mapper.TaskParticipantMapper">
+
+    <resultMap id="participantMap" type="TaskParticipant">
+        <result property="required" column="is_required"/>
+    </resultMap>
+
+    <select id="findByTaskId" resultMap="participantMap">
+        SELECT * FROM task_participants WHERE task_id = #{taskId} ORDER BY id
+    </select>
+
+    <select id="findUserIdsByTaskId" resultType="long">
+        SELECT user_id FROM task_participants WHERE task_id = #{taskId}
+    </select>
+
+    <!--
+        UNIQUE(task_id, user_id)가 있어 이미 참석자인 사람은 INSERT가 충돌한다.
+        UPSERT로 is_required만 갱신해, 초대를 다시 눌러 필수 참석 여부를 바꿀 수 있게 한다.
+        response_status / responded_at은 UPDATE 절에 넣지 않는다.
+        넣으면 이미 응답한 사람의 답변이 PENDING으로 초기화된다.
+    -->
+    <insert id="insertBatch">
+        INSERT INTO task_participants (task_id, user_id, is_required, response_status)
+        VALUES
+        <foreach item="userId" collection="userIds" separator=",">
+            (#{taskId}, #{userId}, #{required}, 'PENDING')
+        </foreach>
+        ON DUPLICATE KEY UPDATE is_required = VALUES(is_required)
+    </insert>
+
+    <update id="updateResponse">
+        UPDATE task_participants
+        SET response_status = #{responseStatus}, responded_at = NOW()
+        WHERE task_id = #{taskId} AND user_id = #{userId}
+    </update>
+
+</mapper>

@@ -1,3 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
 <mapper namespace="com.durian.groupware.task.mapper.TaskMapper">
 
     <resultMap id="taskMap" type="Task">
@@ -17,14 +21,22 @@
         SELECT * FROM tasks WHERE id = #{id} AND is_deleted = false
     </select>
 
+    <select id="findByIdsNotDeleted" resultMap="taskMap">
+        SELECT * FROM tasks WHERE is_deleted = false
+        AND id IN
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO tasks (
             project_id, parent_task_id, creator_id, category_id,
-            task_type, title, description, start_date, end_date,
+            task_type, title, description, deliverable, start_date, end_date,
             is_all_day, visibility, status, priority, progress_rate, is_deleted
         ) VALUES (
             #{projectId}, #{parentTaskId}, #{creatorId}, #{categoryId},
-            #{taskType}, #{title}, #{description}, #{startDate}, #{endDate},
+            #{taskType}, #{title}, #{description}, #{deliverable}, #{startDate}, #{endDate},
             #{allDay}, #{visibility}, #{status}, #{priority}, #{progressRate}, false
         )
     </insert>
@@ -33,6 +45,7 @@
         UPDATE tasks SET
             title = #{title},
             description = #{description},
+            deliverable = #{deliverable},
             start_date = #{startDate},
             end_date = #{endDate},
             is_all_day = #{allDay},
@@ -48,10 +61,18 @@
         WHERE id = #{id}
     </update>
 
+    <!--
+        status != #{status} 가드가 핵심이다. 같은 작업에 CANCELLED로 바꾸는 요청이
+        동시에 두 번 오면, 먼저 커밋되는 쪽이 이 행을 잠그고(InnoDB row lock),
+        나중 요청은 그 커밋 이후에야 이 WHERE를 다시 평가한다. 그때는 이미
+        status가 CANCELLED라 조건이 거짓이 되어 0건이 갱신된다.
+        서비스단은 이 반환값으로 "실제로 상태가 바뀌었는지"를 판단해
+        취소 알림이 중복 발송되지 않게 한다.
+    -->
     <update id="changeStatus">
         UPDATE tasks SET status = #{status}, progress_rate = #{progressRate},
                          updated_at = NOW()
-        WHERE id = #{id}
+        WHERE id = #{id} AND status != #{status}
     </update>
 
     <update id="changeProgress">
@@ -64,27 +85,37 @@
     SELECT DISTINCT t.* FROM tasks t
     LEFT JOIN task_assignees ta ON t.id = ta.task_id
     WHERE t.is_deleted = false
-      AND t.task_type = 'EVENT'
+      AND (
+          <!-- EVENT: 생성자/담당자는 항상, 팀 스코프면 같은 부서의 공개 일정도 -->
+          (t.task_type = 'EVENT' AND (
+              t.creator_id = #{userId}
+              OR ta.user_id = #{userId}
+              <if test="deptIds != null and deptIds.size() > 0">
+              OR (t.visibility = 'PUBLIC'
+                  AND t.creator_id IN (
+                      <include refid="com.durian.groupware.stats.mapper.StatsMapper.deptUserIds"/>
+                  )
+              )
+              </if>
+          ))
+          OR
+          <!-- WBS_TASK: 내 일정은 담당자만. 팀 스코프에서만 내가 만든 것도 같이 -->
+          (t.task_type = 'WBS_TASK' AND (
+              ta.user_id = #{userId}
+              <if test="deptIds != null and deptIds.size() > 0">
+              OR t.creator_id = #{userId}
+              </if>
+          ))
+          OR
+          <!-- TODO: 공유 개념이 없어 스코프와 무관하게 항상 본인 것만 -->
+          (t.task_type = 'TODO' AND t.creator_id = #{userId})
+      )
       <if test="to != null">
       AND t.start_date &lt;= #{to}
       </if>
       <if test="from != null">
       AND t.end_date &gt;= #{from}
       </if>
-      AND (
-          t.creator_id = #{userId}     
-          OR ta.user_id = #{userId}   
-          <if test="deptIds != null and deptIds.size() > 0">
-          OR (t.visibility = 'PUBLIC'
-              AND t.creator_id IN (
-                  SELECT id FROM users WHERE department_id IN
-                  <foreach item="id" collection="deptIds" open="(" separator="," close=")">
-                      #{id}
-                  </foreach>
-              )
-          )
-          </if>
-      )
     <if test="keyword != null and keyword != ''">
       AND (t.title LIKE CONCAT('%', #{keyword}, '%')
         OR t.description LIKE CONCAT('%', #{keyword}, '%'))
@@ -107,7 +138,55 @@
     <if test="keyword != null and keyword != ''">
         AND title LIKE CONCAT('%', #{keyword}, '%')
     </if>
-    ORDER BY created_at DESC
+    <if test="to != null">
+        AND (start_date IS NULL OR start_date &lt;= #{to})
+    </if>
+    <if test="from != null">
+        AND (end_date IS NULL OR end_date &gt;= #{from})
+    </if>
+    ORDER BY sort_order, created_at DESC
 </select>
+
+<select id="findAssignedTasks" resultMap="taskMap">
+    SELECT DISTINCT t.* FROM tasks t
+    JOIN task_assignees ta ON ta.task_id = t.id
+    WHERE ta.user_id = #{userId}
+      AND t.task_type = 'WBS_TASK'
+      AND t.is_deleted = false
+    <if test="status != null">
+        AND t.status = #{status}
+    </if>
+    <if test="projectId != null">
+        AND t.project_id = #{projectId}
+    </if>
+    <if test="keyword != null and keyword != ''">
+        AND t.title LIKE CONCAT('%', #{keyword}, '%')
+    </if>
+    <if test="to != null">
+        AND (t.start_date IS NULL OR t.start_date &lt;= #{to})
+    </if>
+    <if test="from != null">
+        AND (t.end_date IS NULL OR t.end_date &gt;= #{from})
+    </if>
+    ORDER BY t.sort_order, t.end_date IS NULL, t.end_date, t.created_at DESC
+</select>
+
+<update id="updateParent">
+    UPDATE tasks SET parent_task_id = #{parentTaskId}, updated_at = NOW()
+    WHERE id = #{id}
+</update>
+
+<select id="findByProjectIdNotDeleted" resultMap="taskMap">
+    SELECT * FROM tasks WHERE project_id = #{projectId} AND is_deleted = false
+    ORDER BY sort_order, id
+</select>
+
+<select id="lockForUpdate">
+    SELECT id FROM tasks WHERE id = #{id} FOR UPDATE
+</select>
+
+<update id="updateSortOrder">
+    UPDATE tasks SET sort_order = #{sortOrder} WHERE id = #{id}
+</update>
 
 </mapper>
