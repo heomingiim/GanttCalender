@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogTitle,
   InputAdornment,
+  LinearProgress,
   MenuItem,
   TextField,
   Tooltip,
@@ -24,7 +25,7 @@ import * as projectApi from '../api/projects';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import DateRangePickerField from '../components/DateRangePickerField';
-import { PROJECT_STATUS, PROJECT_STATUS_COLOR } from '../utils/constants';
+import { PROJECT_STATUS, PROJECT_STATUS_COLOR, VISIBILITY } from '../utils/constants';
 import { formatDate } from '../utils/date';
 import { pillSearchSx } from '../utils/uiStyles';
 
@@ -44,7 +45,7 @@ export default function ProjectListPage() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', startDate: '', endDate: '' });
+  const [form, setForm] = useState({ name: '', description: '', startDate: '', endDate: '', visibility: 'PUBLIC' });
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -95,10 +96,11 @@ export default function ProjectListPage() {
         startDate: form.startDate || null,
         endDate: form.endDate || null,
         status: null, // 생성 시 서버가 PLANNED로 고정
+        visibility: form.visibility,
       });
       toast.success('프로젝트를 만들었습니다.');
       setOpen(false);
-      setForm({ name: '', description: '', startDate: '', endDate: '' });
+      setForm({ name: '', description: '', startDate: '', endDate: '', visibility: 'PUBLIC' });
       navigate(`/projects/${created.id}`);
     } catch (err) {
       toast.apiError(err);
@@ -213,6 +215,15 @@ export default function ProjectListPage() {
                 <Typography variant="caption" color="text.secondary">
                   {formatDate(p.startDate)} ~ {formatDate(p.endDate)}
                 </Typography>
+                {p.progress != null && (
+                  <Box sx={{ mt: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="caption" color="text.secondary">진행률</Typography>
+                      <Typography variant="caption" color="text.secondary">{p.progress}%</Typography>
+                    </Box>
+                    <LinearProgress variant="determinate" value={p.progress} sx={{ borderRadius: 1, height: 6 }} />
+                  </Box>
+                )}
               </CardContent>
             </CardActionArea>
           </Card>
@@ -257,6 +268,20 @@ export default function ProjectListPage() {
                 slotProps={{ inputLabel: { shrink: true } }}
               />
             </Box>
+            <TextField
+              select
+              label="구분"
+              value={form.visibility}
+              onChange={(e) => setForm((p) => ({ ...p, visibility: e.target.value }))}
+              size="small"
+              helperText="이 프로젝트의 단계·하위작업이 그대로 물려받습니다"
+            >
+              {Object.entries(VISIBILITY).map(([code, label]) => (
+                <MenuItem key={code} value={code}>
+                  {label}
+                </MenuItem>
+              ))}
+            </TextField>
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpen(false)}>취소</Button>

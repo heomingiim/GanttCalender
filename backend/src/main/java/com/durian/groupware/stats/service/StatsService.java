@@ -67,6 +67,8 @@ public class StatsService {
         Map<String, Long> statusCounts = new LinkedHashMap<>();
         long total = 0;
         for (StatRow row : rows) {
+            // status가 null인 행은 빈 구간을 표시하기 위한 0건짜리 자리 채우기 행이다
+            if (row.getStatus() == null) continue;
             statusCounts.merge(row.getStatus(), row.getCount(), Long::sum);
             total += row.getCount();
         }
@@ -77,7 +79,12 @@ public class StatsService {
     }
 
     public DashboardResponse getDashboard(LoginUser loginUser) {
-        List<TaskResponse> todos = taskService.getMyTodos(loginUser, null, null, null, null, null).stream()
+        LocalDate today = LocalDate.now();
+        // 오늘이 시작~마감 기간에 포함된 것만 "오늘 할 일"로 친다 (마감일만 오늘인 것으로 한정하지 않는다)
+        // WBS 작업은 아래 wbsTasks에서 따로 보여주므로 여기서는 순수 투두만 남긴다
+        List<TaskResponse> todos = taskService.getMyTodos(loginUser, null, null, null,
+                        today.atStartOfDay(), today.atTime(23, 59, 59)).stream()
+                .filter(t -> "TODO".equals(t.taskType()))
                 .filter(t -> !"DONE".equals(t.status()) && !"CANCELLED".equals(t.status()))
                 .limit(10)
                 .toList();

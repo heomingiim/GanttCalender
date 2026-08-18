@@ -120,6 +120,15 @@ public class TaskController {
         return ResponseEntity.ok().build();
     }
 
+    // DELETE /api/tasks/{id}/assignees/me — 담당자 본인이 스스로를 빼는 것.
+    // 투두 화면의 WBS 작업 "삭제"는 프로젝트 작업 자체가 아니라 이 API로 처리해
+    // 내 목록에서만 없어지고 프로젝트에는 남게 한다
+    @DeleteMapping("/{id}/assignees/me")
+    public ResponseEntity<Void> unassignSelf(@Login LoginUser loginUser, @PathVariable Long id) {
+        taskService.unassignSelf(loginUser, id);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping
     public List<TaskResponse> list(
             @Login LoginUser loginUser,

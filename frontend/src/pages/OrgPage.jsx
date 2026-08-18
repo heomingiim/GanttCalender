@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Card,
@@ -10,6 +10,7 @@ import {
   List,
   ListItemButton,
   ListItemText,
+  MenuItem,
   Paper,
   Table,
   TableBody,
@@ -42,6 +43,12 @@ export default function OrgPage() {
   const [selectedDept, setSelectedDept] = useState(null);
   const [users, setUsers] = useState([]);
   const [keyword, setKeyword] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+
+  const filteredUsers = useMemo(
+    () => (roleFilter ? users.filter((u) => u.role === roleFilter) : users),
+    [users, roleFilter]
+  );
 
   useEffect(() => {
     getTree()
@@ -129,35 +136,50 @@ export default function OrgPage() {
         </Card>
 
         <Box>
-          <TextField
-            fullWidth
-            size="small"
-            placeholder="이름 또는 사원번호로 전체 검색"
-            value={keyword}
-            onChange={(e) => {
-              const next = e.target.value;
-              setKeyword(next);
-              // 검색어를 지우면 이전 검색 결과도 함께 치운다.
-              // (부서 선택 시의 초기화는 handleSelectDept가 따로 처리한다)
-              if (!next.trim() && !selectedDept) setUsers([]);
-            }}
-            sx={{ mb: 2, bgcolor: 'background.paper' }}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                ),
-              },
-            }}
-          />
+          <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="이름 또는 사원번호로 전체 검색"
+              value={keyword}
+              onChange={(e) => {
+                const next = e.target.value;
+                setKeyword(next);
+                // 검색어를 지우면 이전 검색 결과도 함께 치운다.
+                // (부서 선택 시의 초기화는 handleSelectDept가 따로 처리한다)
+                if (!next.trim() && !selectedDept) setUsers([]);
+              }}
+              sx={{ bgcolor: 'background.paper' }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+            <TextField
+              select
+              size="small"
+              label="직책"
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              sx={{ minWidth: 140, flexShrink: 0, '& .MuiInputBase-root': { height: 40 } }}
+            >
+              <MenuItem value="">전체</MenuItem>
+              {Object.entries(USER_ROLE).map(([code, label]) => (
+                <MenuItem key={code} value={code}>{label}</MenuItem>
+              ))}
+            </TextField>
+          </Box>
 
           <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
             {keyword.trim()
-              ? `검색 결과 ${users.length}명`
+              ? `검색 결과 ${filteredUsers.length}명`
               : selectedDept
-                ? `${selectedDept.name} · ${users.length}명`
+                ? `${selectedDept.name} · ${filteredUsers.length}명`
                 : '부서를 선택하거나 검색어를 입력하세요.'}
           </Typography>
 
@@ -172,14 +194,14 @@ export default function OrgPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {users.length === 0 && (
+                {filteredUsers.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                       표시할 사용자가 없습니다.
                     </TableCell>
                   </TableRow>
                 )}
-                {users.map((u) => (
+                {filteredUsers.map((u) => (
                   <TableRow key={u.id} hover>
                     <TableCell>{u.employeeNumber}</TableCell>
                     <TableCell>{u.name}</TableCell>

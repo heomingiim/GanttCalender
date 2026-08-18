@@ -20,6 +20,7 @@ import * as statsApi from '../api/stats';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import TaskDetailDialog from '../components/TaskDetailDialog';
+import TaskFormDialog from '../components/TaskFormDialog';
 import { PRIORITY, PRIORITY_COLOR, STATUS, STATUS_COLOR } from '../utils/constants';
 import { formatDateTime } from '../utils/date';
 
@@ -34,6 +35,8 @@ export default function DashboardPage() {
   const [todayWbsTasks, setTodayWbsTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [detailId, setDetailId] = useState(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -61,9 +64,8 @@ export default function DashboardPage() {
 
   const urgentItems = useMemo(() => {
     const now = new Date();
-    const soonLimit = new Date(now);
-    soonLimit.setDate(soonLimit.getDate() + 3);
-    soonLimit.setHours(23, 59, 59, 999);
+    const todayEnd = new Date(now);
+    todayEnd.setHours(23, 59, 59, 999);
 
     const seen = new Set();
     const items = [];
@@ -72,7 +74,7 @@ export default function DashboardPage() {
       seen.add(t.id);
       const end = new Date(t.endDate);
       if (end < now) items.push({ ...t, urgency: 'OVERDUE' });
-      else if (end <= soonLimit) items.push({ ...t, urgency: 'SOON' });
+      else if (end <= todayEnd) items.push({ ...t, urgency: 'TODAY' });
     }
     return items.sort((a, b) => new Date(a.endDate) - new Date(b.endDate));
   }, [todayTodos, todayWbsTasks]);
@@ -148,6 +150,24 @@ export default function DashboardPage() {
               </Box>
             ))}
           </Stack>
+
+          <Divider sx={{ my: 1.5 }} />
+
+          <Stack spacing={1}>
+            {[
+              ['오늘 마감', urgentItems.filter((t) => t.urgency === 'TODAY').length],
+              ['마감 지남', urgentItems.filter((t) => t.urgency === 'OVERDUE').length],
+            ].map(([label, value]) => (
+              <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="body2" color="text.secondary">
+                  {label}
+                </Typography>
+                <Typography variant="body2" fontWeight={700} color={value > 0 ? 'error' : 'text.secondary'}>
+                  {value}
+                </Typography>
+              </Box>
+            ))}
+          </Stack>
         </Card>
 
         <Box sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -179,7 +199,7 @@ export default function DashboardPage() {
               <ListItemButton key={t.id} divider onClick={() => setDetailId(t.id)}>
                 <ListItemText
                   primary={t.title}
-                  secondary={t.endDate ? `마감 ${formatDateTime(t.endDate)}` : '마감 없음'}
+                  secondary={t.startDate || t.endDate ? `${formatDateTime(t.startDate)} ~ ${formatDateTime(t.endDate)}` : '기간 없음'}
                 />
                 <Chip
                   size="small"
@@ -241,7 +261,7 @@ export default function DashboardPage() {
         <Card variant="outlined">
           <CardContent>
             <Typography variant="subtitle1" fontWeight={700} color="error.main">
-              마감 임박·지난 ({urgentItems.length})
+              오늘마감·지난 ({urgentItems.length})
             </Typography>
           </CardContent>
           <Divider />
@@ -249,7 +269,7 @@ export default function DashboardPage() {
             {urgentItems.length === 0 && (
               <ListItem>
                 <ListItemText
-                  primary="마감이 임박하거나 지난 작업이 없습니다."
+                  primary="오늘 마감이거나 지난 작업이 없습니다."
                   slotProps={{ primary: { color: 'text.secondary' } }}
                 />
               </ListItem>
@@ -258,13 +278,13 @@ export default function DashboardPage() {
               <ListItemButton key={t.id} divider onClick={() => setDetailId(t.id)}>
                 <ListItemText
                   primary={t.title}
-                  secondary={t.endDate ? `마감 ${formatDateTime(t.endDate)}` : '마감 없음'}
+                  secondary={t.startDate || t.endDate ? `${formatDateTime(t.startDate)} ~ ${formatDateTime(t.endDate)}` : '마감 없음'}
                 />
                 <Chip
                   size="small"
                   color="error"
                   variant={t.urgency === 'OVERDUE' ? 'filled' : 'outlined'}
-                  label={t.urgency === 'OVERDUE' ? '마감 지남' : '마감 임박'}
+                  label={t.urgency === 'OVERDUE' ? '마감 지남' : '오늘 마감'}
                   sx={{ mr: 1, fontWeight: 700 }}
                 />
                 <Chip size="small" color={STATUS_COLOR[t.status]} label={STATUS[t.status] ?? t.status} />
@@ -293,7 +313,7 @@ export default function DashboardPage() {
               <ListItemButton key={t.id} divider onClick={() => setDetailId(t.id)}>
                 <ListItemText
                   primary={t.title}
-                  secondary={t.endDate ? `마감 ${formatDateTime(t.endDate)}` : '마감 없음'}
+                  secondary={t.startDate || t.endDate ? `${formatDateTime(t.startDate)} ~ ${formatDateTime(t.endDate)}` : '기간 없음'}
                 />
                 <Chip
                   size="small"
@@ -308,11 +328,24 @@ export default function DashboardPage() {
         </Box>
       </Box>
 
+      <TaskFormDialog
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        onSaved={load}
+        task={editingTask}
+      />
+
       <TaskDetailDialog
         open={detailId != null}
         taskId={detailId}
         onClose={() => setDetailId(null)}
         onChanged={load}
+        allowDeleteWbs={false}
+        onEdit={(task) => {
+          setDetailId(null);
+          setEditingTask(task);
+          setFormOpen(true);
+        }}
       />
     </Box>
   );

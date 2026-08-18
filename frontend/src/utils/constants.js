@@ -92,9 +92,15 @@ export const PARTICIPANT_RESPONSE_COLOR = {
 
 export const NOTIFICATION_TYPE = {
   ASSIGN: '담당자 지정',
+  UNASSIGN: '담당자 해제',
   INVITE: '일정 초대',
   CANCEL: '일정 취소',
   DEADLINE: '마감 임박',
+  UPDATE: '일정 변경',
+  STATUS_CHANGE: '상태 변경',
+  PROJECT_INVITE: '프로젝트 초대',
+  PROJECT_REMOVE: '프로젝트 제외',
+  PROJECT_DELETE: '프로젝트 삭제',
 };
 
 export const ACTIVITY_ACTION = {
