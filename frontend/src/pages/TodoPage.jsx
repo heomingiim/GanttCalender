@@ -53,6 +53,15 @@ import { PRIORITY, PRIORITY_COLOR, STATUS, STATUS_COLOR, TASK_TYPE } from '../ut
 import { formatDate, isSameDay } from '../utils/date';
 import { pillSearchSx } from '../utils/uiStyles';
 
+const SORT_ACCESSOR = {
+  title: (t) => t.title ?? '',
+  type: (t) => t.taskType ?? '',
+  status: (t) => t.status ?? '',
+  priority: (t) => t.priority ?? '',
+  progress: (t) => t.progressRate ?? 0,
+  dueDate: (t) => t.endDate ?? '',
+};
+
 function dueUrgency(todo) {
   if (!todo.endDate || ['DONE', 'CANCELLED'].includes(todo.status)) return null;
   const today = new Date();
@@ -259,15 +268,6 @@ export default function TodoPage() {
   const handleSearch = (event) => {
     event.preventDefault();
     setKeyword(searchInput);
-  };
-
-  const SORT_ACCESSOR = {
-    title: (t) => t.title ?? '',
-    type: (t) => t.taskType ?? '',
-    status: (t) => t.status ?? '',
-    priority: (t) => t.priority ?? '',
-    progress: (t) => t.progressRate ?? 0,
-    dueDate: (t) => t.endDate ?? '',
   };
 
   const handleSortClick = (key) => {

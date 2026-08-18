@@ -42,9 +42,8 @@ public class ProjectMemberService {
         notifyMember(req.userId(), projectId, "PROJECT_INVITE", "프로젝트에 초대되었습니다.");
     }
 
-    // 태스크 참석자로 초대된 사용자를 멤버로 등록해 프로젝트가 목록/상세에 보이게 한다.
-    // MEMBER 역할이라 진행률 등 수정 권한은 여전히 담당자 지정 여부로만 결정된다. 이미 멤버면 아무것도 하지 않는다
-    public void addReadonlyMember(Long userId, Long projectId) {
+    // 참석자 초대 시 호출 — 프로젝트가 보이도록 MEMBER로 등록만 한다. 이미 멤버면 무시
+    public void ensureMember(Long userId, Long projectId) {
         if (isMember(userId, projectId)) {
             return;
         }

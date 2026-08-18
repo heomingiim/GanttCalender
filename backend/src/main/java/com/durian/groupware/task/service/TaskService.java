@@ -200,9 +200,9 @@ public class TaskService {
     @Transactional
     public TaskResponse changeProgress(LoginUser loginUser, Long id, int rate) {
         Task task = getProgressEditable(loginUser, id);
-        // 진행률에 맞춰 상태를 같이 맞춘다. 취소된 작업은 진행률을 바꿔도 취소 상태를 유지한다.
-        // changeStatus는 "status != #{status}"일 때만 행을 갱신하므로, 상태가 그대로인 채
-        // 진행률만 바뀌는 흔한 경우(예: 30%→60%, 둘 다 IN_PROGRESS)에는 그걸 쓰면 안 된다.
+        // 진행률에 맞춰 상태도 같이 맞춘다. 취소 상태는 진행률을 바꿔도 유지.
+        // changeStatus는 상태가 실제로 바뀔 때만 행을 갱신하므로, 상태가 그대로인 채
+        // 진행률만 바뀌는 경우(30%→60%)엔 changeProgress를 써야 한다.
         String status = "CANCELLED".equals(task.getStatus())
                 ? task.getStatus()
                 : rate <= 0 ? "TODO" : rate >= 100 ? "DONE" : "IN_PROGRESS";
@@ -467,9 +467,8 @@ public class TaskService {
         return roots;
     }
 
-    // 담당자 본인이 스스로를 WBS 작업에서 빼는 것. 투두 화면에 같이 뜨는 WBS 작업을
-    // "삭제"하면 실제 프로젝트 작업까지 지워지므로, 거기서는 이걸로 "내 목록에서만 빼기"를 구현한다.
-    // canEdit(생성자/관리자) 없이도 본인이 담당자이기만 하면 할 수 있어야 한다
+    // 투두 화면의 "삭제"는 이걸 호출한다 — 프로젝트 작업 자체는 지우지 않고 담당에서만 뺀다.
+    // canEdit 없이 담당자 본인이면 된다
     @Transactional
     public void unassignSelf(LoginUser loginUser, Long taskId) {
         Task task = taskMapper.findByIdNotDeleted(taskId);
@@ -567,7 +566,7 @@ public class TaskService {
 
             if (wasRequired == null) {
                 if (task.getProjectId() != null) {
-                    projectMemberService.addReadonlyMember(uid, task.getProjectId());
+                    projectMemberService.ensureMember(uid, task.getProjectId());
                 }
                 notificationService.notifyNow(uid, taskId, "INVITE",
                         "'" + title + "' 일정에 초대되었습니다.");
