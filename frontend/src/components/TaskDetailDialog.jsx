@@ -260,7 +260,7 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
           </Box>
         )}
 
-        {tab === 'assignee' && <AssigneeTab taskId={taskId} />}
+        {tab === 'assignee' && <AssigneeTab taskId={taskId} canEdit={!!task?.canEdit} />}
         {tab === 'participant' && <ParticipantTab taskId={taskId} />}
         {tab === 'activity' && <ActivityTab taskId={taskId} />}
       </DialogContent>
@@ -295,7 +295,7 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
 }
 
 // ── 담당자 ───────────────────────────────────────────
-function AssigneeTab({ taskId }) {
+function AssigneeTab({ taskId, canEdit }) {
   const toast = useToast();
   const [selected, setSelected] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -340,6 +340,27 @@ function AssigneeTab({ taskId }) {
       setSaving(false);
     }
   };
+
+  if (!canEdit) {
+    return (
+      <Box sx={{ display: 'grid', gap: 2 }}>
+        <Typography variant="body2" color="text.secondary">
+          담당자는 작성자·프로젝트 관리자만 변경할 수 있습니다.
+        </Typography>
+        {loading ? (
+          <LinearProgress />
+        ) : selected.length === 0 ? (
+          <Typography color="text.secondary">담당자 없음</Typography>
+        ) : (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {selected.map((u) => (
+              <Typography key={u.id} variant="body2">· {u.name}</Typography>
+            ))}
+          </Box>
+        )}
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ display: 'grid', gap: 2 }}>

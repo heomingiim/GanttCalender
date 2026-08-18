@@ -99,13 +99,23 @@
               </if>
           ))
           OR
-          <!-- WBS_TASK: 내 일정은 담당자만. 팀 스코프에서만 내가 만든 것도 같이 -->
-          (t.task_type = 'WBS_TASK' AND (
-              ta.user_id = #{userId}
-              <if test="deptIds != null and deptIds.size() > 0">
-              OR t.creator_id = #{userId}
-              </if>
-          ))
+          <!-- WBS_TASK: 최하위(leaf) 작업만. MY는 담당자, TEAM은 내가 멤버인 프로젝트의 것 -->
+          (t.task_type = 'WBS_TASK'
+              AND NOT EXISTS (
+                  SELECT 1 FROM tasks c WHERE c.parent_task_id = t.id AND c.is_deleted = false
+              )
+              AND
+              <choose>
+                  <when test="deptIds != null and deptIds.size() > 0">
+                  t.project_id IN (
+                      SELECT project_id FROM project_members WHERE user_id = #{userId}
+                  )
+                  </when>
+                  <otherwise>
+                  ta.user_id = #{userId}
+                  </otherwise>
+              </choose>
+          )
           OR
           <!-- TODO: 공유 개념이 없어 스코프와 무관하게 항상 본인 것만 -->
           (t.task_type = 'TODO' AND t.creator_id = #{userId})
