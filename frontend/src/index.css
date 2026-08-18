@@ -28,8 +28,13 @@ body,
 }
 .fc-daygrid-event {
   border-radius: 999px;
-  padding: 2px 8px;
+  padding: 0 8px;
   font-weight: 500;
+  font-size: 11px;
+  line-height: 1.3;
+}
+.fc-daygrid-event-harness {
+  padding-bottom: 3px;
 }
 .fc-daygrid-block-event:not(.fc-event-start) {
   border-top-left-radius: 0;
@@ -42,7 +47,14 @@ body,
 .fc-daygrid-dot-event .fc-daygrid-event-dot {
   border-radius: 999px;
 }
-.fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+.fc-daygrid-day-bottom {
+  padding-top: 6px;
+}
+.fc-daygrid-more-link {
+  display: inline-block;
+  margin-top: 6px;
+}
+.fc-dayGridMonth-view .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
   background-color: #3AAEA9;
   color: #fff;
   border-radius: 50%;

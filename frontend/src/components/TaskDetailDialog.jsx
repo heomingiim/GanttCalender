@@ -54,7 +54,7 @@ import { formatDateTime } from '../utils/date';
  */
 export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onEdit }) {
   const toast = useToast();
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState('detail');
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -75,7 +75,7 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
 
   useEffect(() => {
     if (open) {
-      setTab(0);
+      setTab('detail');
       load();
       listCategories()
         .then((list) => setCategories(Array.isArray(list) ? list : []))
@@ -144,17 +144,17 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
       </DialogTitle>
 
       <Tabs value={tab} onChange={(_e, v) => setTab(v)} sx={{ px: 2 }} variant="scrollable">
-        <Tab label="상세" />
-        <Tab label="담당자" />
-        <Tab label="참석자" />
-        <Tab label="이력" />
+        <Tab label="상세" value="detail" />
+        {task?.taskType === 'WBS_TASK' && <Tab label="담당자" value="assignee" />}
+        {task?.taskType !== 'TODO' && <Tab label="참석자" value="participant" />}
+        <Tab label="이력" value="activity" />
       </Tabs>
       <Divider />
 
       <DialogContent dividers sx={{ minHeight: 300 }}>
         {loading && <LinearProgress sx={{ mb: 2 }} />}
 
-        {tab === 0 && task && (
+        {tab === 'detail' && task && (
           <Box sx={{ display: 'grid', gap: 2 }}>
             <Box>
               <Typography variant="caption" color="text.secondary">
@@ -209,12 +209,7 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
               )}
             </Box>
 
-            {/*
-              canEdit은 작성자거나(또는 EVENT면 팀장급) 여부다. 프로젝트 멤버라
-              볼 수는 있어도(canView) 고칠 수는 없는 사람에게 이 컨트롤을 그대로
-              보여주면, 만질 때마다 403만 받고 왜 안 되는지 알 방법이 없다.
-            */}
-            {task.canEdit ? (
+            {(task.canEditProgress ?? task.canEdit) ? (
               <>
                 <TextField
                   select
@@ -258,16 +253,16 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
                   {STATUS[task.status] ?? task.status} · {task.progressRate}%
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  작성자만 상태·진행률을 바꿀 수 있습니다.
+                  작성자·담당자만 상태·진행률을 바꿀 수 있습니다.
                 </Typography>
               </Box>
             )}
           </Box>
         )}
 
-        {tab === 1 && <AssigneeTab taskId={taskId} />}
-        {tab === 2 && <ParticipantTab taskId={taskId} />}
-        {tab === 3 && <ActivityTab taskId={taskId} />}
+        {tab === 'assignee' && <AssigneeTab taskId={taskId} />}
+        {tab === 'participant' && <ParticipantTab taskId={taskId} />}
+        {tab === 'activity' && <ActivityTab taskId={taskId} />}
       </DialogContent>
 
       <DialogActions>

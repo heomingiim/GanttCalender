@@ -1,5 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
   Box,
   Button,
   Checkbox,
@@ -21,8 +35,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import DeleteIcon from '@mui/icons-material/Delete';
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 
 import * as taskApi from '../api/tasks';
 import { listCategories } from '../api/categories';
@@ -45,11 +58,107 @@ function dueUrgency(todo) {
   return null;
 }
 
-/**
- * 투두리스트.
- *
- * 볼 만한 부분: 체크박스의 낙관적 업데이트(handleToggle).
- */
+function SortableTodoRow({ todo, mine, onToggle, onDetail, onDelete }) {
+  const done = todo.status === 'DONE';
+  const urgency = dueUrgency(todo);
+
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: todo.id,
+  });
+
+  return (
+    <TableRow
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+        position: 'relative',
+        zIndex: isDragging ? 1 : 'auto',
+      }}
+      hover
+      sx={
+        urgency === 'OVERDUE'
+          ? { bgcolor: 'rgba(211, 47, 47, 0.14)' }
+          : urgency === 'TODAY'
+            ? { bgcolor: 'rgba(211, 47, 47, 0.08)' }
+            : undefined
+      }
+    >
+      <TableCell sx={{ p: 0, width: 40 }}>
+        <IconButton
+          size="small"
+          {...attributes}
+          {...listeners}
+          sx={{ cursor: isDragging ? 'grabbing' : 'grab', color: 'text.disabled' }}
+        >
+          <DragIndicatorIcon fontSize="small" />
+        </IconButton>
+      </TableCell>
+      <TableCell padding="checkbox">
+        <Checkbox
+          checked={done}
+          disabled={!mine}
+          onChange={() => onToggle(todo)}
+          onClick={(e) => e.stopPropagation()}
+        />
+      </TableCell>
+      <TableCell
+        onClick={() => onDetail(todo.id)}
+        sx={{
+          cursor: 'pointer',
+          textDecoration: done ? 'line-through' : 'none',
+          color: done ? 'text.disabled' : 'text.primary',
+        }}
+      >
+        {todo.title}
+      </TableCell>
+      <TableCell>
+        <Chip
+          size="small"
+          variant="outlined"
+          label={todo.taskType === 'TODO' ? '개인' : (TASK_TYPE[todo.taskType] ?? todo.taskType)}
+        />
+      </TableCell>
+      <TableCell>
+        <Chip size="small" color={STATUS_COLOR[todo.status]} label={STATUS[todo.status] ?? todo.status} />
+      </TableCell>
+      <TableCell>
+        <Chip
+          size="small"
+          variant="outlined"
+          color={PRIORITY_COLOR[todo.priority]}
+          label={PRIORITY[todo.priority] ?? todo.priority}
+        />
+      </TableCell>
+      <TableCell>{todo.progressRate}%</TableCell>
+      <TableCell sx={{ fontSize: 13 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+          {todo.startDate || todo.endDate
+            ? `${formatDate(todo.startDate)} ~ ${formatDate(todo.endDate)}`
+            : '-'}
+          {urgency && (
+            <Chip
+              size="small"
+              color="error"
+              variant={urgency === 'OVERDUE' ? 'filled' : 'outlined'}
+              label={urgency === 'OVERDUE' ? '마감 지남' : '오늘 마감'}
+              sx={{ fontWeight: 700 }}
+            />
+          )}
+        </Box>
+      </TableCell>
+      <TableCell>
+        {mine && (
+          <IconButton size="small" onClick={() => onDelete(todo)}>
+            <DeleteIcon fontSize="small" />
+          </IconButton>
+        )}
+      </TableCell>
+    </TableRow>
+  );
+}
+
 export default function TodoPage() {
   const toast = useToast();
   const { user } = useAuth();
@@ -71,16 +180,14 @@ export default function TodoPage() {
   const [detailId, setDetailId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+  );
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const list = await taskApi.getMyTodos({
-        status,
-        projectId,
-        keyword,
-        from: fromDate,
-        to: toDate,
-      });
+      const list = await taskApi.getMyTodos({ status, projectId, keyword, from: fromDate, to: toDate });
       setTodos(Array.isArray(list) ? list : []);
     } catch (err) {
       toast.apiError(err);
@@ -90,27 +197,16 @@ export default function TodoPage() {
     }
   }, [status, projectId, keyword, fromDate, toDate, toast]);
 
-  // status/projectId/keyword가 바뀌면 load 함수가 새로 만들어지고,
-  // 그걸 의존성으로 걸어둔 이 effect가 다시 돌면서 재조회한다.
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     listCategories().then(setCategories).catch(() => setCategories([]));
     listProjects().then(setProjects).catch(() => setProjects([]));
   }, []);
 
-  /**
-   * ★ 낙관적 업데이트 ★
-   * 체크박스를 누르면 서버 응답을 기다리지 않고 화면부터 바꾼다.
-   * 사용자는 즉시 반응을 보고, 실패하면 그때 원래대로 되돌린다.
-   * 이걸 안 하면 체크할 때마다 0.2초씩 멈칫하는 느낌이 난다.
-   */
   const handleToggle = async (todo) => {
     const nextStatus = todo.status === 'DONE' ? 'TODO' : 'DONE';
-    const snapshot = todos; // 롤백용 원본 보관
-
+    const snapshot = todos;
     setTodos((prev) =>
       prev.map((t) =>
         t.id === todo.id
@@ -118,11 +214,10 @@ export default function TodoPage() {
           : t
       )
     );
-
     try {
       await taskApi.changeStatus(todo.id, nextStatus);
     } catch (err) {
-      setTodos(snapshot); // 롤백
+      setTodos(snapshot);
       toast.apiError(err);
     }
   };
@@ -142,27 +237,29 @@ export default function TodoPage() {
     setKeyword(searchInput);
   };
 
-  const todoOnlyIds = todos.filter((t) => t.taskType === 'TODO').map((t) => t.id);
+  const allTodoIds = todos.map((t) => t.id);
 
-  const moveRow = async (taskId, direction) => {
-    const idx = todoOnlyIds.indexOf(taskId);
-    const target = idx + direction;
-    if (idx === -1 || target < 0 || target >= todoOnlyIds.length) return;
+  const handleDragEnd = async ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+    const oldIndex = allTodoIds.indexOf(active.id);
+    const newIndex = allTodoIds.indexOf(over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
 
-    const nextIds = [...todoOnlyIds];
-    [nextIds[idx], nextIds[target]] = [nextIds[target], nextIds[idx]];
-
-    const snapshot = todos;
+    const nextIds = arrayMove(allTodoIds, oldIndex, newIndex);
     const order = new Map(nextIds.map((id, i) => [id, i]));
-    setTodos((prev) =>
-      [...prev].sort((a, b) => {
-        if (a.taskType !== 'TODO' || b.taskType !== 'TODO') return 0;
-        return order.get(a.id) - order.get(b.id);
-      })
-    );
+    const snapshot = todos;
+
+    setTodos((prev) => [...prev].sort((a, b) => order.get(a.id) - order.get(b.id)));
+
+    const editableIds = nextIds.filter((id) => {
+      const t = todos.find((x) => x.id === id);
+      return t && t.canEdit !== false && t.creatorId === user?.id;
+    });
 
     try {
-      await taskApi.reorderTasks(nextIds);
+      if (editableIds.length > 0) {
+        await taskApi.reorderTasks(editableIds);
+      }
     } catch (err) {
       setTodos(snapshot);
       toast.apiError(err);
@@ -186,9 +283,7 @@ export default function TodoPage() {
         >
           <MenuItem value="">전체</MenuItem>
           {Object.entries(STATUS).map(([code, label]) => (
-            <MenuItem key={code} value={code}>
-              {label}
-            </MenuItem>
+            <MenuItem key={code} value={code}>{label}</MenuItem>
           ))}
         </TextField>
 
@@ -202,19 +297,14 @@ export default function TodoPage() {
         >
           <MenuItem value="">전체</MenuItem>
           {projects.map((p) => (
-            <MenuItem key={p.id} value={p.id}>
-              {p.name}
-            </MenuItem>
+            <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
           ))}
         </TextField>
 
         <DateRangePickerField
           from={fromDate}
           to={toDate}
-          onChange={(f, t) => {
-            setFromDate(f);
-            setToDate(t);
-          }}
+          onChange={(f, t) => { setFromDate(f); setToDate(t); }}
           placeholder="기간"
         />
 
@@ -240,10 +330,7 @@ export default function TodoPage() {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => {
-            setEditingTask(null);
-            setFormOpen(true);
-          }}
+          onClick={() => { setEditingTask(null); setFormOpen(true); }}
         >
           할 일 추가
         </Button>
@@ -251,138 +338,46 @@ export default function TodoPage() {
 
       {loading && <LinearProgress sx={{ mb: 1 }} />}
 
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell width={64} />
-              <TableCell padding="checkbox" />
-              <TableCell>제목</TableCell>
-              <TableCell width={90}>구분</TableCell>
-              <TableCell width={90}>상태</TableCell>
-              <TableCell width={90}>우선순위</TableCell>
-              <TableCell width={80}>진행률</TableCell>
-              <TableCell width={260}>기간</TableCell>
-              <TableCell width={60} />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {todos.length === 0 && !loading && (
-              <TableRow>
-                <TableCell colSpan={9} align="center" sx={{ py: 5, color: 'text.secondary' }}>
-                  할 일이 없습니다.
-                </TableCell>
-              </TableRow>
-            )}
-
-            {todos.map((todo) => {
-              const done = todo.status === 'DONE';
-              // WBS 작업은 담당자로 지정만 되어도 이 목록에 뜬다. 상태 변경·삭제는
-              // 작성자만 할 수 있어서(canEdit), 남이 만든 걸 여기서 건드리면 403이 난다.
-              const mine = todo.creatorId === user?.id;
-              const urgency = dueUrgency(todo);
-              return (
-                <TableRow
-                  key={todo.id}
-                  hover
-                  sx={
-                    urgency === 'OVERDUE'
-                      ? { bgcolor: 'rgba(211, 47, 47, 0.14)' }
-                      : urgency === 'TODAY'
-                        ? { bgcolor: 'rgba(211, 47, 47, 0.08)' }
-                        : undefined
-                  }
-                >
-                  <TableCell sx={{ p: 0 }}>
-                    {todo.taskType === 'TODO' && (
-                      <>
-                        <IconButton
-                          size="small"
-                          disabled={todoOnlyIds.indexOf(todo.id) === 0}
-                          onClick={() => moveRow(todo.id, -1)}
-                        >
-                          <ArrowUpwardIcon fontSize="inherit" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          disabled={todoOnlyIds.indexOf(todo.id) === todoOnlyIds.length - 1}
-                          onClick={() => moveRow(todo.id, 1)}
-                        >
-                          <ArrowDownwardIcon fontSize="inherit" />
-                        </IconButton>
-                      </>
-                    )}
-                  </TableCell>
-                  <TableCell padding="checkbox">
-                    <Checkbox
-                      checked={done}
-                      disabled={!mine}
-                      onChange={() => handleToggle(todo)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </TableCell>
-                  <TableCell
-                    onClick={() => setDetailId(todo.id)}
-                    sx={{
-                      cursor: 'pointer',
-                      textDecoration: done ? 'line-through' : 'none',
-                      color: done ? 'text.disabled' : 'text.primary',
-                    }}
-                  >
-                    {todo.title}
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      size="small"
-                      variant="outlined"
-                      label={todo.taskType === 'TODO' ? '개인' : (TASK_TYPE[todo.taskType] ?? todo.taskType)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      size="small"
-                      color={STATUS_COLOR[todo.status]}
-                      label={STATUS[todo.status] ?? todo.status}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      size="small"
-                      variant="outlined"
-                      color={PRIORITY_COLOR[todo.priority]}
-                      label={PRIORITY[todo.priority] ?? todo.priority}
-                    />
-                  </TableCell>
-                  <TableCell>{todo.progressRate}%</TableCell>
-                  <TableCell sx={{ fontSize: 13 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                      {todo.startDate || todo.endDate
-                        ? `${formatDate(todo.startDate)} ~ ${formatDate(todo.endDate)}`
-                        : '-'}
-                      {urgency && (
-                        <Chip
-                          size="small"
-                          color="error"
-                          variant={urgency === 'OVERDUE' ? 'filled' : 'outlined'}
-                          label={urgency === 'OVERDUE' ? '마감 지남' : '오늘 마감'}
-                          sx={{ fontWeight: 700 }}
-                        />
-                      )}
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    {mine && (
-                      <IconButton size="small" onClick={() => setDeleteTarget(todo)}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    )}
-                  </TableCell>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={allTodoIds} strategy={verticalListSortingStrategy}>
+          <TableContainer component={Paper}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell width={40} />
+                  <TableCell padding="checkbox" />
+                  <TableCell>제목</TableCell>
+                  <TableCell width={90}>구분</TableCell>
+                  <TableCell width={90}>상태</TableCell>
+                  <TableCell width={90}>우선순위</TableCell>
+                  <TableCell width={80}>진행률</TableCell>
+                  <TableCell width={260}>기간</TableCell>
+                  <TableCell width={60} />
                 </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </TableContainer>
+              </TableHead>
+              <TableBody>
+                {todos.length === 0 && !loading && (
+                  <TableRow>
+                    <TableCell colSpan={9} align="center" sx={{ py: 5, color: 'text.secondary' }}>
+                      할 일이 없습니다.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {todos.map((todo) => (
+                  <SortableTodoRow
+                    key={todo.id}
+                    todo={todo}
+                    mine={todo.creatorId === user?.id}
+                    onToggle={handleToggle}
+                    onDetail={setDetailId}
+                    onDelete={setDeleteTarget}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </SortableContext>
+      </DndContext>
 
       <TaskFormDialog
         open={formOpen}

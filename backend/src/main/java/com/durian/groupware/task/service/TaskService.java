@@ -65,6 +65,12 @@ public class TaskService {
         }
         checkWithinProjectRange(req.projectId(), req.startDate(), req.endDate());
 
+        // WBS 작업은 프로젝트 관리자만 생성 가능
+        if ("WBS_TASK".equals(req.taskType()) && req.projectId() != null
+                && !projectMemberService.isAdmin(loginUser.id(), req.projectId())) {
+            throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
+        }
+
         Task task = new Task();
         task.setCreatorId(loginUser.id());
         task.setProjectId(req.projectId());
@@ -96,7 +102,8 @@ public class TaskService {
         if (!canView(loginUser, task)) {
             throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
         }
-        return TaskResponse.from(task, canEdit(loginUser, task));
+        boolean edit = canEdit(loginUser, task);
+        return TaskResponse.from(task, edit, edit || canEditProgress(loginUser, task));
     }
 
     // 수정
@@ -143,7 +150,7 @@ public class TaskService {
     // 상태 변경 — 상태와 진행률을 함께 동기화
     @Transactional
     public TaskResponse changeStatus(LoginUser loginUser, Long id, String status) {
-        Task task = getEditable(loginUser, id);
+        Task task = getProgressEditable(loginUser, id);
         int progressRate = task.getProgressRate();
 
         if ("DONE".equals(status)) {
@@ -170,7 +177,7 @@ public class TaskService {
     // 진행률 변경 (상태 변경은 changeStatus 사용)
     @Transactional
     public TaskResponse changeProgress(LoginUser loginUser, Long id, int rate) {
-        getEditable(loginUser, id);
+        getProgressEditable(loginUser, id);
         taskMapper.changeProgress(id, rate);
         activityLogService.log(id, loginUser.id(), "PROGRESS_CHANGE");
         return TaskResponse.from(taskMapper.findByIdNotDeleted(id));
@@ -216,6 +223,22 @@ public class TaskService {
         return task;
     }
 
+    // 상태·진행률만 바꾸는 경로는 담당자에게도 허용한다
+    private Task getProgressEditable(LoginUser loginUser, Long id) {
+        Task task = taskMapper.findByIdNotDeleted(id);
+        if (task == null) {
+            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        }
+        if (canEdit(loginUser, task)) {
+            return task;
+        }
+        if ("WBS_TASK".equals(task.getTaskType())
+                && assigneeMapper.findUserIdsByTaskId(id).contains(loginUser.id())) {
+            return task;
+        }
+        throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
+    }
+
     private boolean canEdit(LoginUser loginUser, Task task) {
         // 생성자 본인이면 수정 가능
         if (loginUser.id().equals(task.getCreatorId())) {
@@ -225,7 +248,18 @@ public class TaskService {
         if ("EVENT".equals(task.getTaskType()) && !"MEMBER".equals(loginUser.role())) {
             return true;
         }
+        // WBS 작업은 프로젝트 관리자도 수정 가능
+        if ("WBS_TASK".equals(task.getTaskType()) && task.getProjectId() != null
+                && projectMemberService.isAdmin(loginUser.id(), task.getProjectId())) {
+            return true;
+        }
         return false;
+    }
+
+    // 담당자는 상태/진행률만 바꿀 수 있다
+    private boolean canEditProgress(LoginUser loginUser, Task task) {
+        return "WBS_TASK".equals(task.getTaskType())
+                && assigneeMapper.findUserIdsByTaskId(task.getId()).contains(loginUser.id());
     }
 
     private boolean canView(LoginUser loginUser, Task task) {
@@ -270,7 +304,10 @@ public class TaskService {
                         .thenComparingInt(t -> PRIORITY_ORDER.indexOf(t.getPriority()))
                         .thenComparing(t -> t.getEndDate() == null ? LocalDateTime.MAX : t.getEndDate())
                         .thenComparing(Task::getId))
-                .map(t -> TaskResponse.from(t, canEdit(loginUser, t)))
+                .map(t -> {
+                    boolean edit = canEdit(loginUser, t);
+                    return TaskResponse.from(t, edit, edit || canEditProgress(loginUser, t));
+                })
                 .toList();
     }
 
@@ -383,7 +420,10 @@ public class TaskService {
     // 트랜잭션이 없을 때는 delete만 커밋되어 담당자가 0명인 채로 남는다.
     @Transactional
     public void replaceAssignees(LoginUser loginUser, Long taskId, List<Long> userIds) {
-        getEditable(loginUser, taskId); // 권한 확인
+        Task target = getEditable(loginUser, taskId); // 권한 확인
+        if (!"WBS_TASK".equals(target.getTaskType())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
 
         // 동시에 같은 작업의 담당자를 바꾸는 요청이 겹치면, 아래 "교체 전 명단" 조회가
         // 서로 다른 시점을 보게 되어 중복 알림·유실 갱신이 난다. 행을 잠가 직렬화한다.
@@ -413,7 +453,16 @@ public class TaskService {
     @Transactional
     public void inviteParticipants(LoginUser loginUser, Long taskId,
             List<Long> userIds, Boolean required) {
-        getEditable(loginUser, taskId); // 권한 확인
+        Task task = taskMapper.findByIdNotDeleted(taskId);
+        if (task == null) {
+            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        }
+        if (!canView(loginUser, task)) {
+            throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
+        }
+        if ("TODO".equals(task.getTaskType())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
         if (userIds == null || userIds.isEmpty()) {
             return;
         }

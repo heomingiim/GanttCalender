@@ -31,7 +31,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import TaskFormDialog from '../components/TaskFormDialog';
 import TaskDetailDialog from '../components/TaskDetailDialog';
-import { PRIORITY_HEX, TASK_TYPE } from '../utils/constants';
+import { TASK_TYPE } from '../utils/constants';
 import { fromDateTimeInputValue, toDateTimeInputValue } from '../utils/date';
 import { segmentedToggleSx, pillSearchSx } from '../utils/uiStyles';
 
@@ -163,22 +163,34 @@ export default function CalendarPage() {
     () =>
       rawTasks
         .filter((t) => typeFilter.includes(t.taskType))
-        .filter((t) => categoryFilter === null || categoryFilter.includes(t.categoryId ?? 'NONE'))
+        .filter((t) => {
+          if (categoryFilter === null) return true;
+          const cid = t.categoryId;
+          // 사용자 카테고리 목록에 없는 categoryId는 필터 적용 제외 (항상 표시)
+          if (cid != null && !categories.some((c) => c.id === cid)) return true;
+          return categoryFilter.includes(cid ?? 'NONE');
+        })
         .map((t) => {
           const category = categories.find((c) => c.id === t.categoryId);
+          // 주간/일간(timeGrid) 뷰에서 여러 날 걸치는 이벤트를 all-day로 표시
+          // (월간 dayGrid 뷰는 원래대로)
+          const isTimeGrid = viewType.startsWith('timeGrid');
+          const startDay = t.startDate?.slice(0, 10);
+          const endDay = t.endDate?.slice(0, 10);
+          const spansMultipleDays = startDay && endDay && startDay !== endDay;
+          const forceAllDay = isTimeGrid && spansMultipleDays;
           return {
             id: String(t.id),
             title: t.title,
             start: t.startDate,
             end: exclusiveEnd(t),
-            allDay: Boolean(t.allDay),
-            // 카테고리를 지정했으면 그 색을, 아니면 우선순위 색을 쓴다.
-            backgroundColor: category?.color || PRIORITY_HEX[t.priority] || PRIORITY_HEX.MEDIUM,
+            allDay: forceAllDay || Boolean(t.allDay),
+            backgroundColor: category?.color || '#90a4ae',
             borderColor: 'transparent',
             extendedProps: { raw: t },
           };
         }),
-    [rawTasks, typeFilter, categoryFilter, categories]
+    [rawTasks, typeFilter, categoryFilter, categories, viewType]
   );
 
   // 빈 날짜 칸 클릭 → 그 날짜로 새 일정 폼 열기

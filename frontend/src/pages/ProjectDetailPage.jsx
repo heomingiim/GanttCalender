@@ -143,6 +143,7 @@ export default function ProjectDetailPage() {
           projectId={projectId}
           flatTasks={flatTasks}
           categories={categories}
+          isAdmin={isAdmin}
           onChanged={loadTasks}
         />
       )}
@@ -390,7 +391,7 @@ function MemberTab({ projectId, members, isAdmin, onChanged }) {
 }
 
 // ── WBS · 간트 탭 ────────────────────────────────────────────
-function WbsGanttTab({ project, projectId, flatTasks, categories, onChanged }) {
+function WbsGanttTab({ project, projectId, flatTasks, categories, isAdmin, onChanged }) {
   const toast = useToast();
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -415,9 +416,11 @@ function WbsGanttTab({ project, projectId, flatTasks, categories, onChanged }) {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => openCreate(null)}>
-          단계 추가
-        </Button>
+        {isAdmin && (
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => openCreate(null)}>
+            단계 추가
+          </Button>
+        )}
       </Box>
 
       <WbsGanttTable
@@ -427,6 +430,7 @@ function WbsGanttTab({ project, projectId, flatTasks, categories, onChanged }) {
         onRowClick={setDetailId}
         onAddChild={openCreate}
         onReorder={handleReorder}
+        canManage={isAdmin}
       />
 
       <TaskFormDialog
