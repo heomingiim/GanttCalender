@@ -39,6 +39,20 @@ public class ProjectService {
         return (int) Math.round(leaves.stream().mapToInt(Task::getProgressRate).average().orElse(0));
     }
 
+    // 진행률 기반으로 프로젝트 상태를 자동 파생. CANCELLED는 유지.
+    private ProjectResponse toResponse(Project p) {
+        Integer progress = computeProgress(p.getId());
+        if (!"CANCELLED".equals(p.getStatus())) {
+            String derived = progress == null || progress == 0 ? "PLANNED"
+                    : progress >= 100 ? "DONE" : "IN_PROGRESS";
+            if (!derived.equals(p.getStatus())) {
+                p.setStatus(derived);
+                projectMapper.update(p);
+            }
+        }
+        return ProjectResponse.from(p, progress);
+    }
+
     public ProjectResponse create(LoginUser loginUser, ProjectRequest req) {
         if ("MEMBER".equals(loginUser.role())) {
             throw new BusinessException(ErrorCode.PROJECT_CREATE_FORBIDDEN);
@@ -61,13 +75,13 @@ public class ProjectService {
         member.setRole("ADMIN");
         memberMapper.insert(member);
 
-        return ProjectResponse.from(project, computeProgress(project.getId()));
+        return toResponse(project);
     }
 
     // 내가 속한 프로젝트 목록
     public List<ProjectResponse> getMyProjects(LoginUser loginUser) {
         return projectMapper.findByMemberId(loginUser.id()).stream()
-                .map(p -> ProjectResponse.from(p, computeProgress(p.getId())))
+                .map(this::toResponse)
                 .toList();
     }
 
@@ -79,7 +93,7 @@ public class ProjectService {
         ProjectMember member = memberMapper.findByProjectAndUser(id, loginUser.id());
         if (member == null) throw new BusinessException(ErrorCode.NOT_PROJECT_MEMBER);
 
-        return ProjectResponse.from(project, computeProgress(id));
+        return toResponse(project);
     }
 
     public ProjectResponse update(LoginUser loginUser, Long id, ProjectRequest req) {
@@ -95,7 +109,7 @@ public class ProjectService {
         if (req.visibility() != null) project.setVisibility(req.visibility());
         projectMapper.update(project);
 
-        return ProjectResponse.from(projectMapper.findByIdNotDeleted(id), computeProgress(id));
+        return toResponse(projectMapper.findByIdNotDeleted(id));
     }
 
     // 소프트 삭제
