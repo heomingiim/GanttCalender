@@ -11,10 +11,16 @@ public record ProjectResponse(
     LocalDate startDate,
     LocalDate endDate,
     String status,
+    String visibility,
+    Integer progress,
     LocalDateTime createdAt,
     LocalDateTime updatedAt
 ) {
     public static ProjectResponse from(Project p) {
+        return from(p, null);
+    }
+
+    public static ProjectResponse from(Project p, Integer progress) {
         return new ProjectResponse(
             p.getId(),
             p.getName(),
@@ -23,6 +29,8 @@ public record ProjectResponse(
             p.getStartDate(),
             p.getEndDate(),
             p.getStatus(),
+            p.getVisibility(),
+            progress,
             p.getCreatedAt(),
             p.getUpdatedAt()
         );

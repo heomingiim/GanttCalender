@@ -10,6 +10,9 @@ export const updateTask = (id, body) => client.put(`/tasks/${id}`, body);
 
 export const deleteTask = (id) => client.delete(`/tasks/${id}`);
 
+// WBS 작업에서 본인만 담당자에서 빠진다 (프로젝트 작업 자체는 그대로 남음)
+export const unassignSelf = (id) => client.delete(`/tasks/${id}/assignees/me`);
+
 export const changeStatus = (id, status) =>
   client.patch(`/tasks/${id}/status`, { status });
 

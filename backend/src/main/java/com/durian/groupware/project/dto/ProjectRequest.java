@@ -9,5 +9,6 @@ public record ProjectRequest(
     String description,
     LocalDate startDate,
     LocalDate endDate,
-    String status          // PLANNED / IN_PROGRESS / DONE / ON_HOLD
+    String status,          // PLANNED / IN_PROGRESS / DONE / ON_HOLD
+    String visibility        // PUBLIC(팀) / PRIVATE(개인), null이면 PUBLIC
 ) {}

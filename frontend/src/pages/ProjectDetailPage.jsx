@@ -113,6 +113,9 @@ export default function ProjectDetailPage() {
         {project && (
           <Chip size="small" label={PROJECT_STATUS[project.status] ?? project.status} />
         )}
+        {project?.progress != null && (
+          <Chip size="small" color="primary" variant="outlined" label={`진행률 ${project.progress}%`} />
+        )}
       </Box>
 
       <Tabs value={tab} onChange={(_e, v) => setTab(v)} sx={{ mb: 2 }}>

@@ -19,6 +19,7 @@ public class Project {
     private LocalDate startDate;
     private LocalDate endDate;
     private String status;        // PLANNED / IN_PROGRESS / DONE / ON_HOLD
+    private String visibility;    // PUBLIC(팀) / PRIVATE(개인) - 하위 WBS 작업이 상속
     private boolean deleted;      // DB 컬럼명: is_deleted → XML ResultMap으로 매핑
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

@@ -6,9 +6,9 @@
 
     <sql id="periodExpr">
         <choose>
-            <when test="unit == 'DAY'">DATE_FORMAT(t.created_at, '%Y-%m-%d')</when>
-            <when test="unit == 'WEEK'">DATE_FORMAT(t.created_at, '%x-W%v')</when>
-            <otherwise>DATE_FORMAT(t.created_at, '%Y-%m')</otherwise>
+            <when test="unit == 'DAY'">DATE_FORMAT(dr.d, '%Y-%m-%d')</when>
+            <when test="unit == 'WEEK'">DATE_FORMAT(dr.d, '%x-W%v')</when>
+            <otherwise>DATE_FORMAT(dr.d, '%Y-%m')</otherwise>
         </choose>
     </sql>
 
@@ -19,14 +19,22 @@
         </foreach>
     </sql>
 
+    <!-- 작업이 실제로 진행 중이던 기간(시작~마감) 매일을 집계한다.
+         날짜가 비어 있으면 created_at 하루로 취급한다 -->
     <select id="getStats" resultType="StatRow">
+        WITH RECURSIVE date_range AS (
+            SELECT DATE(#{from}) AS d
+            UNION ALL
+            SELECT d + INTERVAL 1 DAY FROM date_range WHERE d + INTERVAL 1 DAY &lt;= DATE(#{to})
+        )
         SELECT period, status, COUNT(*) AS count FROM (
             SELECT <include refid="periodExpr"/> AS period, t.status AS status
-            FROM tasks t
-            WHERE t.is_deleted = false
-              AND t.task_type != 'WBS_TASK'
-              AND t.created_at &gt;= #{from}
-              AND t.created_at &lt;= #{to}
+            FROM date_range dr
+            JOIN tasks t
+              ON t.is_deleted = false
+             AND t.task_type != 'WBS_TASK'
+             AND DATE(COALESCE(t.start_date, t.created_at)) &lt;= dr.d
+             AND DATE(COALESCE(t.end_date, t.start_date, t.created_at)) &gt;= dr.d
               <choose>
                   <when test="deptIds != null and deptIds.size() > 0">
                   AND t.creator_id IN (<include refid="deptUserIds"/>)
@@ -39,12 +47,13 @@
             UNION ALL
 
             SELECT <include refid="periodExpr"/> AS period, t.status AS status
-            FROM tasks t
+            FROM date_range dr
+            JOIN tasks t
+              ON t.is_deleted = false
+             AND t.task_type = 'WBS_TASK'
+             AND DATE(COALESCE(t.start_date, t.created_at)) &lt;= dr.d
+             AND DATE(COALESCE(t.end_date, t.start_date, t.created_at)) &gt;= dr.d
             JOIN task_assignees ta ON ta.task_id = t.id
-            WHERE t.is_deleted = false
-              AND t.task_type = 'WBS_TASK'
-              AND t.created_at &gt;= #{from}
-              AND t.created_at &lt;= #{to}
               <choose>
                   <when test="deptIds != null and deptIds.size() > 0">
                   AND ta.user_id IN (<include refid="deptUserIds"/>)
@@ -55,6 +64,13 @@
               </choose>
         ) combined
         GROUP BY period, status
+
+        UNION ALL
+
+        <!-- 매칭되는 작업이 하루도 없는 구간도 0건으로 표시되도록 모든 날짜의 자리를 깔아둔다 -->
+        SELECT <include refid="periodExpr"/> AS period, NULL AS status, 0 AS count
+        FROM date_range dr
+
         ORDER BY period, status
     </select>
 

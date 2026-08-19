@@ -68,6 +68,8 @@ export default function TaskFormDialog({
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const isEdit = task != null;
+  // 단계(최상위 WBS 작업)는 부모가 없다 — 산출물/구분 필드는 하위작업에만 노출한다
+  const isTopLevelWbs = isEdit ? task.parentTaskId == null : parentTaskId == null;
 
   // 다이얼로그가 열릴 때마다 폼을 초기화한다.
   // open을 의존성에 넣지 않으면 두 번째로 열었을 때 이전 값이 남는다.
@@ -113,6 +115,10 @@ export default function TaskFormDialog({
 
     if (!form.title.trim()) {
       toast.error('제목을 입력하세요.');
+      return;
+    }
+    if (!form.startDate || !form.endDate) {
+      toast.error('시작일과 종료일을 입력하세요.');
       return;
     }
     // 서버도 INVALID_TASK_DATE로 막지만, 왕복 없이 먼저 걸러준다
@@ -232,21 +238,29 @@ export default function TaskFormDialog({
               }
             />
 
-            <TextField
-              select
-              label="구분"
-              value={form.visibility}
-              onChange={setField('visibility')}
-              size="small"
-            >
-              {Object.entries(VISIBILITY).map(([code, label]) => (
-                <MenuItem key={code} value={code}>
-                  {label}
-                </MenuItem>
-              ))}
-            </TextField>
+            <FormControlLabel
+              control={<Checkbox checked={form.allDay} onChange={setField('allDay')} />}
+              label="종일"
+              sx={{ alignSelf: 'center' }}
+            />
 
-            {form.taskType === 'WBS_TASK' && (
+            {form.taskType !== 'WBS_TASK' && (
+              <TextField
+                select
+                label="구분"
+                value={form.visibility}
+                onChange={setField('visibility')}
+                size="small"
+              >
+                {Object.entries(VISIBILITY).map(([code, label]) => (
+                  <MenuItem key={code} value={code}>
+                    {label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+
+            {form.taskType === 'WBS_TASK' && !isTopLevelWbs && (
               <TextField
                 label="산출물"
                 value={form.deliverable}
@@ -309,12 +323,6 @@ export default function TaskFormDialog({
                 ))}
               </TextField>
             )}
-
-            <FormControlLabel
-              control={<Checkbox checked={form.allDay} onChange={setField('allDay')} />}
-              label="종일"
-              sx={{ alignSelf: 'center' }}
-            />
 
             <TextField
               label="설명"

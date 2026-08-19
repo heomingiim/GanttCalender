@@ -121,10 +121,10 @@
           (t.task_type = 'TODO' AND t.creator_id = #{userId})
       )
       <if test="to != null">
-      AND t.start_date &lt;= #{to}
+      AND (t.start_date IS NULL OR t.start_date &lt;= #{to})
       </if>
       <if test="from != null">
-      AND t.end_date &gt;= #{from}
+      AND (t.end_date IS NULL OR t.end_date &gt;= #{from})
       </if>
     <if test="keyword != null and keyword != ''">
       AND (t.title LIKE CONCAT('%', #{keyword}, '%')
@@ -191,7 +191,7 @@
     ORDER BY sort_order, id
 </select>
 
-<select id="lockForUpdate">
+<select id="lockForUpdate" resultType="int">
     SELECT id FROM tasks WHERE id = #{id} FOR UPDATE
 </select>
 

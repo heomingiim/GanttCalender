@@ -15,8 +15,8 @@ public record TaskCreateRequest(
     @NotBlank String title,
     String description,
     String deliverable,
-    LocalDateTime startDate,
-    LocalDateTime endDate,
+    @NotNull LocalDateTime startDate,
+    @NotNull LocalDateTime endDate,
     Boolean allDay,         // null이면 false로 처리
     String visibility,      // null이면 PUBLIC
     String status,          // null이면 TODO

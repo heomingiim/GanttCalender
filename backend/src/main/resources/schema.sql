@@ -154,3 +154,4 @@ CREATE INDEX idx_logs_task ON activity_logs(task_id);
 -- 재실행 시 나는 "컬럼 중복" 에러는 continue-on-error: true로 무시된다.
 ALTER TABLE tasks ADD COLUMN deliverable VARCHAR(300) COMMENT 'WBS 산출물 (예: ERD, 화면설계서)' AFTER description;
 ALTER TABLE tasks ADD COLUMN sort_order INT NOT NULL DEFAULT 0 COMMENT '같은 목록(형제/투두) 안에서의 표시 순서 - 작을수록 위' AFTER progress_rate;
+ALTER TABLE projects ADD COLUMN visibility VARCHAR(10) NOT NULL DEFAULT 'PUBLIC' COMMENT 'PUBLIC(팀) / PRIVATE(개인) - 하위 WBS 작업이 상속' AFTER status;

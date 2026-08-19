@@ -14,5 +14,6 @@ public interface TaskAssigneeMapper {
     List<UserSummaryResponse> findAssigneesByTaskId(Long taskId);
     List<AssigneeNameRow> findAssigneeNamesByProjectId(Long projectId);
     void deleteByTaskId(Long taskId);
+    void deleteByTaskAndUser(@Param("taskId") Long taskId, @Param("userId") Long userId);
     void insertBatch(@Param("taskId") Long taskId, @Param("userIds") List<Long> userIds);
 }
