@@ -40,4 +40,8 @@
         DELETE FROM notifications WHERE id = #{id} AND user_id = #{userId}
     </delete>
 
+    <delete id="deleteAllByUserId">
+        DELETE FROM notifications WHERE user_id = #{userId}
+    </delete>
+
 </mapper>

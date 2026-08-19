@@ -59,4 +59,11 @@ public class NotificationController {
         notificationService.delete(loginUser.id(), id);
         return ResponseEntity.ok().build();
     }
+
+    // DELETE /api/notifications
+    @DeleteMapping
+    public ResponseEntity<Void> deleteAll(@Login LoginUser loginUser) {
+        notificationService.deleteAll(loginUser.id());
+        return ResponseEntity.ok().build();
+    }
 }

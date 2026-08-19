@@ -51,4 +51,9 @@ public class NotificationService {
     public void delete(Long userId, Long notificationId) {
         notificationMapper.deleteById(notificationId, userId);
     }
+
+    // 전체 삭제
+    public void deleteAll(Long userId) {
+        notificationMapper.deleteAllByUserId(userId);
+    }
 }

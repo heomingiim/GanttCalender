@@ -16,6 +16,7 @@ import {
   Toolbar,
   Typography,
 } from '@mui/material';
+import GridViewRoundedIcon from '@mui/icons-material/GridViewRounded';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ChecklistIcon from '@mui/icons-material/Checklist';
@@ -29,7 +30,7 @@ import { useAuth } from '../contexts/AuthContext';
 import NotificationBell from './NotificationBell';
 import { USER_ROLE } from '../utils/constants';
 
-const DRAWER_WIDTH = 220;
+const DRAWER_WIDTH = 200;
 
 const NAV_ITEMS = [
   { to: '/', label: '대시보드', icon: <DashboardIcon /> },
@@ -60,15 +61,48 @@ export default function AppLayout() {
   const drawerContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Toolbar>
-        <Typography
-          variant="h6"
-          color="primary"
-          noWrap
+        <Box
           onClick={() => navigate('/')}
-          sx={{ cursor: 'pointer' }}
+          sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer', py: 0.5 }}
         >
-          두리안 그룹웨어
-        </Typography>
+          <Box
+            sx={{
+              width: 38,
+              height: 38,
+              background: 'linear-gradient(135deg, #425F65 0%, #3AAEA9 100%)',
+              borderRadius: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(86, 124, 131, 0.4)',
+              flexShrink: 0,
+            }}
+          >
+            <GridViewRoundedIcon sx={{ color: '#fff', fontSize: 23 }} />
+          </Box>
+          <Box sx={{ lineHeight: 1 }}>
+            <Typography
+              variant="subtitle1"
+              fontWeight={800}
+              lineHeight={1}
+              letterSpacing="-0.5px"
+              color="primary.dark"
+              sx={{ fontSize: 18 }}
+              noWrap
+            >
+              두리안
+            </Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              lineHeight={1}
+              letterSpacing="0px"
+              noWrap
+            >
+              GROUPWARE
+            </Typography>
+          </Box>
+        </Box>
       </Toolbar>
       <Divider />
       <List sx={{ flexGrow: 1 }}>
@@ -90,13 +124,13 @@ export default function AppLayout() {
                   },
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 40, color: isActive ? 'primary.main' : undefined }}>
+                <ListItemIcon sx={{ minWidth: 36, color: isActive ? 'primary.main' : undefined, '& .MuiSvgIcon-root': { fontSize: 20 } }}>
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText
                   primary={item.label}
                   slotProps={{
-                    primary: { fontWeight: isActive ? 700 : 400 },
+                    primary: { fontWeight: isActive ? 700 : 400, fontSize: 13 },
                   }}
                 />
               </ListItemButton>

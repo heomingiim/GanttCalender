@@ -136,9 +136,19 @@ export function NotificationProvider({ children }) {
     }
   }, [fetchList]);
 
+  const removeAll = useCallback(async () => {
+    setItems([]);
+    setUnreadCount(0);
+    try {
+      await notiApi.deleteAllNotifications();
+    } catch {
+      await fetchList();
+    }
+  }, [fetchList]);
+
   const value = useMemo(
-    () => ({ unreadCount, items, available, fetchList, markAsRead, markAllAsRead, remove }),
-    [unreadCount, items, available, fetchList, markAsRead, markAllAsRead, remove]
+    () => ({ unreadCount, items, available, fetchList, markAsRead, markAllAsRead, remove, removeAll }),
+    [unreadCount, items, available, fetchList, markAsRead, markAllAsRead, remove, removeAll]
   );
 
   return (

@@ -26,7 +26,7 @@ import { formatDateTime } from '../utils/date';
  * 목록은 벨을 열 때만 불러온다 (5초마다 전체 목록을 받아올 필요는 없다).
  */
 export default function NotificationBell() {
-  const { unreadCount, items, available, fetchList, markAsRead, markAllAsRead, remove } =
+  const { unreadCount, items, available, fetchList, markAsRead, markAllAsRead, remove, removeAll } =
     useNotifications();
   const [anchorEl, setAnchorEl] = useState(null);
 
@@ -60,9 +60,14 @@ export default function NotificationBell() {
             알림
           </Typography>
           {items.length > 0 && (
-            <Button size="small" onClick={markAllAsRead}>
-              모두 읽음
-            </Button>
+            <>
+              <Button size="small" onClick={markAllAsRead}>
+                모두 읽음
+              </Button>
+              <Button size="small" color="error" onClick={removeAll}>
+                모두 삭제
+              </Button>
+            </>
           )}
         </Box>
         <Divider />
