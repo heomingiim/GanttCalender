@@ -25,8 +25,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO projects (name, description, owner_id, start_date, end_date, status)
-        VALUES (#{name}, #{description}, #{ownerId}, #{startDate}, #{endDate}, #{status})
+        INSERT INTO projects (name, description, owner_id, start_date, end_date, status, visibility)
+        VALUES (#{name}, #{description}, #{ownerId}, #{startDate}, #{endDate}, #{status}, #{visibility})
     </insert>
 
     <update id="update">
@@ -36,6 +36,7 @@
             start_date = #{startDate},
             end_date = #{endDate},
             status = #{status},
+            visibility = #{visibility},
             updated_at = NOW()
         WHERE id = #{id}
     </update>

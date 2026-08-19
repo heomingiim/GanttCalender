@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   DndContext,
   PointerSensor,
@@ -29,12 +29,15 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import DeleteIcon from '@mui/icons-material/Delete';
+import PlaylistRemoveIcon from '@mui/icons-material/PlaylistRemove';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 
 import * as taskApi from '../api/tasks';
@@ -50,6 +53,15 @@ import { PRIORITY, PRIORITY_COLOR, STATUS, STATUS_COLOR, TASK_TYPE } from '../ut
 import { formatDate, isSameDay } from '../utils/date';
 import { pillSearchSx } from '../utils/uiStyles';
 
+const SORT_ACCESSOR = {
+  title: (t) => t.title ?? '',
+  type: (t) => t.taskType ?? '',
+  status: (t) => t.status ?? '',
+  priority: (t) => t.priority ?? '',
+  progress: (t) => t.progressRate ?? 0,
+  dueDate: (t) => t.endDate ?? '',
+};
+
 function dueUrgency(todo) {
   if (!todo.endDate || ['DONE', 'CANCELLED'].includes(todo.status)) return null;
   const today = new Date();
@@ -58,12 +70,13 @@ function dueUrgency(todo) {
   return null;
 }
 
-function SortableTodoRow({ todo, mine, onToggle, onDetail, onDelete }) {
+function SortableTodoRow({ todo, mine, dragDisabled, onToggle, onDetail, onDelete }) {
   const done = todo.status === 'DONE';
   const urgency = dueUrgency(todo);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: todo.id,
+    disabled: dragDisabled,
   });
 
   return (
@@ -88,9 +101,10 @@ function SortableTodoRow({ todo, mine, onToggle, onDetail, onDelete }) {
       <TableCell sx={{ p: 0, width: 40 }}>
         <IconButton
           size="small"
+          disabled={dragDisabled}
           {...attributes}
           {...listeners}
-          sx={{ cursor: isDragging ? 'grabbing' : 'grab', color: 'text.disabled' }}
+          sx={{ cursor: dragDisabled ? 'default' : isDragging ? 'grabbing' : 'grab', color: 'text.disabled' }}
         >
           <DragIndicatorIcon fontSize="small" />
         </IconButton>
@@ -149,10 +163,18 @@ function SortableTodoRow({ todo, mine, onToggle, onDetail, onDelete }) {
         </Box>
       </TableCell>
       <TableCell>
-        {mine && (
-          <IconButton size="small" onClick={() => onDelete(todo)}>
-            <DeleteIcon fontSize="small" />
-          </IconButton>
+        {todo.taskType === 'WBS_TASK' ? (
+          <Tooltip title="내 목록에서만 빼기 (프로젝트에는 남습니다)">
+            <IconButton size="small" onClick={() => onDelete(todo)}>
+              <PlaylistRemoveIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        ) : (
+          mine && (
+            <IconButton size="small" onClick={() => onDelete(todo)}>
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          )
         )}
       </TableCell>
     </TableRow>
@@ -179,6 +201,11 @@ export default function TodoPage() {
   const [editingTask, setEditingTask] = useState(null);
   const [detailId, setDetailId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+
+  // null이면 드래그 순서(기본순) 그대로. 컬럼 헤더를 클릭하면 그 기준으로 정렬한다
+  const [sortBy, setSortBy] = useState(null);
+  const [sortDir, setSortDir] = useState('asc');
+  const [typeFilter, setTypeFilter] = useState('');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -224,8 +251,14 @@ export default function TodoPage() {
 
   const handleDelete = async () => {
     try {
-      await taskApi.deleteTask(deleteTarget.id);
-      toast.success('삭제했습니다.');
+      // WBS 작업은 프로젝트 데이터라 실제로 지우면 안 되고, 내 담당에서만 빠진다
+      if (deleteTarget.taskType === 'WBS_TASK') {
+        await taskApi.unassignSelf(deleteTarget.id);
+        toast.success('내 목록에서 제외했습니다.');
+      } else {
+        await taskApi.deleteTask(deleteTarget.id);
+        toast.success('삭제했습니다.');
+      }
       load();
     } catch (err) {
       toast.apiError(err);
@@ -237,9 +270,35 @@ export default function TodoPage() {
     setKeyword(searchInput);
   };
 
+  const handleSortClick = (key) => {
+    if (sortBy !== key) {
+      setSortBy(key);
+      setSortDir('asc');
+    } else if (sortDir === 'asc') {
+      setSortDir('desc');
+    } else {
+      setSortBy(null); // 다시 누르면 기본순(드래그 순서)으로 복귀
+    }
+  };
+
+  const displayTodos = useMemo(() => {
+    const filtered = typeFilter ? todos.filter((t) => t.taskType === typeFilter) : todos;
+    if (!sortBy) return filtered;
+    const accessor = SORT_ACCESSOR[sortBy];
+    const sign = sortDir === 'asc' ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      const av = accessor(a);
+      const bv = accessor(b);
+      if (av < bv) return -1 * sign;
+      if (av > bv) return 1 * sign;
+      return 0;
+    });
+  }, [todos, sortBy, sortDir, typeFilter]);
+
   const allTodoIds = todos.map((t) => t.id);
 
   const handleDragEnd = async ({ active, over }) => {
+    if (sortBy) return; // 정렬 중엔 드래그로 순서를 바꾸지 않는다
     if (!over || active.id === over.id) return;
     const oldIndex = allTodoIds.indexOf(active.id);
     const newIndex = allTodoIds.indexOf(over.id);
@@ -301,6 +360,20 @@ export default function TodoPage() {
           ))}
         </TextField>
 
+        <TextField
+          select
+          size="small"
+          label="구분"
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          sx={{ minWidth: 120, '& .MuiInputBase-root': { height: 40 } }}
+        >
+          <MenuItem value="">전체</MenuItem>
+          {Object.entries(TASK_TYPE).filter(([code]) => code !== 'EVENT').map(([code, label]) => (
+            <MenuItem key={code} value={code}>{label}</MenuItem>
+          ))}
+        </TextField>
+
         <DateRangePickerField
           from={fromDate}
           to={toDate}
@@ -339,35 +412,84 @@ export default function TodoPage() {
       {loading && <LinearProgress sx={{ mb: 1 }} />}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={allTodoIds} strategy={verticalListSortingStrategy}>
+        <SortableContext items={displayTodos.map((t) => t.id)} strategy={verticalListSortingStrategy}>
           <TableContainer component={Paper}>
             <Table size="small">
               <TableHead>
                 <TableRow>
                   <TableCell width={40} />
                   <TableCell padding="checkbox" />
-                  <TableCell>제목</TableCell>
-                  <TableCell width={90}>구분</TableCell>
-                  <TableCell width={90}>상태</TableCell>
-                  <TableCell width={90}>우선순위</TableCell>
-                  <TableCell width={80}>진행률</TableCell>
-                  <TableCell width={260}>기간</TableCell>
+                  <TableCell>
+                    <TableSortLabel
+                      active={sortBy === 'title'}
+                      direction={sortBy === 'title' ? sortDir : 'asc'}
+                      onClick={() => handleSortClick('title')}
+                    >
+                      제목
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell width={90}>
+                    <TableSortLabel
+                      active={sortBy === 'type'}
+                      direction={sortBy === 'type' ? sortDir : 'asc'}
+                      onClick={() => handleSortClick('type')}
+                    >
+                      구분
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell width={90}>
+                    <TableSortLabel
+                      active={sortBy === 'status'}
+                      direction={sortBy === 'status' ? sortDir : 'asc'}
+                      onClick={() => handleSortClick('status')}
+                    >
+                      상태
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell width={90}>
+                    <TableSortLabel
+                      active={sortBy === 'priority'}
+                      direction={sortBy === 'priority' ? sortDir : 'asc'}
+                      onClick={() => handleSortClick('priority')}
+                    >
+                      우선순위
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell width={80}>
+                    <TableSortLabel
+                      active={sortBy === 'progress'}
+                      direction={sortBy === 'progress' ? sortDir : 'asc'}
+                      onClick={() => handleSortClick('progress')}
+                    >
+                      진행률
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell width={260}>
+                    <TableSortLabel
+                      active={sortBy === 'dueDate'}
+                      direction={sortBy === 'dueDate' ? sortDir : 'asc'}
+                      onClick={() => handleSortClick('dueDate')}
+                    >
+                      기간
+                    </TableSortLabel>
+                  </TableCell>
                   <TableCell width={60} />
                 </TableRow>
               </TableHead>
               <TableBody>
-                {todos.length === 0 && !loading && (
+                {displayTodos.length === 0 && !loading && (
                   <TableRow>
                     <TableCell colSpan={9} align="center" sx={{ py: 5, color: 'text.secondary' }}>
                       할 일이 없습니다.
                     </TableCell>
                   </TableRow>
                 )}
-                {todos.map((todo) => (
+                {displayTodos.map((todo) => (
                   <SortableTodoRow
                     key={todo.id}
                     todo={todo}
                     mine={todo.creatorId === user?.id}
+                    dragDisabled={!!sortBy}
                     onToggle={handleToggle}
                     onDetail={setDetailId}
                     onDelete={setDeleteTarget}
@@ -394,6 +516,7 @@ export default function TodoPage() {
         taskId={detailId}
         onClose={() => setDetailId(null)}
         onChanged={load}
+        allowDeleteWbs={false}
         onEdit={(task) => {
           setDetailId(null);
           setEditingTask(task);
@@ -403,7 +526,11 @@ export default function TodoPage() {
 
       <ConfirmDialog
         open={deleteTarget != null}
-        message={`'${deleteTarget?.title}' 을(를) 삭제할까요?`}
+        message={
+          deleteTarget?.taskType === 'WBS_TASK'
+            ? `'${deleteTarget?.title}' 을(를) 내 목록에서만 뺄까요? 프로젝트의 WBS 작업 자체는 그대로 남습니다.`
+            : `'${deleteTarget?.title}' 을(를) 삭제할까요?`
+        }
         onConfirm={handleDelete}
         onClose={() => setDeleteTarget(null)}
       />

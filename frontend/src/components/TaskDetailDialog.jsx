@@ -52,7 +52,7 @@ import { formatDateTime } from '../utils/date';
  *  - 참석자 탭 : 초대 / 참석 응답
  *  - 이력 탭   : 활동 이력
  */
-export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onEdit }) {
+export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onEdit, allowDeleteWbs = true }) {
   const toast = useToast();
   const [tab, setTab] = useState('detail');
   const [task, setTask] = useState(null);
@@ -110,10 +110,17 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
     }
   };
 
+  const removingFromMyListOnly = !allowDeleteWbs && task?.taskType === 'WBS_TASK';
+
   const handleDelete = async () => {
     try {
-      await taskApi.deleteTask(task.id);
-      toast.success('삭제했습니다.');
+      if (removingFromMyListOnly) {
+        await taskApi.unassignSelf(task.id);
+        toast.success('내 목록에서 제외했습니다.');
+      } else {
+        await taskApi.deleteTask(task.id);
+        toast.success('삭제했습니다.');
+      }
       onChanged?.();
       onClose();
     } catch (err) {
@@ -266,27 +273,35 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
       </DialogContent>
 
       <DialogActions>
-        <IconButton
-          color="error"
-          onClick={() => setConfirmDelete(true)}
-          disabled={!task || !task.canEdit}
-        >
-          <DeleteIcon />
-        </IconButton>
-        <Box sx={{ flexGrow: 1 }} />
-        <Button
-          startIcon={<EditIcon />}
-          onClick={() => onEdit?.(task)}
-          disabled={!task || !task.canEdit}
-        >
-          수정
-        </Button>
-        <Button onClick={onClose}>닫기</Button>
+        {tab !== 'activity' && (
+          <>
+            <IconButton
+              color="error"
+              onClick={() => setConfirmDelete(true)}
+              disabled={!task || (removingFromMyListOnly ? false : !task.canEdit)}
+            >
+              <DeleteIcon />
+            </IconButton>
+            <Box sx={{ flexGrow: 1 }} />
+            <Button
+              startIcon={<EditIcon />}
+              onClick={() => onEdit?.(task)}
+              disabled={!task || !task.canEdit}
+            >
+              수정
+            </Button>
+          </>
+        )}
+        <Button onClick={onClose} sx={tab === 'activity' ? { ml: 'auto' } : undefined}>닫기</Button>
       </DialogActions>
 
       <ConfirmDialog
         open={confirmDelete}
-        message="이 작업을 삭제할까요?"
+        message={
+          removingFromMyListOnly
+            ? '내 목록에서만 뺄까요? 프로젝트의 WBS 작업 자체는 그대로 남습니다.'
+            : '이 작업을 삭제할까요?'
+        }
         onConfirm={handleDelete}
         onClose={() => setConfirmDelete(false)}
       />

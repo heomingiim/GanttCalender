@@ -51,6 +51,9 @@ public class TaskService {
     private final ProjectMemberService projectMemberService;
     private final ProjectMapper projectMapper;
 
+    private static final Map<String, String> STATUS_LABEL = Map.of(
+            "TODO", "대기", "IN_PROGRESS", "진행중", "DONE", "완료", "CANCELLED", "취소");
+
     // task_participants.response_status에 허용되는 값
     private static final Set<String> ALLOWED_RESPONSES =
             Set.of("PENDING", "ACCEPTED", "DECLINED", "TENTATIVE");
@@ -83,7 +86,13 @@ public class TaskService {
         task.setStartDate(req.startDate());
         task.setEndDate(req.endDate());
         task.setAllDay(Boolean.TRUE.equals(req.allDay()));
-        task.setVisibility(req.visibility() != null ? req.visibility() : "PUBLIC");
+        if ("WBS_TASK".equals(req.taskType()) && req.projectId() != null) {
+            // 팀/개인 구분은 프로젝트 생성 시 한 번만 정하고, 그 안의 단계·하위작업은 그대로 물려받는다
+            Project project = projectMapper.findByIdNotDeleted(req.projectId());
+            task.setVisibility(project != null ? project.getVisibility() : "PUBLIC");
+        } else {
+            task.setVisibility(req.visibility() != null ? req.visibility() : "PUBLIC");
+        }
         task.setStatus(req.status() != null ? req.status() : "TODO");
         task.setPriority(req.priority() != null ? req.priority() : "MEDIUM");
         task.setProgressRate(0);
@@ -117,17 +126,28 @@ public class TaskService {
         }
         checkWithinProjectRange(task.getProjectId(), req.startDate(), req.endDate());
 
+        boolean scheduleChanged = !Objects.equals(task.getStartDate(), req.startDate())
+                || !Objects.equals(task.getEndDate(), req.endDate());
+        boolean titleChanged = !Objects.equals(task.getTitle(), req.title());
+
         task.setTitle(req.title());
         task.setDescription(req.description());
         task.setDeliverable(req.deliverable());
         task.setStartDate(req.startDate());
         task.setEndDate(req.endDate());
         task.setAllDay(Boolean.TRUE.equals(req.allDay()));
-        task.setVisibility(req.visibility());
+        // WBS 작업의 구분(팀/개인)은 프로젝트에서 상속되므로 수정 폼에서 바꿀 수 없다
+        if (!"WBS_TASK".equals(task.getTaskType())) {
+            task.setVisibility(req.visibility());
+        }
         task.setPriority(req.priority());
         task.setCategoryId(req.categoryId());
         taskMapper.update(task);
         activityLogService.log(id, loginUser.id(), "UPDATE");
+
+        if (scheduleChanged || titleChanged) {
+            notifyUpdateToRelated(task, loginUser.id());
+        }
 
         return TaskResponse.from(taskMapper.findByIdNotDeleted(id));
     }
@@ -166,6 +186,8 @@ public class TaskService {
             activityLogService.log(id, loginUser.id(), "STATUS_CHANGE");
             if ("CANCELLED".equals(status)) {
                 notifyCancelToParticipants(task);
+            } else {
+                notifyStatusChangeToAssignees(task, status, loginUser.id());
             }
         } else {
             taskMapper.changeProgress(id, progressRate);
@@ -177,8 +199,18 @@ public class TaskService {
     // 진행률 변경 (상태 변경은 changeStatus 사용)
     @Transactional
     public TaskResponse changeProgress(LoginUser loginUser, Long id, int rate) {
-        getProgressEditable(loginUser, id);
-        taskMapper.changeProgress(id, rate);
+        Task task = getProgressEditable(loginUser, id);
+        // 진행률에 맞춰 상태도 같이 맞춘다. 취소 상태는 진행률을 바꿔도 유지.
+        // changeStatus는 상태가 실제로 바뀔 때만 행을 갱신하므로, 상태가 그대로인 채
+        // 진행률만 바뀌는 경우(30%→60%)엔 changeProgress를 써야 한다.
+        String status = "CANCELLED".equals(task.getStatus())
+                ? task.getStatus()
+                : rate <= 0 ? "TODO" : rate >= 100 ? "DONE" : "IN_PROGRESS";
+        if (status.equals(task.getStatus())) {
+            taskMapper.changeProgress(id, rate);
+        } else {
+            taskMapper.changeStatus(id, status, rate);
+        }
         activityLogService.log(id, loginUser.id(), "PROGRESS_CHANGE");
         return TaskResponse.from(taskMapper.findByIdNotDeleted(id));
     }
@@ -209,6 +241,26 @@ public class TaskService {
         for (Long uid : participantIds) {
             notificationService.notifyNow(uid, task.getId(), "CANCEL",
                     "'" + task.getTitle() + "' 일정이 취소되었습니다.");
+        }
+    }
+
+    private void notifyStatusChangeToAssignees(Task task, String status, Long editorId) {
+        List<Long> assigneeIds = assigneeMapper.findUserIdsByTaskId(task.getId());
+        String statusLabel = STATUS_LABEL.getOrDefault(status, status);
+        for (Long uid : assigneeIds) {
+            if (uid.equals(editorId)) continue;
+            notificationService.notifyNow(uid, task.getId(), "STATUS_CHANGE",
+                    "'" + task.getTitle() + "' 작업 상태가 '" + statusLabel + "'(으)로 변경되었습니다.");
+        }
+    }
+
+    private void notifyUpdateToRelated(Task task, Long editorId) {
+        Set<Long> targets = new HashSet<>(assigneeMapper.findUserIdsByTaskId(task.getId()));
+        targets.addAll(participantMapper.findUserIdsByTaskId(task.getId()));
+        targets.remove(editorId);
+        for (Long uid : targets) {
+            notificationService.notifyNow(uid, task.getId(), "UPDATE",
+                    "'" + task.getTitle() + "' 일정 내용이 변경되었습니다.");
         }
     }
 
@@ -415,6 +467,23 @@ public class TaskService {
         return roots;
     }
 
+    // 투두 화면의 "삭제"는 이걸 호출한다 — 프로젝트 작업 자체는 지우지 않고 담당에서만 뺀다.
+    // canEdit 없이 담당자 본인이면 된다
+    @Transactional
+    public void unassignSelf(LoginUser loginUser, Long taskId) {
+        Task task = taskMapper.findByIdNotDeleted(taskId);
+        if (task == null) {
+            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        }
+        if (!"WBS_TASK".equals(task.getTaskType())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+        if (!assigneeMapper.findUserIdsByTaskId(taskId).contains(loginUser.id())) {
+            throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
+        }
+        assigneeMapper.deleteByTaskAndUser(taskId, loginUser.id());
+    }
+
     // 담당자 전체 교체.
     // ★ @Transactional 필수 ★ delete 후 insert가 실패하면(존재하지 않는 user_id로 FK 위반 등)
     // 트랜잭션이 없을 때는 delete만 커밋되어 담당자가 0명인 채로 남는다.
@@ -432,21 +501,31 @@ public class TaskService {
         // 이미 담당자인 사람에게 또 알림을 보내지 않기 위해 교체 전 명단을 기억해둔다
         Set<Long> before = new HashSet<>(assigneeMapper.findUserIdsByTaskId(taskId));
 
+        List<Long> targets = (userIds != null)
+                ? userIds.stream().distinct().toList()
+                : List.of();
         assigneeMapper.deleteByTaskId(taskId);
-        if (userIds != null && !userIds.isEmpty()) {
+        if (!targets.isEmpty()) {
             // 같은 사람이 두 번 들어오면 UNIQUE(task_id, user_id) 위반이 난다
-            List<Long> targets = userIds.stream().distinct().toList();
             assigneeMapper.insertBatch(taskId, targets);
+        }
 
-            // 제목을 루프 밖에서 한 번만 조회 (N+1 방지)
-            String title = taskMapper.findByIdNotDeleted(taskId).getTitle();
-            for (Long uid : targets) {
-                if (before.contains(uid)) {
-                    continue; // 원래 담당자였던 사람은 새 지정이 아니다
-                }
-                notificationService.notifyNow(uid, taskId, "ASSIGN",
-                        "'" + title + "' 작업의 담당자로 지정되었습니다.");
+        // 제목을 루프 밖에서 한 번만 조회 (N+1 방지)
+        String title = taskMapper.findByIdNotDeleted(taskId).getTitle();
+        Set<Long> targetSet = new HashSet<>(targets);
+        for (Long uid : targets) {
+            if (before.contains(uid)) {
+                continue; // 원래 담당자였던 사람은 새 지정이 아니다
             }
+            notificationService.notifyNow(uid, taskId, "ASSIGN",
+                    "'" + title + "' 작업의 담당자로 지정되었습니다.");
+        }
+        for (Long uid : before) {
+            if (targetSet.contains(uid)) {
+                continue; // 그대로 유지된 담당자
+            }
+            notificationService.notifyNow(uid, taskId, "UNASSIGN",
+                    "'" + title + "' 작업의 담당자에서 제외되었습니다.");
         }
     }
 
@@ -486,6 +565,9 @@ public class TaskService {
             Boolean wasRequired = beforeRequired.get(uid);
 
             if (wasRequired == null) {
+                if (task.getProjectId() != null) {
+                    projectMemberService.ensureMember(uid, task.getProjectId());
+                }
                 notificationService.notifyNow(uid, taskId, "INVITE",
                         "'" + title + "' 일정에 초대되었습니다.");
             } else if (nowRequired && !wasRequired) {

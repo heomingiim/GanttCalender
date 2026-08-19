@@ -28,6 +28,7 @@ public enum ErrorCode {
     PROJECT_FORBIDDEN(HttpStatus.FORBIDDEN, "프로젝트 관리자만 가능합니다."),
     PROJECT_CREATE_FORBIDDEN(HttpStatus.FORBIDDEN, "팀장급 이상만 프로젝트를 생성할 수 있습니다."),
     NOT_PROJECT_MEMBER(HttpStatus.FORBIDDEN, "프로젝트 멤버가 아닙니다."),
+    ALREADY_PROJECT_MEMBER(HttpStatus.BAD_REQUEST, "이미 프로젝트 멤버입니다."),
 
     // 카테고리
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),

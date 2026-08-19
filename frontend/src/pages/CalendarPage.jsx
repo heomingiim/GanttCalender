@@ -84,6 +84,8 @@ export default function CalendarPage() {
 
   // FullCalendar가 마지막으로 알려준 표시 범위
   const rangeRef = useRef({ start: null, end: null });
+  // 같은 검색어로 검색을 다시 누르면 그 다음으로 가까운 결과로 이동하기 위한 상태
+  const searchNavRef = useRef({ keyword: '', matches: [], index: -1 });
 
   const loadEvents = useCallback(
     async (start, end, currentScope, currentKeyword) => {
@@ -131,10 +133,59 @@ export default function CalendarPage() {
     refetch(next, keyword);
   };
 
-  const handleSearch = (event) => {
+  const handleSearch = async (event) => {
     event.preventDefault();
     setKeyword(searchInput);
     refetch(scope, searchInput);
+
+    const trimmed = searchInput.trim();
+    if (!trimmed) return;
+
+    try {
+      let nav = searchNavRef.current;
+
+      // 검색어가 바뀌었으면 새로 넓게 조회해서 오늘과 가까운 순으로 정렬해둔다.
+      // 같은 검색어로 다시 누르면 이 목록에서 다음 순번으로만 넘어간다
+      if (nav.keyword !== trimmed) {
+        const wideFrom = new Date();
+        wideFrom.setFullYear(wideFrom.getFullYear() - 1);
+        const wideTo = new Date();
+        wideTo.setFullYear(wideTo.getFullYear() + 1);
+        const matches = await taskApi.getCalendarEvents({
+          from: wideFrom,
+          to: wideTo,
+          scope,
+          keyword: trimmed,
+        });
+        if (!Array.isArray(matches) || matches.length === 0) {
+          searchNavRef.current = { keyword: trimmed, matches: [], index: -1 };
+          return;
+        }
+        const now = Date.now();
+        const sorted = [...matches].sort(
+          (a, b) => Math.abs(new Date(a.startDate) - now) - Math.abs(new Date(b.startDate) - now)
+        );
+        nav = { keyword: trimmed, matches: sorted, index: 0 };
+      } else if (nav.matches.length > 0) {
+        nav = { ...nav, index: (nav.index + 1) % nav.matches.length };
+      } else {
+        return;
+      }
+      searchNavRef.current = nav;
+
+      const target = nav.matches[nav.index];
+      const targetDate = new Date(target.startDate);
+      const { start, end } = rangeRef.current;
+      const inView = start && end && targetDate >= start && targetDate < end;
+      if (!inView) {
+        calendarRef.current?.getApi().gotoDate(targetDate);
+      }
+      if (nav.matches.length > 1) {
+        toast.success(`'${target.title}' (${nav.index + 1}/${nav.matches.length})로 이동합니다. 다시 검색하면 다음 결과로 이동합니다.`);
+      }
+    } catch (err) {
+      toast.apiError(err);
+    }
   };
 
   const toggleType = (code) => {
@@ -154,7 +205,9 @@ export default function CalendarPage() {
   const goToday = () => calendarRef.current?.getApi().today();
   const handleViewChange = (_e, next) => {
     if (!next) return;
-    calendarRef.current?.getApi().changeView(next);
+    const api = calendarRef.current?.getApi();
+    api?.changeView(next);
+    api?.today();
   };
 
   // 서버 Task → FullCalendar event 객체 변환 + 종류/카테고리 필터.
@@ -449,6 +502,7 @@ export default function CalendarPage() {
             dateClick={handleDateClick}
             eventClick={handleEventClick}
             editable
+            eventDisplay="block"
             eventDrop={handleEventDrop}
             eventResize={handleEventDrop}
             dayMaxEvents={3}
