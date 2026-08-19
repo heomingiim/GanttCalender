@@ -35,7 +35,11 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins("http://localhost:5173")  // 프론트 개발 서버
+                .allowedOriginPatterns(
+                        "http://localhost:5173",         // Vite 개발 서버
+                        "https://*.ngrok-free.dev",      // ngrok 무료 플랜
+                        "https://*.ngrok.io"             // ngrok 유료 플랜
+                )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH")
                 .allowCredentials(true);  // 쿠키(세션) 허용
     }

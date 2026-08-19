@@ -50,6 +50,11 @@ backend/src/main/resources/static/
 notes.md
 TEST_PROCEDURE.md
 
+### Logs ###
+backend/boot.log
+backend/boot.err.log
+*.log
+
 ### Environment ###
 .env
 

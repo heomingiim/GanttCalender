@@ -11,6 +11,7 @@ import {
   ListItemButton,
   ListItemText,
   MenuItem,
+  Pagination,
   Paper,
   Table,
   TableBody,
@@ -54,6 +55,8 @@ export default function OrgPage() {
   const [roleFilter, setRoleFilter] = useState('');
   const [sortBy, setSortBy] = useState(null);
   const [sortDir, setSortDir] = useState('asc');
+  const [page, setPage] = useState(0);
+  const rowsPerPage = 10;
 
   const handleSortClick = (key) => {
     if (sortBy !== key) {
@@ -91,6 +94,7 @@ export default function OrgPage() {
     async (dept) => {
       setSelectedDept(dept);
       setKeyword('');
+      setPage(0);
       try {
         const list = await getUsersByDept(dept.id);
         setUsers(Array.isArray(list) ? list : []);
@@ -263,7 +267,7 @@ export default function OrgPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {filteredUsers.map((u) => (
+                {filteredUsers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((u) => (
                   <TableRow key={u.id} hover>
                     <TableCell>{u.employeeNumber}</TableCell>
                     <TableCell>{u.name}</TableCell>
@@ -276,6 +280,17 @@ export default function OrgPage() {
               </TableBody>
             </Table>
           </TableContainer>
+          {filteredUsers.length > rowsPerPage && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 1.5 }}>
+              <Pagination
+                count={Math.ceil(filteredUsers.length / rowsPerPage)}
+                page={page + 1}
+                onChange={(_e, newPage) => setPage(newPage - 1)}
+                size="small"
+                color="primary"
+              />
+            </Box>
+          )}
         </Box>
       </Box>
     </Box>

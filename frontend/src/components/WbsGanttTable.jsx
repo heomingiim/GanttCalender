@@ -245,7 +245,7 @@ export default function WbsGanttTable({
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={allIds} strategy={verticalListSortingStrategy}>
-        <TableContainer sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
+        <TableContainer sx={{ border: 1, borderColor: 'divider', borderRadius: 1, bgcolor: '#ffffff' }}>
           <Table
             size="small"
             sx={{

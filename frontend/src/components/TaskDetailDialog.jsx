@@ -322,6 +322,7 @@ function AssigneeTab({ taskId, canEdit }) {
   // PUT /assignees는 전체 교체다. 현재 담당자를 먼저 채워두지 않으면
   // 한 명을 추가하려던 저장이 기존 담당자를 전부 지우는 결과가 된다.
   useEffect(() => {
+    if (taskId == null) return;
     let cancelled = false;
     setLoading(true);
     taskApi
@@ -426,6 +427,7 @@ function ParticipantTab({ taskId }) {
   const [required, setRequired] = useState(false);
 
   const load = useCallback(async () => {
+    if (taskId == null) return;
     try {
       const res = await taskApi.getParticipants(taskId);
       setList(Array.isArray(res) ? res : []);
@@ -528,6 +530,7 @@ function ActivityTab({ taskId }) {
   const [logs, setLogs] = useState([]);
 
   useEffect(() => {
+    if (taskId == null) return;
     let cancelled = false;
     taskApi
       .getActivityLogs(taskId)
