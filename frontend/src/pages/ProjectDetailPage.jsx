@@ -9,7 +9,6 @@ import {
   IconButton,
   LinearProgress,
   MenuItem,
-  Paper,
   Select,
   Tab,
   Table,
@@ -25,6 +24,10 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/Delete';
+import FolderIcon from '@mui/icons-material/Folder';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import PeopleIcon from '@mui/icons-material/People';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
 
 import * as projectApi from '../api/projects';
 import * as taskApi from '../api/tasks';
@@ -37,14 +40,16 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import WbsGanttTable from '../components/WbsGanttTable';
 import UserPicker from '../components/UserPicker';
 import { flattenTree, selectableParents } from '../utils/taskTree';
-import { PROJECT_MEMBER_ROLE, PROJECT_STATUS } from '../utils/constants';
+import { PROJECT_MEMBER_ROLE, PROJECT_STATUS, PROJECT_STATUS_COLOR } from '../utils/constants';
 
-/**
- * 프로젝트 상세.
- *   개요 탭   : 프로젝트 정보 수정/삭제 (ADMIN만)
- *   멤버 탭   : 멤버 추가·역할 변경·제거 (ADMIN만)
- *   WBS·간트 탭 : 계층 표와 타임라인을 한 화면에 합친 뷰 (WbsGanttTable)
- */
+const STATUS_ACCENT = {
+  PLANNED: '#567C83',
+  IN_PROGRESS: '#3AAEA9',
+  ON_HOLD: '#f59e0b',
+  COMPLETED: '#A2D5AB',
+  CANCELLED: '#9e9e9e',
+};
+
 export default function ProjectDetailPage() {
   const { id } = useParams();
   const projectId = Number(id);
@@ -59,8 +64,6 @@ export default function ProjectDetailPage() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // 트리는 서버가 준 그대로 보관하고, 화면용 평탄화 배열은 파생값으로 계산한다.
-  // useMemo를 쓰면 tree가 바뀔 때만 다시 계산한다 (렌더마다 재계산 방지).
   const flatTasks = useMemo(() => flattenTree(tree), [tree]);
 
   const myMembership = members.find((m) => m.userId === user?.id);
@@ -101,44 +104,70 @@ export default function ProjectDetailPage() {
 
   if (loading && !project) return <LinearProgress />;
 
+  const accentColor = STATUS_ACCENT[project?.status] ?? '#567C83';
+
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-        <IconButton onClick={() => navigate('/projects')}>
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h5" sx={{ flexGrow: 1 }}>
-          {project?.name}
-        </Typography>
-        {project && (
-          <Chip size="small" label={PROJECT_STATUS[project.status] ?? project.status} />
-        )}
-        {project?.progress != null && (
-          <Chip size="small" color="primary" variant="outlined" label={`진행률 ${project.progress}%`} />
-        )}
+      {/* 페이지 헤더 */}
+      <Box sx={{ mb: 2.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+          <IconButton
+            size="small"
+            onClick={() => navigate('/projects')}
+            sx={{ bgcolor: 'background.paper', border: '1px solid #e2e5ea', '&:hover': { bgcolor: '#f0f2f5' } }}
+          >
+            <ArrowBackIcon fontSize="small" />
+          </IconButton>
+          <Typography variant="caption" color="text.secondary">프로젝트 목록</Typography>
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ width: 44, height: 44, borderRadius: 2.5, bgcolor: `${accentColor}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <FolderIcon sx={{ color: accentColor, fontSize: 24 }} />
+          </Box>
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+            <Typography variant="h5" noWrap>{project?.name}</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.25 }}>
+              {project && <Chip size="small" color={PROJECT_STATUS_COLOR[project.status]} label={PROJECT_STATUS[project.status] ?? project.status} />}
+              {project?.progress != null && (
+                <Typography variant="caption" color="text.secondary">진행률 <strong>{project.progress}%</strong></Typography>
+              )}
+            </Box>
+          </Box>
+          {project?.progress != null && (
+            <Box sx={{ width: 160, display: { xs: 'none', sm: 'block' } }}>
+              <LinearProgress
+                variant="determinate"
+                value={project.progress}
+                sx={{ height: 6, borderRadius: 99, bgcolor: '#eef0f4', '& .MuiLinearProgress-bar': { borderRadius: 99, background: `linear-gradient(90deg, #567C83, #3AAEA9)` } }}
+              />
+            </Box>
+          )}
+        </Box>
       </Box>
 
-      <Tabs value={tab} onChange={(_e, v) => setTab(v)} sx={{ mb: 2 }}>
-        <Tab label="개요" />
-        <Tab label={`멤버 (${members.length})`} />
-        <Tab label={`WBS · 간트 (${flatTasks.length})`} />
-      </Tabs>
+      {/* 탭 */}
+      <Box sx={{ bgcolor: 'background.paper', border: '1px solid #e2e5ea', borderRadius: 2.5, mb: 2, overflow: 'hidden' }}>
+        <Tabs
+          value={tab}
+          onChange={(_e, v) => setTab(v)}
+          sx={{
+            px: 1,
+            '& .MuiTab-root': { fontSize: '0.84rem', minHeight: 44, py: 0 },
+            '& .MuiTabs-indicator': { height: 2.5, borderRadius: 99 },
+          }}
+        >
+          <Tab icon={<InfoOutlinedIcon sx={{ fontSize: 16 }} />} iconPosition="start" label="개요" />
+          <Tab icon={<PeopleIcon sx={{ fontSize: 16 }} />} iconPosition="start" label={`멤버 (${members.length})`} />
+          <Tab icon={<AccountTreeIcon sx={{ fontSize: 16 }} />} iconPosition="start" label={`WBS · 간트 (${flatTasks.length})`} />
+        </Tabs>
+      </Box>
 
       {tab === 0 && (
-        <OverviewTab
-          project={project}
-          isAdmin={isAdmin}
-          onSaved={loadProject}
-          onDeleted={() => navigate('/projects')}
-        />
+        <OverviewTab project={project} isAdmin={isAdmin} onSaved={loadProject} onDeleted={() => navigate('/projects')} />
       )}
       {tab === 1 && (
-        <MemberTab
-          projectId={projectId}
-          members={members}
-          isAdmin={isAdmin}
-          onChanged={loadMembers}
-        />
+        <MemberTab projectId={projectId} members={members} isAdmin={isAdmin} onChanged={loadMembers} />
       )}
       {tab === 2 && (
         <WbsGanttTab
@@ -154,13 +183,11 @@ export default function ProjectDetailPage() {
   );
 }
 
-// ── 개요 탭 ───────────────────────────────────────────────────
 function OverviewTab({ project, isAdmin, onSaved, onDeleted }) {
   const toast = useToast();
   const [form, setForm] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  // project가 로드된 뒤에 폼 초기값을 채운다
   useEffect(() => {
     if (!project) return;
     setForm({
@@ -202,88 +229,42 @@ function OverviewTab({ project, isAdmin, onSaved, onDeleted }) {
   };
 
   return (
-    <Card variant="outlined">
+    <Card>
+      <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid #e2e5ea', bgcolor: '#f8f9fb', display: 'flex', alignItems: 'center', gap: 1 }}>
+        <InfoOutlinedIcon sx={{ fontSize: 16, color: 'primary.light' }} />
+        <Typography variant="subtitle1">프로젝트 정보</Typography>
+        {!isAdmin && (
+          <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>조회만 가능합니다 (관리자 전용)</Typography>
+        )}
+      </Box>
       <CardContent>
         <Box component="form" onSubmit={handleSubmit} sx={{ display: 'grid', gap: 2, maxWidth: 640 }}>
-          <TextField
-            label="이름"
-            value={form.name}
-            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-            size="small"
-            disabled={!isAdmin}
-          />
-          <TextField
-            label="설명"
-            value={form.description}
-            onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-            multiline
-            minRows={3}
-            size="small"
-            disabled={!isAdmin}
-          />
+          <TextField label="이름" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} size="small" disabled={!isAdmin} />
+          <TextField label="설명" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} multiline minRows={3} size="small" disabled={!isAdmin} />
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: '1fr 1fr 1fr' }}>
-            <TextField
-              label="시작일"
-              type="date"
-              value={form.startDate}
-              onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))}
-              size="small"
-              disabled={!isAdmin}
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-            <TextField
-              label="종료일"
-              type="date"
-              value={form.endDate}
-              onChange={(e) => setForm((p) => ({ ...p, endDate: e.target.value }))}
-              size="small"
-              disabled={!isAdmin}
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-            <TextField
-              select
-              label="상태"
-              value={form.status}
-              onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}
-              size="small"
-              disabled={!isAdmin}
-            >
+            <TextField label="시작일" type="date" value={form.startDate} onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))} size="small" disabled={!isAdmin} slotProps={{ inputLabel: { shrink: true } }} />
+            <TextField label="종료일" type="date" value={form.endDate} onChange={(e) => setForm((p) => ({ ...p, endDate: e.target.value }))} size="small" disabled={!isAdmin} slotProps={{ inputLabel: { shrink: true } }} />
+            <TextField select label="상태" value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))} size="small" disabled={!isAdmin}>
               {Object.entries(PROJECT_STATUS).map(([code, label]) => (
-                <MenuItem key={code} value={code}>
-                  {label}
-                </MenuItem>
+                <MenuItem key={code} value={code}>{label}</MenuItem>
               ))}
             </TextField>
           </Box>
 
-          {isAdmin ? (
+          {isAdmin && (
             <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button type="submit" variant="contained">
-                저장
-              </Button>
-              <Button color="error" onClick={() => setConfirmDelete(true)}>
-                프로젝트 삭제
-              </Button>
+              <Button type="submit" variant="contained">저장</Button>
+              <Button color="error" variant="outlined" onClick={() => setConfirmDelete(true)}>프로젝트 삭제</Button>
             </Box>
-          ) : (
-            <Typography variant="body2" color="text.secondary">
-              프로젝트 정보는 관리자(ADMIN)만 수정할 수 있습니다.
-            </Typography>
           )}
         </Box>
       </CardContent>
 
-      <ConfirmDialog
-        open={confirmDelete}
-        message="프로젝트를 삭제할까요?"
-        onConfirm={handleDelete}
-        onClose={() => setConfirmDelete(false)}
-      />
+      <ConfirmDialog open={confirmDelete} message="프로젝트를 삭제할까요?" onConfirm={handleDelete} onClose={() => setConfirmDelete(false)} />
     </Card>
   );
 }
 
-// ── 멤버 탭 ───────────────────────────────────────────────────
 function MemberTab({ projectId, members, isAdmin, onChanged }) {
   const toast = useToast();
   const [picked, setPicked] = useState(null);
@@ -323,64 +304,72 @@ function MemberTab({ projectId, members, isAdmin, onChanged }) {
   return (
     <Box>
       {isAdmin && (
-        <Card variant="outlined" sx={{ mb: 2 }}>
+        <Card sx={{ mb: 2 }}>
+          <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid #e2e5ea', bgcolor: '#f8f9fb', display: 'flex', alignItems: 'center', gap: 1 }}>
+            <AddIcon sx={{ fontSize: 16, color: 'primary.light' }} />
+            <Typography variant="subtitle2">멤버 추가</Typography>
+          </Box>
           <CardContent sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
             <Box sx={{ flexGrow: 1, maxWidth: 420 }}>
               <UserPicker value={picked} onChange={setPicked} label="추가할 멤버 검색" />
             </Box>
             <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd} disabled={!picked}>
-              멤버 추가
+              추가
             </Button>
           </CardContent>
         </Card>
       )}
 
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>이름</TableCell>
-              <TableCell width={160}>소속</TableCell>
-              <TableCell width={180}>역할</TableCell>
-              <TableCell width={60} />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {members.map((m) => (
-              <TableRow key={m.id} hover>
-                {/* 서버가 JOIN해서 userName/departmentName까지 내려준다 (추가 조회 불필요) */}
-                <TableCell>{m.userName ?? `#${m.userId}`}</TableCell>
-                <TableCell>{m.departmentName ?? '-'}</TableCell>
-                <TableCell>
-                  {isAdmin ? (
-                    <Select
-                      size="small"
-                      value={m.role}
-                      onChange={(e) => handleRoleChange(m.userId, e.target.value)}
-                      sx={{ minWidth: 120 }}
-                    >
-                      {Object.entries(PROJECT_MEMBER_ROLE).map(([code, label]) => (
-                        <MenuItem key={code} value={code}>
-                          {label}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  ) : (
-                    <Chip size="small" label={PROJECT_MEMBER_ROLE[m.role] ?? m.role} />
-                  )}
-                </TableCell>
-                <TableCell>
-                  {isAdmin && (
-                    <IconButton size="small" onClick={() => setRemoveTarget(m)}>
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  )}
-                </TableCell>
+      <Card>
+        <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid #e2e5ea', bgcolor: '#f8f9fb', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <PeopleIcon sx={{ fontSize: 16, color: 'primary.light' }} />
+          <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>구성원</Typography>
+          <Chip label={`${members.length}명`} size="small" sx={{ bgcolor: '#eef0f4', color: 'text.secondary', fontWeight: 700 }} />
+        </Box>
+        <TableContainer>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>이름</TableCell>
+                <TableCell width={160}>소속</TableCell>
+                <TableCell width={180}>역할</TableCell>
+                <TableCell width={60} />
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {members.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} align="center" sx={{ py: 5, color: 'text.secondary' }}>구성원이 없습니다.</TableCell>
+                </TableRow>
+              )}
+              {members.map((m) => (
+                <TableRow key={m.id} hover>
+                  <TableCell sx={{ fontWeight: 600 }}>{m.userName ?? `#${m.userId}`}</TableCell>
+                  <TableCell>{m.departmentName ?? '-'}</TableCell>
+                  <TableCell>
+                    {isAdmin ? (
+                      <Select size="small" value={m.role} onChange={(e) => handleRoleChange(m.userId, e.target.value)} sx={{ minWidth: 120 }}>
+                        {Object.entries(PROJECT_MEMBER_ROLE).map(([code, label]) => (
+                          <MenuItem key={code} value={code}>{label}</MenuItem>
+                        ))}
+                      </Select>
+                    ) : (
+                      <Chip size="small" label={PROJECT_MEMBER_ROLE[m.role] ?? m.role} variant="outlined" />
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {isAdmin && (
+                      <IconButton size="small" onClick={() => setRemoveTarget(m)} color="error">
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Card>
 
       <ConfirmDialog
         open={removeTarget != null}
@@ -393,7 +382,6 @@ function MemberTab({ projectId, members, isAdmin, onChanged }) {
   );
 }
 
-// ── WBS · 간트 탭 ────────────────────────────────────────────
 function WbsGanttTab({ project, projectId, flatTasks, categories, isAdmin, onChanged }) {
   const toast = useToast();
   const [formOpen, setFormOpen] = useState(false);
@@ -418,7 +406,11 @@ function WbsGanttTab({ project, projectId, flatTasks, categories, isAdmin, onCha
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        <Box>
+          <Typography variant="subtitle1" fontWeight={700}>WBS · 간트 차트</Typography>
+          <Typography variant="caption" color="text.secondary">작업 {flatTasks.length}개</Typography>
+        </Box>
         {isAdmin && (
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => openCreate(null)}>
             단계 추가
@@ -426,15 +418,17 @@ function WbsGanttTab({ project, projectId, flatTasks, categories, isAdmin, onCha
         )}
       </Box>
 
-      <WbsGanttTable
-        tasks={flatTasks}
-        rangeStart={project?.startDate}
-        rangeEnd={project?.endDate}
-        onRowClick={setDetailId}
-        onAddChild={openCreate}
-        onReorder={handleReorder}
-        canManage={isAdmin}
-      />
+      <Card sx={{ overflow: 'hidden' }}>
+        <WbsGanttTable
+          tasks={flatTasks}
+          rangeStart={project?.startDate}
+          rangeEnd={project?.endDate}
+          onRowClick={setDetailId}
+          onAddChild={openCreate}
+          onReorder={handleReorder}
+          canManage={isAdmin}
+        />
+      </Card>
 
       <TaskFormDialog
         open={formOpen}

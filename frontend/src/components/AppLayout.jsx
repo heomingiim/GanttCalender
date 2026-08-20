@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   AppBar,
   Avatar,
@@ -7,13 +7,10 @@ import {
   Divider,
   Drawer,
   IconButton,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
   Menu,
   MenuItem,
   Toolbar,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import GridViewRoundedIcon from '@mui/icons-material/GridViewRounded';
@@ -30,7 +27,8 @@ import { useAuth } from '../contexts/AuthContext';
 import NotificationBell from './NotificationBell';
 import { USER_ROLE } from '../utils/constants';
 
-const DRAWER_WIDTH = 200;
+const SIDEBAR_W = 60;
+const MOBILE_DRAWER_W = 220;
 
 const NAV_ITEMS = [
   { to: '/', label: '대시보드', icon: <DashboardIcon /> },
@@ -45,8 +43,13 @@ const NAV_ITEMS = [
 export default function AppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [anchorEl, setAnchorEl] = useState(null); // 프로필 메뉴가 붙을 DOM 요소
+  const [anchorEl, setAnchorEl] = useState(null);
+
+  const currentItem = NAV_ITEMS.find((item) =>
+    item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to)
+  );
 
   const handleLogout = async () => {
     setAnchorEl(null);
@@ -54,58 +57,31 @@ export default function AppLayout() {
     navigate('/login', { replace: true });
   };
 
-  // NavLink는 현재 경로와 일치하면 isActive=true를 넘겨준다.
-  // end 옵션이 없으면 '/'가 모든 경로에 매칭되어 항상 활성화된다.
-  // 사이드바 전체를 세로 flex로 두고 nav List만 flexGrow시켜서,
-  // 아래쪽 사용자 정보 블록이 항상 바닥에 붙어 있게 만든다.
-  const drawerContent = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Toolbar>
+  // 데스크톱: 아이콘만 있는 60px 사이드바
+  const desktopSidebar = (
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', py: 1.5 }}>
+      {/* 로고 */}
+      <Tooltip title="두리안 GROUPWARE" placement="right">
         <Box
           onClick={() => navigate('/')}
-          sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer', py: 0.5 }}
+          sx={{
+            width: 38, height: 38,
+            background: 'linear-gradient(135deg, #425F65 0%, #3AAEA9 100%)',
+            borderRadius: 2,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(86,124,131,0.35)',
+            cursor: 'pointer',
+            mb: 2.5, flexShrink: 0,
+          }}
         >
-          <Box
-            sx={{
-              width: 38,
-              height: 38,
-              background: 'linear-gradient(135deg, #425F65 0%, #3AAEA9 100%)',
-              borderRadius: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(86, 124, 131, 0.4)',
-              flexShrink: 0,
-            }}
-          >
-            <GridViewRoundedIcon sx={{ color: '#fff', fontSize: 23 }} />
-          </Box>
-          <Box sx={{ lineHeight: 1 }}>
-            <Typography
-              variant="subtitle1"
-              fontWeight={800}
-              lineHeight={1}
-              letterSpacing="-0.5px"
-              color="primary.dark"
-              sx={{ fontSize: 18 }}
-              noWrap
-            >
-              두리안
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              lineHeight={1}
-              letterSpacing="0px"
-              noWrap
-            >
-              GROUPWARE
-            </Typography>
-          </Box>
+          <GridViewRoundedIcon sx={{ color: '#fff', fontSize: 21 }} />
         </Box>
-      </Toolbar>
-      <Divider />
-      <List sx={{ flexGrow: 1 }}>
+      </Tooltip>
+
+      <Divider sx={{ width: 36, mb: 1.5 }} />
+
+      {/* 네비게이션 아이콘 */}
+      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 0.5, width: '100%' }}>
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.to}
@@ -115,164 +91,227 @@ export default function AppLayout() {
             onClick={() => setMobileOpen(false)}
           >
             {({ isActive }) => (
-              <ListItemButton
-                selected={isActive}
-                sx={{
-                  '&.Mui-selected': {
-                    bgcolor: 'rgba(58, 174, 169, 0.12)',
-                    '&:hover': { bgcolor: 'rgba(58, 174, 169, 0.18)' },
-                  },
-                }}
-              >
-                <ListItemIcon sx={{ minWidth: 36, color: isActive ? 'primary.main' : undefined, '& .MuiSvgIcon-root': { fontSize: 20 } }}>
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText
-                  primary={item.label}
-                  slotProps={{
-                    primary: { fontWeight: isActive ? 700 : 400, fontSize: 13 },
-                  }}
-                />
-              </ListItemButton>
+              <Tooltip title={item.label} placement="right" arrow>
+                <Box sx={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center', py: 0.25 }}>
+                  {isActive && (
+                    <Box sx={{
+                      position: 'absolute', left: 0, top: '12%', bottom: '12%',
+                      width: 3, borderRadius: '0 3px 3px 0',
+                      bgcolor: 'primary.light',
+                    }} />
+                  )}
+                  <Box
+                    sx={{
+                      width: 42, height: 42, borderRadius: 2,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      bgcolor: isActive ? 'rgba(58,174,169,0.13)' : 'transparent',
+                      color: isActive ? 'primary.light' : 'text.secondary',
+                      transition: 'all 0.15s',
+                      '&:hover': { bgcolor: isActive ? 'rgba(58,174,169,0.2)' : 'action.hover', color: isActive ? 'primary.light' : 'text.primary' },
+                      '& .MuiSvgIcon-root': { fontSize: 21 },
+                    }}
+                  >
+                    {item.icon}
+                  </Box>
+                </Box>
+              </Tooltip>
             )}
           </NavLink>
         ))}
-      </List>
+      </Box>
 
-      <Divider />
-      {/*
-        ListItemButton은 MUI가 내부적으로 최소 높이·패딩 클래스를 갖고 있어서
-        sx로 py를 줄여도 위아래 여백이 잘 안 줄었다. 그래서 여기만 일반 Box +
-        onClick으로 바꿔서 패딩을 코드에 쓴 값 그대로 확실하게 반영시킨다.
-      */}
-      <Box
-        onClick={(e) => setAnchorEl(e.currentTarget)}
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          px: 1.5,
-          py: '10px',
-          cursor: 'pointer',
-          '&:hover': { bgcolor: 'action.hover' },
-        }}
-      >
-        <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 14, flexShrink: 0 }}>
+      <Divider sx={{ width: 36, mt: 1 }} />
+
+      {/* 하단 유저 아바타 */}
+      <Tooltip title={`${user?.name ?? ''} · ${USER_ROLE[user?.role] ?? user?.role ?? ''}`} placement="right" arrow>
+        <Avatar
+          onClick={(e) => setAnchorEl(e.currentTarget)}
+          sx={{
+            width: 34, height: 34, mt: 1.5, mb: 0.5,
+            bgcolor: 'primary.main', fontSize: 13,
+            cursor: 'pointer',
+            '&:hover': { bgcolor: 'primary.dark' },
+            transition: 'background-color 0.15s',
+          }}
+        >
           {user?.name?.charAt(0) ?? '?'}
         </Avatar>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography noWrap sx={{ fontSize: 12, fontWeight: 700, lineHeight: 1.4 }}>
-            {user?.name}
-            {user?.role ? ` · ${USER_ROLE[user.role] ?? user.role}` : ''}
-          </Typography>
-          <Typography color="text.secondary" noWrap sx={{ fontSize: 10, lineHeight: 1.4, display: 'block' }}>
-            {user?.positionRank ? `${user.positionRank} · ` : ''}
-            {user?.departmentName ?? '부서 없음'}
-          </Typography>
-          <Typography color="text.secondary" noWrap sx={{ fontSize: 10, lineHeight: 1.4, display: 'block' }}>
-            {user?.employeeNumber}
-          </Typography>
+      </Tooltip>
+    </Box>
+  );
+
+  // 모바일: 텍스트 포함 드로어
+  const mobileSidebar = (
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Toolbar>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, cursor: 'pointer' }} onClick={() => navigate('/')}>
+          <Box sx={{
+            width: 34, height: 34,
+            background: 'linear-gradient(135deg, #425F65 0%, #3AAEA9 100%)',
+            borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <GridViewRoundedIcon sx={{ color: '#fff', fontSize: 18 }} />
+          </Box>
+          <Box sx={{ lineHeight: 1 }}>
+            <Typography variant="subtitle1" fontWeight={800} color="primary.dark" sx={{ lineHeight: 1, fontSize: 16 }}>두리안</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>GROUPWARE</Typography>
+          </Box>
         </Box>
+      </Toolbar>
+      <Divider />
+      <Box sx={{ flexGrow: 1, py: 1 }}>
+        {NAV_ITEMS.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.to === '/'}
+            style={{ textDecoration: 'none', color: 'inherit' }}
+            onClick={() => setMobileOpen(false)}
+          >
+            {({ isActive }) => (
+              <Box sx={{
+                display: 'flex', alignItems: 'center', gap: 1.5,
+                px: 2, py: 1.25,
+                bgcolor: isActive ? 'rgba(58,174,169,0.1)' : 'transparent',
+                color: isActive ? 'primary.light' : 'text.primary',
+                borderLeft: isActive ? '3px solid' : '3px solid transparent',
+                borderColor: isActive ? 'primary.light' : 'transparent',
+                '&:hover': { bgcolor: 'action.hover' },
+                '& .MuiSvgIcon-root': { fontSize: 20 },
+              }}>
+                {item.icon}
+                <Typography sx={{ fontSize: 13, fontWeight: isActive ? 700 : 400 }}>{item.label}</Typography>
+              </Box>
+            )}
+          </NavLink>
+        ))}
       </Box>
     </Box>
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f5f6f8' }}>
+
+      {/* 모바일 드로어 */}
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': { width: MOBILE_DRAWER_W, boxSizing: 'border-box' },
+        }}
+      >
+        {mobileSidebar}
+      </Drawer>
+
+      {/* 데스크톱 고정 사이드바 */}
+      <Box component="nav" sx={{ width: { md: SIDEBAR_W }, flexShrink: { md: 0 }, display: { xs: 'none', md: 'block' } }}>
+        <Drawer
+          variant="permanent"
+          open
+          sx={{
+            '& .MuiDrawer-paper': {
+              width: SIDEBAR_W,
+              boxSizing: 'border-box',
+              borderRight: '1px solid',
+              borderColor: 'divider',
+              bgcolor: 'background.paper',
+              overflow: 'hidden',
+            },
+          }}
+        >
+          {desktopSidebar}
+        </Drawer>
+      </Box>
+
+      {/* 상단 AppBar */}
       <AppBar
         position="fixed"
         color="inherit"
         elevation={0}
         sx={{
-          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
-          ml: { md: `${DRAWER_WIDTH}px` },
+          width: { md: `calc(100% - ${SIDEBAR_W}px)` },
+          ml: { md: `${SIDEBAR_W}px` },
           borderBottom: '1px solid',
           borderColor: 'divider',
+          bgcolor: 'background.paper',
         }}
       >
-        <Toolbar>
+        <Toolbar sx={{ gap: 1, minHeight: { md: 56 } }}>
           <IconButton
             edge="start"
             onClick={() => setMobileOpen((v) => !v)}
-            sx={{ mr: 2, display: { md: 'none' } }}
+            sx={{ mr: 1, display: { md: 'none' } }}
           >
             <MenuIcon />
           </IconButton>
 
-          <Box sx={{ flexGrow: 1 }} />
+          <Typography variant="subtitle1" fontWeight={700} sx={{ flexGrow: 1, fontSize: 15, color: 'text.primary' }}>
+            {currentItem?.label ?? '두리안'}
+          </Typography>
 
           <NotificationBell />
 
-          <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} sx={{ ml: 1 }}>
-            <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 14 }}>
-              {user?.name?.charAt(0) ?? '?'}
-            </Avatar>
-          </IconButton>
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={() => setAnchorEl(null)}
-          >
-            <MenuItem disabled sx={{ opacity: '1 !important' }}>
-              <Box>
-                <Typography variant="body2" fontWeight={700}>
-                  {user?.name} ({USER_ROLE[user?.role] ?? user?.role})
-                  {user?.positionRank ? ` · ${user.positionRank}` : ''}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" component="div">
-                  {user?.departmentName ?? '부서 없음'} · {user?.employeeNumber}
-                </Typography>
-                {user?.email && (
-                  <Typography variant="caption" color="text.secondary" component="div">
-                    {user.email}
-                  </Typography>
-                )}
-              </Box>
-            </MenuItem>
-            <Divider />
-            <MenuItem onClick={handleLogout}>로그아웃</MenuItem>
-          </Menu>
+          <Tooltip title={user?.name ?? ''} arrow>
+            <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} sx={{ ml: 0.5, p: 0.5 }}>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 13 }}>
+                {user?.name?.charAt(0) ?? '?'}
+              </Avatar>
+            </IconButton>
+          </Tooltip>
         </Toolbar>
       </AppBar>
 
-      {/* 모바일: 임시 Drawer / 데스크톱: 고정 Drawer */}
-      <Box component="nav" sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}>
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={() => setMobileOpen(false)}
-          ModalProps={{ keepMounted: true }}
-          sx={{
-            display: { xs: 'block', md: 'none' },
-            '& .MuiDrawer-paper': { width: DRAWER_WIDTH, boxSizing: 'border-box' },
-          }}
-        >
-          {drawerContent}
-        </Drawer>
-        <Drawer
-          variant="permanent"
-          open
-          sx={{
-            display: { xs: 'none', md: 'block' },
-            '& .MuiDrawer-paper': { width: DRAWER_WIDTH, boxSizing: 'border-box' },
-          }}
-        >
-          {drawerContent}
-        </Drawer>
-      </Box>
+      {/* 유저 드롭다운 메뉴 */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={() => setAnchorEl(null)}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        slotProps={{ paper: { sx: { mt: 0.5, minWidth: 200 } } }}
+      >
+        <MenuItem disabled sx={{ opacity: '1 !important', pb: 1 }}>
+          <Box>
+            <Typography variant="body2" fontWeight={700}>
+              {user?.name}
+              {user?.role ? ` · ${USER_ROLE[user.role] ?? user.role}` : ''}
+            </Typography>
+            {user?.positionRank && (
+              <Typography variant="caption" color="text.secondary" component="div">
+                {user.positionRank}{user?.departmentName ? ` · ${user.departmentName}` : ''}
+              </Typography>
+            )}
+            {user?.employeeNumber && (
+              <Typography variant="caption" color="text.secondary" component="div">
+                {user.employeeNumber}
+              </Typography>
+            )}
+            {user?.email && (
+              <Typography variant="caption" color="text.secondary" component="div">
+                {user.email}
+              </Typography>
+            )}
+          </Box>
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={handleLogout}>로그아웃</MenuItem>
+      </Menu>
 
+      {/* 메인 콘텐츠 */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
-          bgcolor: 'background.default',
+          width: { md: `calc(100% - ${SIDEBAR_W}px)` },
           minHeight: '100vh',
+          bgcolor: 'background.default',
         }}
       >
-        <Toolbar /> {/* 고정 AppBar 높이만큼 밀어내는 스페이서 */}
+        <Toolbar sx={{ minHeight: { md: 56 } }} />
         <Box sx={{ p: { xs: 2, md: 3 } }}>
-          {/* 자식 라우트가 여기에 그려진다 */}
           <Outlet />
         </Box>
       </Box>

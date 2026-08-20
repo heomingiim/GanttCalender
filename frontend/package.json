@@ -22,11 +22,14 @@
     "@fullcalendar/timegrid": "^6.1.15",
     "@mui/icons-material": "^7.0.0",
     "@mui/material": "^7.0.0",
+    "@mui/x-date-pickers": "^9.11.0",
     "axios": "^1.7.9",
+    "dayjs": "^1.11.23",
     "react": "^19.0.0",
     "react-day-picker": "^10.0.1",
     "react-dom": "^19.0.0",
-    "react-router-dom": "^7.1.0"
+    "react-router-dom": "^7.1.0",
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",

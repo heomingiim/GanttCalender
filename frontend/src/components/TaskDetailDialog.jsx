@@ -7,7 +7,6 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
   Divider,
   FormControlLabel,
   IconButton,
@@ -25,6 +24,14 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import CloseIcon from '@mui/icons-material/Close';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import LabelOutlinedIcon from '@mui/icons-material/LabelOutlined';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import TuneIcon from '@mui/icons-material/Tune';
+import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
+import HistoryIcon from '@mui/icons-material/History';
 
 import * as taskApi from '../api/tasks';
 import { listCategories } from '../api/categories';
@@ -39,19 +46,28 @@ import {
   PRIORITY,
   PRIORITY_COLOR,
   STATUS,
+  STATUS_BAR_COLOR,
   STATUS_COLOR,
   TASK_TYPE,
   VISIBILITY,
 } from '../utils/constants';
 import { formatDateTime } from '../utils/date';
 
-/**
- * 작업 상세 다이얼로그.
- *  - 상세 탭   : 상태/진행률 변경, 삭제
- *  - 담당자 탭 : 담당자 교체
- *  - 참석자 탭 : 초대 / 참석 응답
- *  - 이력 탭   : 활동 이력
- */
+const TYPE_COLOR = { TODO: '#90a4ae', EVENT: '#1976d2', WBS_TASK: '#7b1fa2' };
+const TYPE_BG = { TODO: '#f0f4f5', EVENT: '#e8f0fc', WBS_TASK: '#f3e8fd' };
+
+function InfoRow({ icon, label, children }) {
+  return (
+    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+      <Box sx={{ color: 'text.disabled', mt: 0.25, flexShrink: 0 }}>{icon}</Box>
+      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.25 }}>{label}</Typography>
+        {children}
+      </Box>
+    </Box>
+  );
+}
+
 export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onEdit, allowDeleteWbs = true }) {
   const toast = useToast();
   const [tab, setTab] = useState('detail');
@@ -77,9 +93,7 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
     if (open) {
       setTab('detail');
       load();
-      listCategories()
-        .then((list) => setCategories(Array.isArray(list) ? list : []))
-        .catch(() => setCategories([]));
+      listCategories().then((list) => setCategories(Array.isArray(list) ? list : [])).catch(() => setCategories([]));
     }
   }, [open, load]);
 
@@ -87,9 +101,10 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
 
   const handleStatusChange = async (status) => {
     try {
-      // 서버가 갱신된 작업을 돌려주므로 그걸로 교체한다.
-      // (DONE이면 진행률이 100으로 자동 동기화되는데, 그 결과가 응답에 담겨 온다)
-      setTask(await taskApi.changeStatus(task.id, status));
+      const updated = await taskApi.changeStatus(task.id, status);
+      // 서버가 갱신된 task 전체를 반환한다 (DONE 시 progressRate=100 자동 동기화 포함).
+      // 응답이 없거나 형태가 달라지면 로컬 상태만 업데이트해 다이얼로그 공백을 방지한다.
+      setTask(updated?.id ? updated : { ...task, status });
       onChanged?.();
     } catch (err) {
       toast.apiError(err);
@@ -97,9 +112,6 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
   };
 
   const handleProgressCommit = async (_event, value) => {
-    // onChange가 드래그 중에 이미 progressRate를 낙관적으로 바꿔놨다.
-    // 서버 호출이 실패하면(예: 볼 권한만 있고 편집 권한은 없는 프로젝트 멤버)
-    // 되돌리지 않으면 슬라이더가 저장 안 된 값을 계속 보여준다.
     const before = task.progressRate;
     try {
       setTask(await taskApi.changeProgress(task.id, value));
@@ -128,96 +140,92 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
     }
   };
 
+  const typeColor = TYPE_COLOR[task?.taskType] ?? '#567C83';
+  const typeBg = TYPE_BG[task?.taskType] ?? '#f8f9fb';
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ pb: 1 }}>
-        {task?.title ?? '작업 상세'}
-        {task && (
-          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-            <Chip size="small" label={TASK_TYPE[task.taskType] ?? task.taskType} />
-            <Chip
-              size="small"
-              color={STATUS_COLOR[task.status]}
-              label={STATUS[task.status] ?? task.status}
-            />
-            <Chip
-              size="small"
-              variant="outlined"
-              color={PRIORITY_COLOR[task.priority]}
-              label={PRIORITY[task.priority] ?? task.priority}
-            />
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
+      {/* 헤더 */}
+      <Box sx={{ px: 3, pt: 2.5, pb: 2, borderBottom: '1px solid #e2e5ea', bgcolor: '#f8f9fb' }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+          <Box sx={{ width: 42, height: 42, borderRadius: 2, bgcolor: typeBg, border: `1.5px solid ${typeColor}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, mt: 0.25 }}>
+            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: typeColor }} />
           </Box>
-        )}
-      </DialogTitle>
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+            <Typography variant="subtitle1" fontWeight={700} sx={{ lineHeight: 1.3, mb: 0.75 }}>
+              {task?.title ?? '작업 상세'}
+            </Typography>
+            {task && (
+              <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+                <Chip size="small" label={TASK_TYPE[task.taskType] ?? task.taskType}
+                  sx={{ bgcolor: typeBg, color: typeColor, borderColor: `${typeColor}44`, border: '1px solid', fontSize: '0.72rem', height: 22 }} />
+                <Chip size="small" color={STATUS_COLOR[task.status]} label={STATUS[task.status] ?? task.status}
+                  sx={{ fontSize: '0.72rem', height: 22 }} />
+                <Chip size="small" variant="outlined" color={PRIORITY_COLOR[task.priority]} label={PRIORITY[task.priority] ?? task.priority}
+                  sx={{ fontSize: '0.72rem', height: 22 }} />
+              </Box>
+            )}
+          </Box>
+          <IconButton size="small" onClick={onClose} sx={{ flexShrink: 0, mt: -0.5 }}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
 
-      <Tabs value={tab} onChange={(_e, v) => setTab(v)} sx={{ px: 2 }} variant="scrollable">
-        <Tab label="상세" value="detail" />
-        {task?.taskType === 'WBS_TASK' && <Tab label="담당자" value="assignee" />}
-        {task?.taskType !== 'TODO' && <Tab label="참석자" value="participant" />}
-        <Tab label="이력" value="activity" />
-      </Tabs>
-      <Divider />
+        <Tabs
+          value={tab}
+          onChange={(_e, v) => setTab(v)}
+          variant="scrollable"
+          sx={{
+            mt: 1.5,
+            minHeight: 36,
+            '& .MuiTab-root': { fontSize: '0.8rem', minHeight: 36, py: 0, px: 1.5 },
+            '& .MuiTabs-indicator': { height: 2, borderRadius: 99 },
+          }}
+        >
+          <Tab icon={<TuneIcon sx={{ fontSize: 15 }} />} iconPosition="start" label="상세" value="detail" />
+          {task?.taskType === 'WBS_TASK' && <Tab icon={<PeopleOutlineIcon sx={{ fontSize: 15 }} />} iconPosition="start" label="담당자" value="assignee" />}
+          {task?.taskType !== 'TODO' && <Tab icon={<PeopleOutlineIcon sx={{ fontSize: 15 }} />} iconPosition="start" label="참석자" value="participant" />}
+          <Tab icon={<HistoryIcon sx={{ fontSize: 15 }} />} iconPosition="start" label="이력" value="activity" />
+        </Tabs>
+      </Box>
 
-      <DialogContent dividers sx={{ minHeight: 300 }}>
-        {loading && <LinearProgress sx={{ mb: 2 }} />}
+      <DialogContent sx={{ p: 3, minHeight: 280 }}>
+        {loading && <LinearProgress sx={{ mb: 2, borderRadius: 99 }} />}
 
         {tab === 'detail' && task && (
-          <Box sx={{ display: 'grid', gap: 2 }}>
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                기간
-              </Typography>
+          <Box sx={{ display: 'grid', gap: 2.5 }}>
+            <InfoRow icon={<AccessTimeIcon sx={{ fontSize: 18 }} />} label="기간">
               <Typography variant="body2">
                 {formatDateTime(task.startDate)} ~ {formatDateTime(task.endDate)}
-                {task.allDay ? ' (종일)' : ''}
+                {task.allDay ? <Chip label="종일" size="small" sx={{ ml: 1, height: 18, fontSize: '0.7rem' }} /> : ''}
               </Typography>
-            </Box>
+            </InfoRow>
 
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                설명
+            <InfoRow icon={<DescriptionOutlinedIcon sx={{ fontSize: 18 }} />} label="설명">
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: task.description ? 'text.primary' : 'text.disabled' }}>
+                {task.description || '설명 없음'}
               </Typography>
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                {task.description || '-'}
-              </Typography>
-            </Box>
+            </InfoRow>
 
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                구분
-              </Typography>
-              <Typography variant="body2">
-                {VISIBILITY[task.visibility] ?? task.visibility}
-              </Typography>
-            </Box>
+            <InfoRow icon={<LockOutlinedIcon sx={{ fontSize: 18 }} />} label="구분">
+              <Typography variant="body2">{VISIBILITY[task.visibility] ?? task.visibility}</Typography>
+            </InfoRow>
 
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                카테고리
-              </Typography>
+            <InfoRow icon={<LabelOutlinedIcon sx={{ fontSize: 18 }} />} label="카테고리">
               {category ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25 }}>
-                  <Box
-                    sx={{
-                      width: 12,
-                      height: 12,
-                      borderRadius: '50%',
-                      bgcolor: category.color || 'grey.500',
-                      flexShrink: 0,
-                    }}
-                  />
-                  <Typography variant="body2">
-                    {category.name}
-                    {category.team ? ' (팀 공용)' : ''}
-                  </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: category.color || 'grey.500', flexShrink: 0 }} />
+                  <Typography variant="body2">{category.name}{category.team ? ' (팀 공용)' : ''}</Typography>
                 </Box>
               ) : (
-                <Typography variant="body2">-</Typography>
+                <Typography variant="body2" color="text.disabled">미지정</Typography>
               )}
-            </Box>
+            </InfoRow>
+
+            <Divider />
 
             {(task.canEditProgress ?? task.canEdit) ? (
-              <>
+              <Box sx={{ display: 'grid', gap: 2 }}>
                 <TextField
                   select
                   size="small"
@@ -228,17 +236,24 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
                 >
                   {Object.entries(STATUS).map(([code, label]) => (
                     <MenuItem key={code} value={code}>
-                      {label}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: STATUS_BAR_COLOR[code] ?? '#ccc', flexShrink: 0 }} />
+                        {label}
+                      </Box>
                     </MenuItem>
                   ))}
                 </TextField>
 
                 <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    진행률 — {task.progressRate}%
-                  </Typography>
-                  {/* onChange는 드래그 중 계속 발생하므로 상태만 바꾸고,
-                      실제 API 호출은 손을 뗐을 때(onChangeCommitted) 한 번만 한다 */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                    <Typography variant="caption" color="text.secondary">진행률</Typography>
+                    <Typography variant="caption" fontWeight={700} color="primary.main">{task.progressRate}%</Typography>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={task.progressRate ?? 0}
+                    sx={{ height: 6, borderRadius: 99, bgcolor: '#eef0f4', mb: 1, '& .MuiLinearProgress-bar': { borderRadius: 99, background: 'linear-gradient(90deg, #567C83, #3AAEA9)' } }}
+                  />
                   <Slider
                     value={task.progressRate ?? 0}
                     onChange={(_e, v) => setTask((prev) => ({ ...prev, progressRate: v }))}
@@ -248,18 +263,22 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
                     min={0}
                     max={100}
                     valueLabelDisplay="auto"
+                    size="small"
                   />
                 </Box>
-              </>
+              </Box>
             ) : (
               <Box>
-                <Typography variant="caption" color="text.secondary">
-                  진행률
-                </Typography>
-                <Typography variant="body2">
-                  {STATUS[task.status] ?? task.status} · {task.progressRate}%
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                  <Typography variant="caption" color="text.secondary">진행률</Typography>
+                  <Typography variant="caption" fontWeight={700}>{task.progressRate}%</Typography>
+                </Box>
+                <LinearProgress
+                  variant="determinate"
+                  value={task.progressRate ?? 0}
+                  sx={{ height: 6, borderRadius: 99, bgcolor: '#eef0f4', '& .MuiLinearProgress-bar': { borderRadius: 99, background: 'linear-gradient(90deg, #567C83, #3AAEA9)' } }}
+                />
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
                   작성자·담당자만 상태·진행률을 바꿀 수 있습니다.
                 </Typography>
               </Box>
@@ -272,36 +291,35 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
         {tab === 'activity' && <ActivityTab taskId={taskId} />}
       </DialogContent>
 
-      <DialogActions>
+      <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid #e2e5ea', bgcolor: '#f8f9fb' }}>
         {tab !== 'activity' && (
-          <>
-            <IconButton
-              color="error"
-              onClick={() => setConfirmDelete(true)}
-              disabled={!task || (removingFromMyListOnly ? false : !task.canEdit)}
-            >
-              <DeleteIcon />
-            </IconButton>
-            <Box sx={{ flexGrow: 1 }} />
-            <Button
-              startIcon={<EditIcon />}
-              onClick={() => onEdit?.(task)}
-              disabled={!task || !task.canEdit}
-            >
-              수정
-            </Button>
-          </>
+          <IconButton
+            color="error"
+            size="small"
+            onClick={() => setConfirmDelete(true)}
+            disabled={!task || (removingFromMyListOnly ? false : !task.canEdit)}
+            sx={{ mr: 'auto', border: '1px solid', borderColor: 'error.light', '&:disabled': { borderColor: 'transparent' } }}
+          >
+            <DeleteIcon fontSize="small" />
+          </IconButton>
         )}
-        <Button onClick={onClose} sx={tab === 'activity' ? { ml: 'auto' } : undefined}>닫기</Button>
+        {tab !== 'activity' && (
+          <Button
+            startIcon={<EditIcon />}
+            onClick={() => onEdit?.(task)}
+            disabled={!task || !task.canEdit}
+            variant="outlined"
+            size="small"
+          >
+            수정
+          </Button>
+        )}
+        <Button onClick={onClose} variant="contained" size="small" sx={{ ml: tab === 'activity' ? 'auto' : 0 }}>닫기</Button>
       </DialogActions>
 
       <ConfirmDialog
         open={confirmDelete}
-        message={
-          removingFromMyListOnly
-            ? '내 목록에서만 뺄까요? 프로젝트의 WBS 작업 자체는 그대로 남습니다.'
-            : '이 작업을 삭제할까요?'
-        }
+        message={removingFromMyListOnly ? '내 목록에서만 뺄까요? 프로젝트의 WBS 작업 자체는 그대로 남습니다.' : '이 작업을 삭제할까요?'}
         onConfirm={handleDelete}
         onClose={() => setConfirmDelete(false)}
       />
@@ -309,40 +327,22 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
   );
 }
 
-// ── 담당자 ───────────────────────────────────────────
 function AssigneeTab({ taskId, canEdit }) {
   const toast = useToast();
   const [selected, setSelected] = useState([]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
-  // 조회에 실패하면 "담당자 없음"과 구분이 안 된다. 그 상태로 저장하면
-  // 전체 교체라 기존 담당자가 날아가므로 저장 자체를 막는다.
   const [loadFailed, setLoadFailed] = useState(false);
 
-  // PUT /assignees는 전체 교체다. 현재 담당자를 먼저 채워두지 않으면
-  // 한 명을 추가하려던 저장이 기존 담당자를 전부 지우는 결과가 된다.
   useEffect(() => {
     if (taskId == null) return;
     let cancelled = false;
     setLoading(true);
-    taskApi
-      .getAssignees(taskId)
-      .then((list) => {
-        if (cancelled) return;
-        setSelected(Array.isArray(list) ? list : []);
-        setLoadFailed(false);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setLoadFailed(true);
-        toast.apiError(err);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+    taskApi.getAssignees(taskId)
+      .then((list) => { if (cancelled) return; setSelected(Array.isArray(list) ? list : []); setLoadFailed(false); })
+      .catch((err) => { if (cancelled) return; setLoadFailed(true); toast.apiError(err); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [taskId, toast]);
 
   const handleSave = async () => {
@@ -360,18 +360,12 @@ function AssigneeTab({ taskId, canEdit }) {
   if (!canEdit) {
     return (
       <Box sx={{ display: 'grid', gap: 2 }}>
-        <Typography variant="body2" color="text.secondary">
-          담당자는 작성자·프로젝트 관리자만 변경할 수 있습니다.
-        </Typography>
-        {loading ? (
-          <LinearProgress />
-        ) : selected.length === 0 ? (
-          <Typography color="text.secondary">담당자 없음</Typography>
+        <Typography variant="body2" color="text.secondary">담당자는 작성자·프로젝트 관리자만 변경할 수 있습니다.</Typography>
+        {loading ? <LinearProgress /> : selected.length === 0 ? (
+          <Typography color="text.disabled" variant="body2">담당자 없음</Typography>
         ) : (
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            {selected.map((u) => (
-              <Typography key={u.id} variant="body2">· {u.name}</Typography>
-            ))}
+            {selected.map((u) => <Chip key={u.id} label={u.name} size="small" variant="outlined" />)}
           </Box>
         )}
       </Box>
@@ -380,66 +374,44 @@ function AssigneeTab({ taskId, canEdit }) {
 
   return (
     <Box sx={{ display: 'grid', gap: 2 }}>
-      <Typography variant="body2" color="text.secondary">
-        담당자를 저장하면 지정된 사람에게 알림이 발송됩니다.
-      </Typography>
       {loadFailed ? (
-        <Alert severity="error">
-          현재 담당자를 불러오지 못했습니다. 이 상태로 저장하면 기존 담당자가 지워지므로
-          저장을 막았습니다. 잠시 후 다시 열어주세요.
-        </Alert>
+        <Alert severity="error">현재 담당자를 불러오지 못했습니다. 이 상태로 저장하면 기존 담당자가 지워지므로 저장을 막았습니다. 잠시 후 다시 열어주세요.</Alert>
       ) : (
-        <Alert severity="info">
-          저장하면 <b>여기 있는 목록으로 전체 교체</b>됩니다. 빼고 싶은 사람은 목록에서
-          제거한 뒤 저장하세요.
-        </Alert>
+        <Alert severity="info" sx={{ fontSize: '0.8rem' }}>저장하면 <b>여기 있는 목록으로 전체 교체</b>됩니다. 빼고 싶은 사람은 목록에서 제거한 뒤 저장하세요.</Alert>
       )}
-      {loading ? (
-        <LinearProgress />
-      ) : (
-        <UserPicker
-          multiple
-          value={selected}
-          onChange={setSelected}
-          label="담당자 검색"
-          disabled={loadFailed}
-        />
+      {loading ? <LinearProgress /> : (
+        <UserPicker multiple value={selected} onChange={setSelected} label="담당자 검색" disabled={loadFailed} />
       )}
-      <Box>
-        <Button
-          variant="contained"
-          onClick={handleSave}
-          disabled={saving || loading || loadFailed}
-        >
-          담당자 저장
-        </Button>
-      </Box>
+      <Button variant="contained" onClick={handleSave} disabled={saving || loading || loadFailed} sx={{ justifySelf: 'start' }}>
+        담당자 저장
+      </Button>
     </Box>
   );
 }
 
-// ── 참석자 ───────────────────────────────────────────
 function ParticipantTab({ taskId }) {
   const toast = useToast();
   const { user } = useAuth();
   const [list, setList] = useState([]);
+  const [listLoading, setListLoading] = useState(true);
   const [selected, setSelected] = useState([]);
   const [required, setRequired] = useState(false);
 
   const load = useCallback(async () => {
     if (taskId == null) return;
+    setListLoading(true);
     try {
       const res = await taskApi.getParticipants(taskId);
       setList(Array.isArray(res) ? res : []);
     } catch (err) {
       toast.apiError(err);
       setList([]);
+    } finally {
+      setListLoading(false);
     }
   }, [taskId, toast]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const handleInvite = async () => {
     try {
@@ -467,103 +439,78 @@ function ParticipantTab({ taskId }) {
       <UserPicker multiple value={selected} onChange={setSelected} label="참석자 검색" />
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
         <FormControlLabel
-          control={<Switch checked={required} onChange={(e) => setRequired(e.target.checked)} />}
-          label="필수 참석"
+          control={<Switch checked={required} onChange={(e) => setRequired(e.target.checked)} size="small" />}
+          label={<Typography variant="body2">필수 참석</Typography>}
         />
-        <Button variant="contained" onClick={handleInvite} disabled={selected.length === 0}>
-          초대
-        </Button>
+        {selected.length > 0 && (
+          <Button variant="contained" size="small" onClick={handleInvite}>초대</Button>
+        )}
       </Box>
 
-      <Divider />
-      {/*
-        참석자 본인만 응답할 수 있다. 서버가 비참석자에게 403(NOT_PARTICIPANT)을 주므로,
-        버튼을 모두에게 보여주면 자기를 참석자로 안 넣은 작성자가 누를 때마다 에러가 뜬다.
-      */}
-      {list.some((p) => p.userId === user?.id) ? (
-        <Box>
-          <Typography variant="caption" color="text.secondary">
-            내 응답
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
+      {!listLoading && (list.some((p) => p.userId === user?.id) ? (
+        <Box sx={{ bgcolor: '#f8f9fb', border: '1px solid #e2e5ea', borderRadius: 2, p: 1.5 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>내 응답</Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
             {['ACCEPTED', 'TENTATIVE', 'DECLINED'].map((s) => (
-              <Button key={s} size="small" variant="outlined" onClick={() => handleRespond(s)}>
+              <Button key={s} size="small" variant="outlined" onClick={() => handleRespond(s)} sx={{ fontSize: '0.78rem' }}>
                 {PARTICIPANT_RESPONSE[s]}
               </Button>
             ))}
           </Box>
         </Box>
       ) : (
-        <Typography variant="caption" color="text.secondary">
-          이 일정의 참석자가 아니라 응답할 수 없습니다.
-        </Typography>
-      )}
+        <Typography variant="caption" color="text.secondary">이 일정의 참석자가 아니라 응답할 수 없습니다.</Typography>
+      ))}
 
       {list.length > 0 && (
-        <List dense>
-          {list.map((p) => (
-            <ListItem
-              key={p.id}
-              secondaryAction={
-                <Chip
-                  size="small"
-                  color={PARTICIPANT_RESPONSE_COLOR[p.responseStatus]}
-                  label={PARTICIPANT_RESPONSE[p.responseStatus] ?? p.responseStatus}
-                />
-              }
-            >
-              <ListItemText
-                primary={`사용자 #${p.userId}`}
-                secondary={p.required ? '필수 참석' : '선택 참석'}
-              />
-            </ListItem>
-          ))}
-        </List>
+        <Box>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>참석자 목록</Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+            {list.map((p) => (
+              <Box key={p.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 1.5, py: 1, bgcolor: '#f8f9fb', border: '1px solid #e2e5ea', borderRadius: 1.5 }}>
+                <Box>
+                  <Typography variant="body2" fontWeight={600}>사용자 #{p.userId}</Typography>
+                  <Typography variant="caption" color="text.secondary">{p.required ? '필수 참석' : '선택 참석'}</Typography>
+                </Box>
+                <Chip size="small" color={PARTICIPANT_RESPONSE_COLOR[p.responseStatus]} label={PARTICIPANT_RESPONSE[p.responseStatus] ?? p.responseStatus} />
+              </Box>
+            ))}
+          </Box>
+        </Box>
       )}
     </Box>
   );
 }
 
-// ── 활동 이력 ────────────────────────────────────────
 function ActivityTab({ taskId }) {
   const toast = useToast();
   const [logs, setLogs] = useState([]);
 
   useEffect(() => {
     if (taskId == null) return;
+    setLogs([]);
     let cancelled = false;
-    taskApi
-      .getActivityLogs(taskId)
-      .then((res) => {
-        if (!cancelled) setLogs(Array.isArray(res) ? res : []);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        toast.apiError(err);
-      });
-    return () => {
-      cancelled = true;
-    };
+    taskApi.getActivityLogs(taskId)
+      .then((res) => { if (!cancelled) setLogs(Array.isArray(res) ? res : []); })
+      .catch((err) => { if (cancelled) return; toast.apiError(err); });
+    return () => { cancelled = true; };
   }, [taskId, toast]);
 
   if (logs.length === 0) {
-    return (
-      <Typography variant="body2" color="text.secondary">
-        기록된 활동이 없습니다.
-      </Typography>
-    );
+    return <Typography variant="body2" color="text.secondary">기록된 활동이 없습니다.</Typography>;
   }
 
   return (
-    <List dense>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
       {logs.map((log) => (
-        <ListItem key={log.id} divider>
-          <ListItemText
-            primary={`${ACTIVITY_ACTION[log.action] ?? log.action} · 사용자 #${log.userId}`}
-            secondary={formatDateTime(log.createdAt)}
-          />
-        </ListItem>
+        <Box key={log.id} sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', px: 1.5, py: 1, bgcolor: '#f8f9fb', border: '1px solid #e2e5ea', borderRadius: 1.5 }}>
+          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'primary.light', mt: 0.75, flexShrink: 0 }} />
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+            <Typography variant="body2" fontWeight={600}>{ACTIVITY_ACTION[log.action] ?? log.action}</Typography>
+            <Typography variant="caption" color="text.secondary">사용자 #{log.userId} · {formatDateTime(log.createdAt)}</Typography>
+          </Box>
+        </Box>
       ))}
-    </List>
+    </Box>
   );
 }

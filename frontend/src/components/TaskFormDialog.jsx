@@ -6,31 +6,24 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle,
   FormControlLabel,
   MenuItem,
   TextField,
+  Typography,
 } from '@mui/material';
+import EditCalendarIcon from '@mui/icons-material/EditCalendar';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 
 import * as taskApi from '../api/tasks';
 import { useToast } from '../contexts/ToastContext';
 import DateRangeField from './DateRangeField';
-import {
-  PRIORITY,
-  STATUS,
-  TASK_TYPE,
-  VISIBILITY,
-} from '../utils/constants';
-import {
-  fromDateTimeInputValue,
-  toDateTimeInputValue,
-} from '../utils/date';
+import { PRIORITY, STATUS, TASK_TYPE, VISIBILITY } from '../utils/constants';
+import { fromDateTimeInputValue, toDateTimeInputValue } from '../utils/date';
 
-// 폼의 빈 상태. 다이얼로그를 열 때마다 여기서 시작한다.
 const EMPTY = {
   title: '',
   description: '',
-  deliverable: '', // WBS 산출물. taskType === 'WBS_TASK'일 때만 화면에 노출
+  deliverable: '',
   taskType: 'EVENT',
   startDate: '',
   endDate: '',
@@ -39,43 +32,33 @@ const EMPTY = {
   status: 'TODO',
   priority: 'MEDIUM',
   categoryId: '',
-  parentTaskId: '', // 상위 작업. parentOptions prop이 있는 수정 화면에서만 노출
+  parentTaskId: '',
 };
 
-/**
- * 작업(일정/투두/WBS) 생성·수정 폼.
- *
- * ★ 제어 컴포넌트(controlled component) ★
- * 모든 <TextField>가 value={form.xxx} + onChange={...}로 묶여 있다.
- * 즉 화면에 보이는 글자의 출처는 DOM이 아니라 React state다.
- * 그래서 "저장 직전에 값 읽기" 같은 게 필요 없고, state만 보면 된다.
- */
+const TYPE_COLOR = { TODO: '#90a4ae', EVENT: '#1976d2', WBS_TASK: '#7b1fa2' };
+
 export default function TaskFormDialog({
   open,
   onClose,
   onSaved,
-  task = null,          // null이면 생성, 있으면 수정
+  task = null,
   categories = [],
   defaultType = 'EVENT',
-  defaultStart = null,  // 캘린더에서 날짜를 클릭해 열었을 때 채워짐
+  defaultStart = null,
   defaultEnd = null,
-  projectId = null,     // WBS 작업 생성 시: 고정된 프로젝트(선택 UI 없음)
+  projectId = null,
   parentTaskId = null,
-  lockType = false,     // 타입 선택 막기 (투두 페이지 등)
-  parentOptions = null, // 있으면(수정 화면) "상위 작업" 선택 필드를 보여준다 (WBS만)
+  lockType = false,
+  parentOptions = null,
 }) {
   const toast = useToast();
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const isEdit = task != null;
-  // 단계(최상위 WBS 작업)는 부모가 없다 — 산출물/구분 필드는 하위작업에만 노출한다
   const isTopLevelWbs = isEdit ? task.parentTaskId == null : parentTaskId == null;
 
-  // 다이얼로그가 열릴 때마다 폼을 초기화한다.
-  // open을 의존성에 넣지 않으면 두 번째로 열었을 때 이전 값이 남는다.
   useEffect(() => {
     if (!open) return;
-
     if (task) {
       setForm({
         title: task.title ?? '',
@@ -92,46 +75,24 @@ export default function TaskFormDialog({
         parentTaskId: task.parentTaskId ?? '',
       });
     } else {
-      setForm({
-        ...EMPTY,
-        taskType: defaultType,
-        startDate: toDateTimeInputValue(defaultStart),
-        endDate: toDateTimeInputValue(defaultEnd),
-      });
+      setForm({ ...EMPTY, taskType: defaultType, startDate: toDateTimeInputValue(defaultStart), endDate: toDateTimeInputValue(defaultEnd) });
     }
   }, [open, task, defaultType, defaultStart, defaultEnd]);
 
-  // 입력 필드 하나를 바꾸는 공통 핸들러.
-  // ...prev 로 기존 값을 복사한 뒤 한 필드만 덮어쓴다(불변성 유지).
-  // prev.xxx = v 처럼 직접 수정하면 React가 변경을 감지하지 못해 화면이 안 바뀐다.
   const setField = (name) => (event) => {
-    const value =
-      event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+    const value = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (event) => {
-    event.preventDefault(); // <form> 기본 동작(페이지 새로고침)을 막는다
-
-    if (!form.title.trim()) {
-      toast.error('제목을 입력하세요.');
-      return;
-    }
-    if (!form.startDate || !form.endDate) {
-      toast.error('시작일과 종료일을 입력하세요.');
-      return;
-    }
-    // 서버도 INVALID_TASK_DATE로 막지만, 왕복 없이 먼저 걸러준다
-    if (form.startDate && form.endDate && form.startDate > form.endDate) {
-      toast.error('시작일은 종료일보다 앞이어야 합니다.');
-      return;
-    }
+    event.preventDefault();
+    if (!form.title.trim()) { toast.error('제목을 입력하세요.'); return; }
+    if (!form.startDate || !form.endDate) { toast.error('시작일과 종료일을 입력하세요.'); return; }
+    if (form.startDate && form.endDate && form.startDate > form.endDate) { toast.error('시작일은 종료일보다 앞이어야 합니다.'); return; }
 
     setSaving(true);
     try {
       if (isEdit) {
-        // TaskUpdateRequest에는 status/taskType/parentTaskId가 없다.
-        // 상태는 PATCH /status로 따로 바꾼다.
         await taskApi.updateTask(task.id, {
           title: form.title.trim(),
           description: form.description || null,
@@ -143,20 +104,15 @@ export default function TaskFormDialog({
           priority: form.priority,
           categoryId: form.categoryId === '' ? null : Number(form.categoryId),
         });
-
         if (parentOptions) {
           const nextParent = form.parentTaskId === '' ? null : Number(form.parentTaskId);
           const prevParent = task.parentTaskId ?? null;
-          if (nextParent !== prevParent) {
-            await taskApi.setParent(task.id, nextParent);
-          }
+          if (nextParent !== prevParent) await taskApi.setParent(task.id, nextParent);
         }
-
         toast.success('수정했습니다.');
       } else {
         await taskApi.createTask({
-          projectId,
-          parentTaskId,
+          projectId, parentTaskId,
           categoryId: form.categoryId === '' ? null : Number(form.categoryId),
           taskType: form.taskType,
           title: form.title.trim(),
@@ -180,13 +136,27 @@ export default function TaskFormDialog({
     }
   };
 
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      {/* form으로 감싸면 Enter 키 제출이 공짜로 따라온다 */}
-      <Box component="form" onSubmit={handleSubmit}>
-        <DialogTitle>{isEdit ? '작업 수정' : '새 작업'}</DialogTitle>
+  const typeColor = TYPE_COLOR[form.taskType] ?? '#567C83';
 
-        <DialogContent dividers>
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
+      <Box component="form" onSubmit={handleSubmit}>
+        {/* 다이얼로그 헤더 */}
+        <Box sx={{ px: 3, py: 2.5, background: 'linear-gradient(135deg, #567C83 0%, #3AAEA9 100%)', display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            {isEdit ? <EditCalendarIcon sx={{ color: '#fff', fontSize: 22 }} /> : <AddCircleOutlineIcon sx={{ color: '#fff', fontSize: 22 }} />}
+          </Box>
+          <Box>
+            <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#fff', lineHeight: 1.2 }}>
+              {isEdit ? '작업 수정' : '새 작업'}
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.75)' }}>
+              {isEdit ? '작업 정보를 수정합니다' : '새로운 작업을 등록합니다'}
+            </Typography>
+          </Box>
+        </Box>
+
+        <DialogContent sx={{ p: 3 }}>
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: '1fr 1fr' }}>
             <TextField
               label="제목"
@@ -204,12 +174,25 @@ export default function TaskFormDialog({
               value={form.taskType}
               onChange={setField('taskType')}
               size="small"
-              disabled={isEdit || lockType} // 수정 시 타입 변경은 서버가 지원하지 않음
+              disabled={isEdit || lockType}
               helperText={isEdit ? '종류는 변경할 수 없습니다' : ' '}
+              slotProps={{
+                select: {
+                  renderValue: (v) => (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: TYPE_COLOR[v] ?? '#ccc', flexShrink: 0 }} />
+                      {TASK_TYPE[v] ?? v}
+                    </Box>
+                  ),
+                },
+              }}
             >
               {Object.entries(TASK_TYPE).map(([code, label]) => (
                 <MenuItem key={code} value={code}>
-                  {label}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: TYPE_COLOR[code] ?? '#ccc', flexShrink: 0 }} />
+                    {label}
+                  </Box>
                 </MenuItem>
               ))}
             </TextField>
@@ -223,9 +206,7 @@ export default function TaskFormDialog({
               helperText=" "
             >
               {Object.entries(PRIORITY).map(([code, label]) => (
-                <MenuItem key={code} value={code}>
-                  {label}
-                </MenuItem>
+                <MenuItem key={code} value={code}>{label}</MenuItem>
               ))}
             </TextField>
 
@@ -233,29 +214,19 @@ export default function TaskFormDialog({
               startDate={form.startDate}
               endDate={form.endDate}
               allDay={form.allDay}
-              onChange={(startDate, endDate) =>
-                setForm((prev) => ({ ...prev, startDate, endDate }))
-              }
+              onChange={(startDate, endDate) => setForm((prev) => ({ ...prev, startDate, endDate }))}
             />
 
             <FormControlLabel
-              control={<Checkbox checked={form.allDay} onChange={setField('allDay')} />}
-              label="종일"
+              control={<Checkbox checked={form.allDay} onChange={setField('allDay')} size="small" />}
+              label={<Typography variant="body2">종일</Typography>}
               sx={{ alignSelf: 'center' }}
             />
 
             {form.taskType !== 'WBS_TASK' && (
-              <TextField
-                select
-                label="구분"
-                value={form.visibility}
-                onChange={setField('visibility')}
-                size="small"
-              >
+              <TextField select label="구분" value={form.visibility} onChange={setField('visibility')} size="small">
                 {Object.entries(VISIBILITY).map(([code, label]) => (
-                  <MenuItem key={code} value={code}>
-                    {label}
-                  </MenuItem>
+                  <MenuItem key={code} value={code}>{label}</MenuItem>
                 ))}
               </TextField>
             )}
@@ -280,46 +251,29 @@ export default function TaskFormDialog({
                 size="small"
                 sx={{ gridColumn: '1 / -1' }}
               >
-                <MenuItem value="">
-                  <em>최상위 (단계)</em>
-                </MenuItem>
+                <MenuItem value=""><em>최상위 (단계)</em></MenuItem>
                 {parentOptions.map((p) => (
-                  <MenuItem key={p.id} value={p.id}>
-                    {'　'.repeat(p.depth)}
-                    {p.title}
-                  </MenuItem>
+                  <MenuItem key={p.id} value={p.id}>{'　'.repeat(p.depth)}{p.title}</MenuItem>
                 ))}
               </TextField>
             )}
 
-            <TextField
-              select
-              label="카테고리"
-              value={form.categoryId}
-              onChange={setField('categoryId')}
-              size="small"
-            >
+            <TextField select label="카테고리" value={form.categoryId} onChange={setField('categoryId')} size="small">
               <MenuItem value="">지정 안 함</MenuItem>
               {categories.map((c) => (
                 <MenuItem key={c.id} value={c.id}>
-                  {c.name}
-                  {c.team ? ' (팀)' : ''}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: c.color || '#ccc', flexShrink: 0 }} />
+                    {c.name}{c.team ? ' (팀)' : ''}
+                  </Box>
                 </MenuItem>
               ))}
             </TextField>
 
             {!isEdit && (
-              <TextField
-                select
-                label="초기 상태"
-                value={form.status}
-                onChange={setField('status')}
-                size="small"
-              >
+              <TextField select label="초기 상태" value={form.status} onChange={setField('status')} size="small">
                 {Object.entries(STATUS).map(([code, label]) => (
-                  <MenuItem key={code} value={code}>
-                    {label}
-                  </MenuItem>
+                  <MenuItem key={code} value={code}>{label}</MenuItem>
                 ))}
               </TextField>
             )}
@@ -336,8 +290,8 @@ export default function TaskFormDialog({
           </Box>
         </DialogContent>
 
-        <DialogActions>
-          <Button onClick={onClose}>취소</Button>
+        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid #e2e5ea', bgcolor: '#f8f9fb' }}>
+          <Button onClick={onClose} sx={{ color: 'text.secondary' }}>취소</Button>
           <Button type="submit" variant="contained" disabled={saving}>
             {saving ? '저장 중…' : '저장'}
           </Button>

@@ -1,18 +1,15 @@
 import {
+  Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
+  Typography,
 } from '@mui/material';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
-/**
- * 삭제 등 되돌릴 수 없는 동작 전 확인창.
- *
- * window.confirm()을 쓰지 않는 이유: 브라우저 기본 창은 스타일을 못 바꾸고
- * 실행이 동기적으로 멈춰서 React 렌더링 흐름과 어긋난다.
- */
 export default function ConfirmDialog({
   open,
   title = '확인',
@@ -23,20 +20,22 @@ export default function ConfirmDialog({
   onClose,
 }) {
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>{title}</DialogTitle>
-      <DialogContent>
-        <DialogContentText>{message}</DialogContentText>
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
+      <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid #e2e5ea', bgcolor: '#f8f9fb', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box sx={{ width: 36, height: 36, borderRadius: 2, bgcolor: 'rgba(239,68,68,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <WarningAmberIcon sx={{ fontSize: 20, color: 'error.main' }} />
+        </Box>
+        <Typography variant="subtitle1" fontWeight={700}>{title}</Typography>
+      </Box>
+      <DialogContent sx={{ px: 3, py: 2.5 }}>
+        <DialogContentText sx={{ color: 'text.primary', fontSize: '0.9rem' }}>{message}</DialogContentText>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>취소</Button>
+      <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid #e2e5ea', bgcolor: '#f8f9fb', gap: 1 }}>
+        <Button onClick={onClose} variant="outlined" sx={{ color: 'text.secondary', borderColor: '#d1d5db' }}>취소</Button>
         <Button
           variant="contained"
           color={confirmColor}
-          onClick={() => {
-            onConfirm();
-            onClose();
-          }}
+          onClick={() => { onConfirm(); onClose(); }}
         >
           {confirmText}
         </Button>

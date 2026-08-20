@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Box, Button, Popover, TextField, Typography } from '@mui/material';
+import { Box, Button, Popover, Typography } from '@mui/material';
+import { TimePicker, renderMultiSectionDigitalClockTimeView } from '@mui/x-date-pickers';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/style.css';
 import DateRangeIcon from '@mui/icons-material/DateRange';
+import dayjs from 'dayjs';
 import { formatShortDate, parseDateOnly, toLocalDateString } from '../utils/date';
 
 function splitDateTime(value) {
@@ -47,12 +49,14 @@ export default function DateRangeField({ startDate, endDate, allDay, onChange })
     );
   };
 
-  const handleStartTime = (e) => {
-    onChange(joinDateTime(start.date, e.target.value), endDate);
+  const handleStartTime = (value) => {
+    const time = value ? value.format('HH:mm') : '09:00';
+    onChange(joinDateTime(start.date, time), endDate);
   };
 
-  const handleEndTime = (e) => {
-    onChange(startDate, joinDateTime(end.date, e.target.value));
+  const handleEndTime = (value) => {
+    const time = value ? value.format('HH:mm') : '18:00';
+    onChange(startDate, joinDateTime(end.date, time));
   };
 
   return (
@@ -84,23 +88,51 @@ export default function DateRangeField({ startDate, endDate, allDay, onChange })
 
           {!allDay && (
             <Box sx={{ display: 'flex', gap: 2, px: 1, pb: 1 }}>
-              <TextField
+              <TimePicker
                 label="시작 시간"
-                type="time"
-                size="small"
-                value={start.time || '09:00'}
+                value={start.time ? dayjs(`2000-01-01T${start.time}`) : dayjs('2000-01-01T09:00')}
                 onChange={handleStartTime}
                 disabled={!start.date}
-                slotProps={{ inputLabel: { shrink: true } }}
+                ampm={false}
+                timeSteps={{ minutes: 5 }}
+                viewRenderers={{
+                  hours: renderMultiSectionDigitalClockTimeView,
+                  minutes: renderMultiSectionDigitalClockTimeView,
+                }}
+                slotProps={{
+                  textField: { size: 'small', sx: { width: 130 } },
+                  popper: {
+                    sx: {
+                      '& .MuiMultiSectionDigitalClockSection-item': { fontSize: '0.8rem', py: 0.5, minHeight: 32 },
+                      '& .MuiMultiSectionDigitalClock-root': { maxHeight: 200, overflow: 'auto' },
+                      '& .MuiMultiSectionDigitalClockSection-root': { width: 60 },
+                      '& .MuiPaper-root': { width: 130 },
+                    },
+                  },
+                }}
               />
-              <TextField
+              <TimePicker
                 label="종료 시간"
-                type="time"
-                size="small"
-                value={end.time || '18:00'}
+                value={end.time ? dayjs(`2000-01-01T${end.time}`) : dayjs('2000-01-01T18:00')}
                 onChange={handleEndTime}
                 disabled={!end.date}
-                slotProps={{ inputLabel: { shrink: true } }}
+                ampm={false}
+                timeSteps={{ minutes: 5 }}
+                viewRenderers={{
+                  hours: renderMultiSectionDigitalClockTimeView,
+                  minutes: renderMultiSectionDigitalClockTimeView,
+                }}
+                slotProps={{
+                  textField: { size: 'small', sx: { width: 130 } },
+                  popper: {
+                    sx: {
+                      '& .MuiMultiSectionDigitalClockSection-item': { fontSize: '0.8rem', py: 0.5, minHeight: 32 },
+                      '& .MuiMultiSectionDigitalClock-root': { maxHeight: 200, overflow: 'auto' },
+                      '& .MuiMultiSectionDigitalClockSection-root': { width: 60 },
+                      '& .MuiPaper-root': { width: 130 },
+                    },
+                  },
+                }}
               />
             </Box>
           )}
