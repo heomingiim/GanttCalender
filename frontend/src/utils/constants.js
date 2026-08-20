@@ -1,5 +1,4 @@
-// 백엔드 enum 문자열 ↔ 한글 라벨 / 색상 매핑.
-// 서버는 'IN_PROGRESS' 같은 코드만 주므로 표시용 변환표를 프론트가 들고 있는다.
+// 백엔드 enum 코드 ↔ 한글 라벨 / 색상 매핑
 
 export const TASK_TYPE = {
   TODO: '투두',
@@ -14,7 +13,6 @@ export const STATUS = {
   CANCELLED: '취소',
 };
 
-// MUI Chip color prop에 그대로 넣는 값
 export const STATUS_COLOR = {
   TODO: 'default',
   IN_PROGRESS: 'info',
@@ -22,8 +20,7 @@ export const STATUS_COLOR = {
   CANCELLED: 'error',
 };
 
-// 막대(간트/통계 그래프)에 쓰는 상태별 hex 색상. MUI Chip color prop과 달리
-// bgcolor에 직접 넣을 hex 값이 필요한 곳(간트 막대 등)에서 쓴다.
+// 간트 막대 등 bgcolor에 직접 쓰는 hex 색상
 export const STATUS_BAR_COLOR = {
   TODO: '#90a4ae',
   IN_PROGRESS: '#1976d2',
@@ -43,8 +40,7 @@ export const PRIORITY_COLOR = {
   HIGH: 'error',
 };
 
-// 값(PUBLIC/PRIVATE)은 그대로 두고 라벨만 바꿨다.
-// PUBLIC이면 같은 부서 사람들의 "팀 일정" 조회에도 함께 나타난다.
+// PUBLIC이면 같은 부서 "팀 일정" 조회에도 나타남
 export const VISIBILITY = {
   PUBLIC: '팀',
   PRIVATE: '개인',
@@ -112,11 +108,9 @@ export const ACTIVITY_ACTION = {
   PARENT_CHANGE: '상위 작업 변경',
 };
 
-// '팀 공용 카테고리'처럼 팀장급 이상만 가능한 동작 판별.
-// 백엔드 CategoryService가 "MEMBER면 거부"로 판단하므로 프론트도 같은 기준을 쓴다.
 export const isTeamLeadOrAbove = (role) => role !== 'MEMBER';
 
-// 캘린더 일정 막대 색상 (카테고리 색이 없을 때 우선순위별 기본색)
+// 카테고리 색 없을 때 우선순위별 기본 hex
 export const PRIORITY_HEX = {
   HIGH: '#d32f2f',
   MEDIUM: '#1976d2',

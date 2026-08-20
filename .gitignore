@@ -50,6 +50,9 @@ backend/src/main/resources/static/
 notes.md
 TEST_PROCEDURE.md
 
+### Docs ###
+docs/
+
 ### Logs ###
 backend/boot.log
 backend/boot.err.log

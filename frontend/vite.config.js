@@ -21,6 +21,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    allowedHosts: true, // ngrok 등 외부 터널 허용
     proxy: {
       '/api': {
         target: 'http://localhost:8080',

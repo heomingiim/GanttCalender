@@ -1,35 +1,24 @@
-// 백엔드 TaskTreeResponse(재귀 children 구조) ↔ 화면에서 쓰기 좋은 1차원 배열 변환.
-//
-// 서버가 주는 모양:
-//   [{ id:1, title:'설계', children:[ { id:2, title:'DB 설계', children:[] } ] }]
-// 표/간트에서 필요한 모양:
-//   [{ id:1, depth:0, ... }, { id:2, depth:1, ... }]
-// 트리 구조 그대로는 <table>에 한 줄씩 못 그리기 때문에 depth를 들고 평탄화한다.
+// 백엔드 재귀 children 구조 → <table> 렌더용 depth 포함 1차원 배열 변환 유틸
 
 import { toLocalDateString } from './date';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-/**
- * 트리 → 평탄화 배열. 각 노드에 depth(들여쓰기 단계)와 hasChildren을 붙인다.
- * 재귀 함수의 기본형: "나를 담고, 자식들에 대해 나 자신을 다시 호출"
- */
 export function flattenTree(nodes, depth = 0, acc = []) {
   if (!Array.isArray(nodes)) return acc;
   for (const node of nodes) {
     const children = node.children ?? [];
     acc.push({ ...node, depth, hasChildren: children.length > 0 });
-    flattenTree(children, depth + 1, acc); // ← 재귀
+    flattenTree(children, depth + 1, acc);
   }
   return acc;
 }
 
-/** 트리 전체 노드 수 */
 export function countTree(nodes) {
   return flattenTree(nodes).length;
 }
 
-/** flattenTree 결과에 계층 번호(displayNo: "1", "1.1"...)와 소요일수(days)를 붙인다 */
+// flattenTree 결과에 계층 번호("1", "1.1"...)와 소요일수(days)를 붙인다
 export function withDisplayNumbers(flatTasks) {
   const counters = [];
   return flatTasks.map((t) => {
@@ -48,7 +37,7 @@ export function withDisplayNumbers(flatTasks) {
   });
 }
 
-/** 기간을 "N주차" 그룹과 날짜 컬럼(days)으로 변환한다. 주말도 포함한다. */
+// 기간을 N주차 그룹 + 날짜 컬럼 배열로 변환 (주말 포함)
 export function buildWorkdayColumns(rangeStart, rangeEnd) {
   if (!rangeStart || !rangeEnd) return { days: [], weeks: [] };
 
@@ -89,7 +78,7 @@ export function buildWorkdayColumns(rangeStart, rangeEnd) {
   return { days, weeks };
 }
 
-/** 작업 기간을 days 배열 안 인덱스 범위로 변환 */
+// 작업 기간을 days 배열 인덱스 범위로 변환
 export function dayRangeIndex(days, startDate, endDate) {
   if (!startDate || !endDate || days.length === 0) return null;
   const startKey = toLocalDateString(startDate);
@@ -108,15 +97,10 @@ export function dayRangeIndex(days, startDate, endDate) {
   return { startIdx, endIdx };
 }
 
-/**
- * 부모 선택 드롭다운용 목록.
- * 자기 자신과 자기 자손은 부모가 될 수 없다(순환). 백엔드도 CIRCULAR_PARENT로 막지만,
- * 애초에 고를 수 없게 걸러주는 편이 사용자 입장에서 낫다.
- */
+// 자기 자신·자손은 부모 후보에서 제외 (백엔드도 막지만 UI에서도 선택 못 하게)
 export function selectableParents(flatTasks, taskId) {
   if (taskId == null) return flatTasks;
 
-  // taskId의 자손 id를 모은다
   const descendants = new Set();
   const childrenOf = new Map();
   for (const t of flatTasks) {
