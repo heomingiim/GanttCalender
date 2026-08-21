@@ -151,10 +151,18 @@ export default function ProjectDetailPage() {
         <Tabs
           value={tab}
           onChange={(_e, v) => setTab(v)}
+          TabIndicatorProps={{ sx: { display: 'none' } }}
           sx={{
             px: 1,
-            '& .MuiTab-root': { fontSize: '0.84rem', minHeight: 44, py: 0 },
-            '& .MuiTabs-indicator': { height: 2.5, borderRadius: 99 },
+            '& .MuiTab-root': {
+              fontSize: '0.84rem', minHeight: 44, py: 0,
+              borderBottom: '2.5px solid transparent',
+              transition: 'border-color 0.2s',
+            },
+            '& .MuiTab-root.Mui-selected': {
+              borderBottom: '2.5px solid',
+              borderColor: 'primary.main',
+            },
           }}
         >
           <Tab icon={<InfoOutlinedIcon sx={{ fontSize: 16 }} />} iconPosition="start" label="개요" />

@@ -190,7 +190,7 @@ export default function AppLayout() {
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f5f6f8' }}>
+    <Box sx={{ display: 'flex', height: '100%', bgcolor: '#f5f6f8' }}>
 
       {/* 모바일 드로어 */}
       <Drawer
@@ -232,8 +232,8 @@ export default function AppLayout() {
         color="inherit"
         elevation={0}
         sx={{
+          left: { md: `${SIDEBAR_W}px` },
           width: { md: `calc(100% - ${SIDEBAR_W}px)` },
-          ml: { md: `${SIDEBAR_W}px` },
           borderBottom: '1px solid',
           borderColor: 'divider',
           bgcolor: 'background.paper',
@@ -305,13 +305,15 @@ export default function AppLayout() {
         component="main"
         sx={{
           flexGrow: 1,
-          width: { md: `calc(100% - ${SIDEBAR_W}px)` },
-          minHeight: '100vh',
+          minWidth: 0,
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
           bgcolor: 'background.default',
         }}
       >
-        <Toolbar sx={{ minHeight: { md: 56 } }} />
-        <Box sx={{ p: { xs: 2, md: 3 } }}>
+        <Toolbar sx={{ minHeight: { md: 56 }, flexShrink: 0 }} />
+        <Box sx={{ flexGrow: 1, overflowY: 'auto', p: { xs: 2, md: 3 } }}>
           <Outlet />
         </Box>
       </Box>

@@ -130,7 +130,7 @@ gradlew bootRun
 > - 두 번째 실행부터는 프론트 코드 변경이 없으면 `./gradlew bootRun` 만 치면 됩니다.
 
 첫 실행 때 이 순서로 자동 처리됩니다.
-**DB 생성 → 테이블 11개 생성(`schema.sql`) → 직원 2,000명 적재(`employees.csv`)**
+**DB 생성 → 테이블 10개 생성(`schema.sql`) → 직원 2,000명 적재(`employees.csv`)**
 직원 적재 때문에 20~30초 정도 걸립니다. `[DataSeeder] 시드 완료` 가 뜨면 끝입니다.
 
 브라우저에서 **http://localhost:8080** 을 열고 사원번호 **`EMP0001`** 로 로그인합니다.
@@ -204,7 +204,8 @@ Vite dev 서버가 `/api` 요청을 `http://localhost:8080` 으로 프록시하�
 ### 스택
 
 React 19 · Vite · MUI 7 · React Router 7 · Context API · axios(`withCredentials`) ·
-FullCalendar(캘린더) · react-day-picker(기간 선택)
+FullCalendar(캘린더) · react-day-picker(기간 선택) · recharts(통계 차트) ·
+@mui/x-date-pickers + dayjs(날짜 선택 UI) · @dnd-kit(드래그앤드롭)
 
 ---
 

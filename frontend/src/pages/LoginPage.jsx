@@ -22,7 +22,7 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+      <Box sx={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
         <CircularProgress />
       </Box>
     );
@@ -48,7 +48,7 @@ export default function LoginPage() {
   return (
     <Box
       sx={{
-        minHeight: '100vh',
+        minHeight: '100%',
         display: 'flex',
         bgcolor: '#f5f6f8',
       }}

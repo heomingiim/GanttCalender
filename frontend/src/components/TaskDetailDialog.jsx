@@ -174,12 +174,19 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
         <Tabs
           value={tab}
           onChange={(_e, v) => setTab(v)}
-          variant="scrollable"
+          TabIndicatorProps={{ sx: { display: 'none' } }}
           sx={{
             mt: 1.5,
             minHeight: 36,
-            '& .MuiTab-root': { fontSize: '0.8rem', minHeight: 36, py: 0, px: 1.5 },
-            '& .MuiTabs-indicator': { height: 2, borderRadius: 99 },
+            '& .MuiTab-root': {
+              fontSize: '0.8rem', minHeight: 36, py: 0, px: 1.5,
+              borderBottom: '2px solid transparent',
+              transition: 'border-color 0.2s',
+            },
+            '& .MuiTab-root.Mui-selected': {
+              borderBottom: '2px solid',
+              borderColor: 'primary.main',
+            },
           }}
         >
           <Tab icon={<TuneIcon sx={{ fontSize: 15 }} />} iconPosition="start" label="상세" value="detail" />
