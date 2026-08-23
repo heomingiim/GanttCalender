@@ -39,18 +39,30 @@ public class ProjectService {
         return (int) Math.round(leaves.stream().mapToInt(Task::getProgressRate).average().orElse(0));
     }
 
-    // 진행률 기반으로 프로젝트 상태를 자동 파생. CANCELLED는 유지.
+    private String deriveStatus(Integer progress) {
+        return progress == null || progress == 0 ? "PLANNED"
+                : progress >= 100 ? "DONE" : "IN_PROGRESS";
+    }
+
+    // 진행률 기반으로 프로젝트 상태를 자동 파생해 응답에만 반영. CANCELLED는 유지. DB는 쓰지 않는다.
     private ProjectResponse toResponse(Project p) {
         Integer progress = computeProgress(p.getId());
         if (!"CANCELLED".equals(p.getStatus())) {
-            String derived = progress == null || progress == 0 ? "PLANNED"
-                    : progress >= 100 ? "DONE" : "IN_PROGRESS";
-            if (!derived.equals(p.getStatus())) {
-                p.setStatus(derived);
-                projectMapper.update(p);
-            }
+            p.setStatus(deriveStatus(progress));
         }
         return ProjectResponse.from(p, progress);
+    }
+
+    // 태스크 진행률/상태가 바뀔 때 호출되어 프로젝트 상태를 실제로 DB에 반영한다.
+    public void syncStatus(Long projectId) {
+        Project project = projectMapper.findByIdNotDeleted(projectId);
+        if (project == null || "CANCELLED".equals(project.getStatus())) return;
+
+        String derived = deriveStatus(computeProgress(projectId));
+        if (!derived.equals(project.getStatus())) {
+            project.setStatus(derived);
+            projectMapper.update(project);
+        }
     }
 
     public ProjectResponse create(LoginUser loginUser, ProjectRequest req) {

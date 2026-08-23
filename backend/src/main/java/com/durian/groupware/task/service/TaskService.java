@@ -23,6 +23,7 @@ import com.durian.groupware.notification.service.NotificationService;
 import com.durian.groupware.project.dto.Project;
 import com.durian.groupware.project.mapper.ProjectMapper;
 import com.durian.groupware.project.service.ProjectMemberService;
+import com.durian.groupware.project.service.ProjectService;
 import com.durian.groupware.task.dto.AssigneeNameRow;
 import com.durian.groupware.task.dto.Task;
 import com.durian.groupware.task.dto.TaskCreateRequest;
@@ -50,6 +51,7 @@ public class TaskService {
     private final ActivityLogService activityLogService;
     private final ProjectMemberService projectMemberService;
     private final ProjectMapper projectMapper;
+    private final ProjectService projectService;
 
     private static final Map<String, String> STATUS_LABEL = Map.of(
             "TODO", "대기", "IN_PROGRESS", "진행중", "DONE", "완료", "CANCELLED", "취소");
@@ -165,6 +167,7 @@ public class TaskService {
 
         taskMapper.softDelete(id);
         activityLogService.log(id, loginUser.id(), "DELETE");
+        syncProjectStatus(task);
     }
 
     // 상태 변경 — 상태와 진행률을 함께 동기화
@@ -193,6 +196,7 @@ public class TaskService {
             taskMapper.changeProgress(id, progressRate);
         }
 
+        syncProjectStatus(task);
         return TaskResponse.from(taskMapper.findByIdNotDeleted(id));
     }
 
@@ -212,7 +216,15 @@ public class TaskService {
             taskMapper.changeStatus(id, status, rate);
         }
         activityLogService.log(id, loginUser.id(), "PROGRESS_CHANGE");
+        syncProjectStatus(task);
         return TaskResponse.from(taskMapper.findByIdNotDeleted(id));
+    }
+
+    // WBS 작업의 진행률/상태가 바뀌었을 때 소속 프로젝트의 상태를 즉시 동기화한다.
+    private void syncProjectStatus(Task task) {
+        if (task.getProjectId() != null && "WBS_TASK".equals(task.getTaskType())) {
+            projectService.syncStatus(task.getProjectId());
+        }
     }
 
     // ============ 내부 유틸 ============

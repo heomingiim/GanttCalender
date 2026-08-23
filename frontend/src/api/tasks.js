@@ -54,13 +54,13 @@ export const reorderTasks = (ids) => client.put('/tasks/reorder', { ids });
 export const setParent = (id, parentTaskId) =>
   client.patch(`/tasks/${id}/parent`, { parentTaskId });
 
-// ── 담당자 (백엔드 미구현 — 구현 시 바로 동작) ──────
+// ── 담당자 ───────────────────────────────────────────
 export const getAssignees = (id) => client.get(`/tasks/${id}/assignees`);
 
 export const replaceAssignees = (id, userIds) =>
   client.put(`/tasks/${id}/assignees`, { userIds });
 
-// ── 참석자 (백엔드 미구현) ──────────────────────────
+// ── 참석자 ───────────────────────────────────────────
 export const getParticipants = (id) => client.get(`/tasks/${id}/participants`);
 
 export const inviteParticipants = (id, userIds, required) =>
@@ -69,5 +69,5 @@ export const inviteParticipants = (id, userIds, required) =>
 export const respondToInvite = (id, responseStatus) =>
   client.patch(`/tasks/${id}/participants/me`, { responseStatus });
 
-// ── 활동 이력 (백엔드 미구현) ───────────────────────
+// ── 활동 이력 ────────────────────────────────────────
 export const getActivityLogs = (id) => client.get(`/tasks/${id}/activity-logs`);

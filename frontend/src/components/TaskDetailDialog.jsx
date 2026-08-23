@@ -34,6 +34,7 @@ import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
 import HistoryIcon from '@mui/icons-material/History';
 
 import * as taskApi from '../api/tasks';
+import * as userApi from '../api/users';
 import { listCategories } from '../api/categories';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -55,6 +56,27 @@ import { formatDateTime } from '../utils/date';
 
 const TYPE_COLOR = { TODO: '#90a4ae', EVENT: '#1976d2', WBS_TASK: '#7b1fa2' };
 const TYPE_BG = { TODO: '#f0f4f5', EVENT: '#e8f0fc', WBS_TASK: '#f3e8fd' };
+
+// 참석자/활동이력 API는 userId만 내려주므로 프로필 조회로 이름을 채운다.
+function useUserNames(userIds) {
+  const [names, setNames] = useState({});
+  const key = [...new Set(userIds)].filter((id) => id != null).sort((a, b) => a - b).join(',');
+
+  useEffect(() => {
+    if (!key) return;
+    let cancelled = false;
+    Promise.all(
+      key.split(',').map((id) =>
+        userApi.getProfile(id).then((u) => [id, u?.name]).catch(() => [id, null])
+      )
+    ).then((pairs) => {
+      if (!cancelled) setNames(Object.fromEntries(pairs.filter(([, name]) => name)));
+    });
+    return () => { cancelled = true; };
+  }, [key]);
+
+  return names;
+}
 
 function InfoRow({ icon, label, children }) {
   return (
@@ -420,6 +442,8 @@ function ParticipantTab({ taskId }) {
 
   useEffect(() => { load(); }, [load]);
 
+  const names = useUserNames(list.map((p) => p.userId));
+
   const handleInvite = async () => {
     try {
       await taskApi.inviteParticipants(taskId, selected.map((u) => u.id), required);
@@ -476,7 +500,7 @@ function ParticipantTab({ taskId }) {
             {list.map((p) => (
               <Box key={p.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 1.5, py: 1, bgcolor: '#f8f9fb', border: '1px solid #e2e5ea', borderRadius: 1.5 }}>
                 <Box>
-                  <Typography variant="body2" fontWeight={600}>사용자 #{p.userId}</Typography>
+                  <Typography variant="body2" fontWeight={600}>{names[p.userId] ?? `사용자 #${p.userId}`}</Typography>
                   <Typography variant="caption" color="text.secondary">{p.required ? '필수 참석' : '선택 참석'}</Typography>
                 </Box>
                 <Chip size="small" color={PARTICIPANT_RESPONSE_COLOR[p.responseStatus]} label={PARTICIPANT_RESPONSE[p.responseStatus] ?? p.responseStatus} />
@@ -503,6 +527,8 @@ function ActivityTab({ taskId }) {
     return () => { cancelled = true; };
   }, [taskId, toast]);
 
+  const names = useUserNames(logs.map((log) => log.userId));
+
   if (logs.length === 0) {
     return <Typography variant="body2" color="text.secondary">기록된 활동이 없습니다.</Typography>;
   }
@@ -514,7 +540,7 @@ function ActivityTab({ taskId }) {
           <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'primary.light', mt: 0.75, flexShrink: 0 }} />
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
             <Typography variant="body2" fontWeight={600}>{ACTIVITY_ACTION[log.action] ?? log.action}</Typography>
-            <Typography variant="caption" color="text.secondary">사용자 #{log.userId} · {formatDateTime(log.createdAt)}</Typography>
+            <Typography variant="caption" color="text.secondary">{names[log.userId] ?? `사용자 #${log.userId}`} · {formatDateTime(log.createdAt)}</Typography>
           </Box>
         </Box>
       ))}

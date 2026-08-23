@@ -46,8 +46,7 @@ const STATUS_ACCENT = {
   PLANNED: '#567C83',
   IN_PROGRESS: '#3AAEA9',
   ON_HOLD: '#f59e0b',
-  COMPLETED: '#A2D5AB',
-  CANCELLED: '#9e9e9e',
+  DONE: '#A2D5AB',
 };
 
 export default function ProjectDetailPage() {
