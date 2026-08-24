@@ -564,7 +564,7 @@ export default function CalendarPage() {
             </Box>
           </Box>
 
-          <Box sx={{ p: 2, height: 700 }}>
+          <Box sx={{ p: 2, height: viewType === 'month' ? 'auto' : 700, minHeight: viewType === 'month' ? 620 : 700 }}>
             <DnDCalendar
               localizer={localizer}
               culture="ko"

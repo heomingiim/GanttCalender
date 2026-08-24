@@ -19,4 +19,5 @@ public interface StatsMapper {
 
     List<Task> findTodayEvents(Long userId);
     List<Task> findTodayWbsTasks(Long userId);
+    List<Task> findOverdueWbsTasks(Long userId);
 }

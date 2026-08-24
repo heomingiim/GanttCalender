@@ -92,7 +92,9 @@ public class StatsService {
                 .stream().map(TaskResponse::from).toList();
         List<TaskResponse> wbsTasks = statsMapper.findTodayWbsTasks(loginUser.id())
                 .stream().map(TaskResponse::from).toList();
-        return new DashboardResponse(todos, events, wbsTasks);
+        List<TaskResponse> overdueWbsTasks = statsMapper.findOverdueWbsTasks(loginUser.id())
+                .stream().map(TaskResponse::from).toList();
+        return new DashboardResponse(todos, events, wbsTasks, overdueWbsTasks);
     }
 
     // from을 안 주면 단위에 맞는 기본 구간을 잡는다

@@ -81,6 +81,7 @@ export default function DashboardPage() {
   const [todayTodos, setTodayTodos] = useState([]);
   const [todayEvents, setTodayEvents] = useState([]);
   const [todayWbsTasks, setTodayWbsTasks] = useState([]);
+  const [overdueWbsTasks, setOverdueWbsTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [detailId, setDetailId] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -93,6 +94,7 @@ export default function DashboardPage() {
       setTodayTodos(data.todayTodos ?? []);
       setTodayEvents(data.todayEvents ?? []);
       setTodayWbsTasks(data.todayWbsTasks ?? []);
+      setOverdueWbsTasks(data.overdueWbsTasks ?? []);
     } catch (err) {
       toast.apiError(err);
       setTodayTodos([]);

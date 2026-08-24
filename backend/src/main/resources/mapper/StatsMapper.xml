@@ -50,21 +50,25 @@
 
             UNION ALL
 
-            SELECT <include refid="periodExpr"/> AS period, t.status AS status
-            FROM date_range dr
-            JOIN tasks t ON DATE(COALESCE(t.start_date, t.created_at)) &lt;= dr.d
-                         AND (t.end_date IS NULL OR DATE(t.end_date) &gt;= dr.d)
-            JOIN task_assignees ta ON ta.task_id = t.id
+            <!-- WBS는 태스크당 1회만 카운트한다. 시작일 기준 구간에 집계하며,
+                 담당자 필터는 EXISTS로 처리해 담당자 수만큼 중복 집계되는 것을 막는다 -->
+            SELECT <include refid="taskPeriodExpr"/> AS period, t.status AS status
+            FROM tasks t
             WHERE t.is_deleted = false
               AND t.task_type = 'WBS_TASK'
-              <choose>
-                  <when test="deptIds != null and deptIds.size() > 0">
-                  AND ta.user_id IN (<include refid="deptUserIds"/>)
-                  </when>
-                  <otherwise>
-                  AND ta.user_id = #{userId}
-                  </otherwise>
-              </choose>
+              AND DATE(COALESCE(t.start_date, t.created_at)) BETWEEN DATE(#{from}) AND DATE(#{to})
+              AND EXISTS (
+                  SELECT 1 FROM task_assignees ta
+                  WHERE ta.task_id = t.id
+                    <choose>
+                        <when test="deptIds != null and deptIds.size() > 0">
+                        AND ta.user_id IN (<include refid="deptUserIds"/>)
+                        </when>
+                        <otherwise>
+                        AND ta.user_id = #{userId}
+                        </otherwise>
+                    </choose>
+              )
         ) combined
         GROUP BY period, status
 
@@ -94,10 +98,23 @@
         WHERE t.is_deleted = false
           AND t.task_type = 'WBS_TASK'
           AND t.status NOT IN ('DONE', 'CANCELLED')
-          AND t.start_date IS NOT NULL
           AND t.start_date &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+          AND (t.end_date &gt;= CURDATE()
+               OR (t.end_date IS NULL AND t.start_date &gt;= CURDATE()))
           AND (t.creator_id = #{userId} OR ta.user_id = #{userId})
         ORDER BY t.end_date IS NULL, t.end_date, t.start_date
+    </select>
+
+    <select id="findOverdueWbsTasks" resultMap="com.durian.groupware.task.mapper.TaskMapper.taskMap">
+        SELECT DISTINCT t.* FROM tasks t
+        LEFT JOIN task_assignees ta ON t.id = ta.task_id
+        WHERE t.is_deleted = false
+          AND t.task_type = 'WBS_TASK'
+          AND t.status NOT IN ('DONE', 'CANCELLED')
+          AND t.end_date IS NOT NULL
+          AND t.end_date &lt; CURDATE()
+          AND (t.creator_id = #{userId} OR ta.user_id = #{userId})
+        ORDER BY t.end_date DESC
     </select>
 
 </mapper>

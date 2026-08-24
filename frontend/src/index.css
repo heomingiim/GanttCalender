@@ -54,9 +54,28 @@ body > .MuiModal-root .MuiDialog-paper {
   border-left: 1px solid #e8eaee !important;
 }
 
-/* 월간 행 높이 - 최대 3개 이벤트 후 더보기 */
+/* 월간 행 높이 - 최대 3개 이벤트 후 더보기
+   RBC 월간뷰는 .rbc-row-content 의 offsetHeight 를 기반으로 rowLimit 을 계산한다.
+   (eventSpace / eventHeight) 가 표시 가능한 이벤트 수. 4개째부터 "+ N 더보기"
+   가 붙도록 컨테이너 높이를 고정. 이벤트 높이 ~22px, 헤더 ~28px → 3 슬롯 =
+   28 + 22*3 ≈ 94px. 여유 없이 딱 3만 들어가도록 96px 로 잡음. */
 .rbc-month-row {
-  min-height: 130px;
+  min-height: 0 !important;
+  height: 96px !important;
+  max-height: 96px !important;
+  flex: 0 0 96px !important;
+  overflow: hidden !important;
+}
+.rbc-month-view {
+  min-height: 0 !important;
+  overflow: hidden !important;
+  /* 부모(캘린더 컨테이너 height:700)에 맞춰 늘어나면 마지막 행이 비어 보인다.
+     행 합계 높이만큼만 차지하도록 flex 늘림 해제 */
+  flex: 0 0 auto !important;
+}
+.rbc-month-row .rbc-row-content {
+  max-height: 96px !important;
+  overflow: hidden !important;
 }
 
 /* 셀 테두리 */
