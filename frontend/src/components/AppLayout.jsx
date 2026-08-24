@@ -46,6 +46,7 @@ export default function AppLayout() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [sidebarAnchorEl, setSidebarAnchorEl] = useState(null);
 
   const currentItem = NAV_ITEMS.find((item) =>
     item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to)
@@ -53,6 +54,7 @@ export default function AppLayout() {
 
   const handleLogout = async () => {
     setAnchorEl(null);
+    setSidebarAnchorEl(null);
     await logout();
     navigate('/login', { replace: true });
   };
@@ -125,7 +127,7 @@ export default function AppLayout() {
       {/* 하단 유저 아바타 */}
       <Tooltip title={`${user?.name ?? ''} · ${USER_ROLE[user?.role] ?? user?.role ?? ''}`} placement="right" arrow>
         <Avatar
-          onClick={(e) => setAnchorEl(e.currentTarget)}
+          onClick={(e) => setSidebarAnchorEl(e.currentTarget)}
           sx={{
             width: 34, height: 34, mt: 1.5, mb: 0.5,
             bgcolor: 'primary.main', fontSize: 13,
@@ -264,7 +266,7 @@ export default function AppLayout() {
         </Toolbar>
       </AppBar>
 
-      {/* 유저 드롭다운 메뉴 */}
+      {/* AppBar 유저 드롭다운 (우상단) */}
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
@@ -272,6 +274,42 @@ export default function AppLayout() {
         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
         slotProps={{ paper: { sx: { mt: 0.5, minWidth: 200 } } }}
+      >
+        <MenuItem disabled sx={{ opacity: '1 !important', pb: 1 }}>
+          <Box>
+            <Typography variant="body2" fontWeight={700}>
+              {user?.name}
+              {user?.role ? ` · ${USER_ROLE[user.role] ?? user.role}` : ''}
+            </Typography>
+            {user?.positionRank && (
+              <Typography variant="caption" color="text.secondary" component="div">
+                {user.positionRank}{user?.departmentName ? ` · ${user.departmentName}` : ''}
+              </Typography>
+            )}
+            {user?.employeeNumber && (
+              <Typography variant="caption" color="text.secondary" component="div">
+                {user.employeeNumber}
+              </Typography>
+            )}
+            {user?.email && (
+              <Typography variant="caption" color="text.secondary" component="div">
+                {user.email}
+              </Typography>
+            )}
+          </Box>
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={handleLogout}>로그아웃</MenuItem>
+      </Menu>
+
+      {/* 사이드바 하단 아바타 드롭다운 (우상단 방향으로 열림) */}
+      <Menu
+        anchorEl={sidebarAnchorEl}
+        open={Boolean(sidebarAnchorEl)}
+        onClose={() => setSidebarAnchorEl(null)}
+        transformOrigin={{ horizontal: 'left', vertical: 'bottom' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'top' }}
+        slotProps={{ paper: { sx: { ml: 0.5, minWidth: 200 } } }}
       >
         <MenuItem disabled sx={{ opacity: '1 !important', pb: 1 }}>
           <Box>

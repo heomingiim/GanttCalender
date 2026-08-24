@@ -166,7 +166,7 @@ export default function TaskDetailDialog({ open, taskId, onClose, onChanged, onE
   const typeBg = TYPE_BG[task?.taskType] ?? '#f8f9fb';
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
       {/* 헤더 */}
       <Box sx={{ px: 3, pt: 2.5, pb: 2, borderBottom: '1px solid #e2e5ea', bgcolor: '#f8f9fb' }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>

@@ -94,9 +94,8 @@
         WHERE t.is_deleted = false
           AND t.task_type = 'WBS_TASK'
           AND t.status NOT IN ('DONE', 'CANCELLED')
+          AND t.start_date IS NOT NULL
           AND t.start_date &lt; DATE_ADD(CURDATE(), INTERVAL 1 DAY)
-          AND (t.end_date &gt;= CURDATE()
-               OR (t.end_date IS NULL AND t.start_date &gt;= CURDATE()))
           AND (t.creator_id = #{userId} OR ta.user_id = #{userId})
         ORDER BY t.end_date IS NULL, t.end_date, t.start_date
     </select>

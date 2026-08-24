@@ -139,10 +139,10 @@ export default function TaskFormDialog({
   const typeColor = TYPE_COLOR[form.taskType] ?? '#567C83';
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
       <Box component="form" onSubmit={handleSubmit}>
         {/* 다이얼로그 헤더 */}
-        <Box sx={{ px: 3, py: 2.5, background: 'linear-gradient(135deg, #567C83 0%, #3AAEA9 100%)', display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box sx={{ px: 3, py: 2.5, background: 'linear-gradient(135deg, #567C83 0%, #3AAEA9 100%)', display: 'flex', alignItems: 'center', gap: 2, borderRadius: '24px 24px 0 0' }}>
           <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             {isEdit ? <EditCalendarIcon sx={{ color: '#fff', fontSize: 22 }} /> : <AddCircleOutlineIcon sx={{ color: '#fff', fontSize: 22 }} />}
           </Box>
