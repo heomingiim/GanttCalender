@@ -25,19 +25,16 @@ public class NotificationController {
 
     private final NotificationService notificationService;
 
-    // GET /api/notifications
     @GetMapping
     public List<NotificationResponse> list(@Login LoginUser loginUser) {
         return notificationService.getMyNotifications(loginUser.id());
     }
 
-    // GET /api/notifications/unread-count — 프론트가 5초마다 폴링
     @GetMapping("/unread-count")
     public Map<String, Long> unreadCount(@Login LoginUser loginUser) {
         return Map.of("count", notificationService.getUnreadCount(loginUser.id()));
     }
 
-    // PATCH /api/notifications/{id}/read
     @PatchMapping("/{id}/read")
     public ResponseEntity<Void> markAsRead(@Login LoginUser loginUser,
                                            @PathVariable Long id) {
@@ -45,14 +42,12 @@ public class NotificationController {
         return ResponseEntity.ok().build();
     }
 
-    // PATCH /api/notifications/read-all
     @PatchMapping("/read-all")
     public ResponseEntity<Void> markAllAsRead(@Login LoginUser loginUser) {
         notificationService.markAllAsRead(loginUser.id());
         return ResponseEntity.ok().build();
     }
 
-    // DELETE /api/notifications/{id}
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@Login LoginUser loginUser,
                                        @PathVariable Long id) {
@@ -60,7 +55,6 @@ public class NotificationController {
         return ResponseEntity.ok().build();
     }
 
-    // DELETE /api/notifications
     @DeleteMapping
     public ResponseEntity<Void> deleteAll(@Login LoginUser loginUser) {
         notificationService.deleteAll(loginUser.id());

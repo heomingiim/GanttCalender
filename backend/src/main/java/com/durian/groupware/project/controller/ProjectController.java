@@ -34,13 +34,11 @@ public class ProjectController {
     private final TaskService taskService;
     private final ProjectMemberService projectMemberService;
 
-    // GET /api/projects — 내가 속한 프로젝트 목록
     @GetMapping
     public List<ProjectResponse> list(@Login LoginUser loginUser) {
         return projectService.getMyProjects(loginUser);
     }
 
-    // POST /api/projects
     @PostMapping
     public ResponseEntity<ProjectResponse> create(@Login LoginUser loginUser,
             @Valid @RequestBody ProjectRequest req) {
@@ -48,13 +46,11 @@ public class ProjectController {
                 .body(projectService.create(loginUser, req));
     }
 
-    // GET /api/projects/{id}
     @GetMapping("/{id}")
     public ProjectResponse get(@Login LoginUser loginUser, @PathVariable Long id) {
         return projectService.get(loginUser, id);
     }
 
-    // PUT /api/projects/{id} — ADMIN만
     @PutMapping("/{id}")
     public ProjectResponse update(@Login LoginUser loginUser,
             @PathVariable Long id,
@@ -73,9 +69,9 @@ public class ProjectController {
     public List<TaskTreeResponse> getProjectTasks(@Login LoginUser loginUser,
             @PathVariable Long id) {
  
-        projectMemberService.checkMember(loginUser.id(), id);
         // 멤버 확인만으로는 부족하다. 트리 안에서 작업별 열람 권한(canView)을 또 걸러야
         // 남의 비공개 작업·개인 투두가 목록에 섞이지 않는다.
+        projectMemberService.checkMember(loginUser.id(), id);
         return taskService.getProjectTree(loginUser, id);
     }
 }

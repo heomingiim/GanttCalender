@@ -26,13 +26,11 @@ public class CategoryController {
 
     private final CategoryService categoryService;
 
-    // GET /api/categories — 내 카테고리 + 팀 공용 카테고리
     @GetMapping
     public List<CategoryResponse> getMyCategories(@Login LoginUser loginUser) {
         return categoryService.getMyCategories(loginUser);
     }
 
-    // POST /api/categories
     @PostMapping
     public ResponseEntity<Void> create(@Login LoginUser loginUser,
                                        @Valid @RequestBody CategoryRequest req) {
@@ -40,7 +38,6 @@ public class CategoryController {
         return ResponseEntity.ok().build();
     }
 
-    // PUT /api/categories/{id}
     @PutMapping("/{id}")
     public ResponseEntity<Void> update(@Login LoginUser loginUser,
                                        @PathVariable Long id,
@@ -49,7 +46,6 @@ public class CategoryController {
         return ResponseEntity.ok().build();
     }
 
-    // DELETE /api/categories/{id}
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@Login LoginUser loginUser,
                                        @PathVariable Long id) {

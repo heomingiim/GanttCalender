@@ -27,8 +27,6 @@
         </foreach>
     </sql>
 
-    <!-- TODO/EVENT: 시작일 기준으로 속하는 기간에 1건 집계 -->
-    <!-- WBS_TASK: 기간 내 활성 상태(시작~종료가 쿼리 범위와 겹침)인 경우 집계 -->
     <select id="getStats" resultType="StatRow">
         WITH RECURSIVE date_range AS (
             SELECT DATE(#{from}) AS d
@@ -72,7 +70,6 @@
 
         UNION ALL
 
-        <!-- 매칭되는 작업이 없는 구간도 0건으로 표시되도록 자리를 깔아둔다 -->
         SELECT <include refid="periodExpr"/> AS period, NULL AS status, 0 AS count
         FROM date_range dr
 

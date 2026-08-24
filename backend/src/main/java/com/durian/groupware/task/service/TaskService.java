@@ -60,17 +60,14 @@ public class TaskService {
     private static final Set<String> ALLOWED_RESPONSES =
             Set.of("PENDING", "ACCEPTED", "DECLINED", "TENTATIVE");
 
-    // 생성
     @Transactional
     public TaskResponse create(LoginUser loginUser, TaskCreateRequest req) {
-        // 날짜 유효성 검사
         if (req.startDate() != null && req.endDate() != null
                 && req.startDate().isAfter(req.endDate())) {
             throw new BusinessException(ErrorCode.INVALID_TASK_DATE);
         }
         checkWithinProjectRange(req.projectId(), req.startDate(), req.endDate());
 
-        // WBS 작업은 프로젝트 관리자만 생성 가능
         if ("WBS_TASK".equals(req.taskType()) && req.projectId() != null
                 && !projectMemberService.isAdmin(loginUser.id(), req.projectId())) {
             throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
@@ -104,7 +101,6 @@ public class TaskService {
         return TaskResponse.from(taskMapper.findByIdNotDeleted(task.getId()));
     }
 
-    // 조회 (권한 체크 포함)
     public TaskResponse get(LoginUser loginUser, Long id) {
         Task task = taskMapper.findByIdNotDeleted(id);
         if (task == null) {
@@ -117,7 +113,6 @@ public class TaskService {
         return TaskResponse.from(task, edit, edit || canEditProgress(loginUser, task));
     }
 
-    // 수정
     @Transactional
     public TaskResponse update(LoginUser loginUser, Long id, TaskUpdateRequest req) {
         Task task = getEditable(loginUser, id);
@@ -154,7 +149,6 @@ public class TaskService {
         return TaskResponse.from(taskMapper.findByIdNotDeleted(id));
     }
 
-    // 삭제 (소프트)
     @Transactional
     public void delete(LoginUser loginUser, Long id) {
         Task task = getEditable(loginUser, id);
@@ -170,7 +164,6 @@ public class TaskService {
         syncProjectStatus(task);
     }
 
-    // 상태 변경 — 상태와 진행률을 함께 동기화
     @Transactional
     public TaskResponse changeStatus(LoginUser loginUser, Long id, String status) {
         Task task = getProgressEditable(loginUser, id);
@@ -200,7 +193,6 @@ public class TaskService {
         return TaskResponse.from(taskMapper.findByIdNotDeleted(id));
     }
 
-    // 진행률 변경 (상태 변경은 changeStatus 사용)
     @Transactional
     public TaskResponse changeProgress(LoginUser loginUser, Long id, int rate) {
         Task task = getProgressEditable(loginUser, id);
@@ -220,23 +212,16 @@ public class TaskService {
         return TaskResponse.from(taskMapper.findByIdNotDeleted(id));
     }
 
-    // WBS 작업의 진행률/상태가 바뀌었을 때 소속 프로젝트의 상태를 즉시 동기화한다.
     private void syncProjectStatus(Task task) {
         if (task.getProjectId() != null && "WBS_TASK".equals(task.getTaskType())) {
             projectService.syncStatus(task.getProjectId());
         }
     }
 
-    // ============ 내부 유틸 ============
-
     private void checkWithinProjectRange(Long projectId, LocalDateTime startDate, LocalDateTime endDate) {
-        if (projectId == null) {
-            return;
-        }
+        if (projectId == null) return;
         Project project = projectMapper.findByIdNotDeleted(projectId);
-        if (project == null) {
-            return;
-        }
+        if (project == null) return;
         boolean startOutOfRange = startDate != null
                 && (project.getStartDate() != null && startDate.toLocalDate().isBefore(project.getStartDate())
                     || project.getEndDate() != null && startDate.toLocalDate().isAfter(project.getEndDate()));
@@ -278,24 +263,16 @@ public class TaskService {
 
     private Task getEditable(LoginUser loginUser, Long id) {
         Task task = taskMapper.findByIdNotDeleted(id);
-        if (task == null) {
-            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
-        }
-        if (!canEdit(loginUser, task)) {
-            throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
-        }
+        if (task == null) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        if (!canEdit(loginUser, task)) throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
         return task;
     }
 
-    // 상태·진행률만 바꾸는 경로는 담당자에게도 허용한다
+    // 상태·진행률만 바꾸는 경로는 담당자에게도 허용한다 (getEditable과의 차이)
     private Task getProgressEditable(LoginUser loginUser, Long id) {
         Task task = taskMapper.findByIdNotDeleted(id);
-        if (task == null) {
-            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
-        }
-        if (canEdit(loginUser, task)) {
-            return task;
-        }
+        if (task == null) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        if (canEdit(loginUser, task)) return task;
         if ("WBS_TASK".equals(task.getTaskType())
                 && assigneeMapper.findUserIdsByTaskId(id).contains(loginUser.id())) {
             return task;
@@ -304,19 +281,10 @@ public class TaskService {
     }
 
     private boolean canEdit(LoginUser loginUser, Task task) {
-        // 생성자 본인이면 수정 가능
-        if (loginUser.id().equals(task.getCreatorId())) {
-            return true;
-        }
-        // 팀 공용 EVENT는 팀장급 이상도 수정 가능
-        if ("EVENT".equals(task.getTaskType()) && !"MEMBER".equals(loginUser.role())) {
-            return true;
-        }
-        // WBS 작업은 프로젝트 관리자도 수정 가능
+        if (loginUser.id().equals(task.getCreatorId())) return true; // 생성자 본인
+        if ("EVENT".equals(task.getTaskType()) && !"MEMBER".equals(loginUser.role())) return true; // 팀 공용 EVENT는 팀장급 이상도 수정 가능
         if ("WBS_TASK".equals(task.getTaskType()) && task.getProjectId() != null
-                && projectMemberService.isAdmin(loginUser.id(), task.getProjectId())) {
-            return true;
-        }
+                && projectMemberService.isAdmin(loginUser.id(), task.getProjectId())) return true; // WBS는 프로젝트 관리자도 수정 가능
         return false;
     }
 
@@ -327,19 +295,15 @@ public class TaskService {
     }
 
     private boolean canView(LoginUser loginUser, Task task) {
-        if (loginUser.id().equals(task.getCreatorId())) {
-            return true;
-        }
-        // 프로젝트에 속한 투두는 프로젝트 멤버에게 공개(WBS/간트에서 보이도록),
-        // 프로젝트가 없는 개인 투두는 작성자 본인만 볼 수 있다.
+        if (loginUser.id().equals(task.getCreatorId())) return true;
         if ("TODO".equals(task.getTaskType())) {
+            // 프로젝트에 속한 투두는 멤버에게 공개, 개인 투두는 작성자 본인만
             return task.getProjectId() != null
                     && projectMemberService.isMember(loginUser.id(), task.getProjectId());
         }
-        // WBS 작업은 visibility와 무관하게 프로젝트 멤버만 볼 수 있다.
-        // PUBLIC이어도 프로젝트 밖 사람에게 새면 안 된다 — getProjectTree의
-        // 멤버십 필터와 어긋나서, id만 알면 GET /api/tasks/{id}로 우회 조회가 가능해진다.
         if ("WBS_TASK".equals(task.getTaskType())) {
+            // visibility와 무관하게 프로젝트 멤버만 볼 수 있다.
+            // PUBLIC이어도 프로젝트 밖 사람에게 새면 안 된다 — id만 알면 GET /api/tasks/{id}로 우회 조회 가능
             return task.getProjectId() != null
                     && projectMemberService.isMember(loginUser.id(), task.getProjectId());
         }
@@ -350,10 +314,7 @@ public class TaskService {
             LocalDateTime from, LocalDateTime to,
             String scope, String keyword) {
         List<Long> deptIds = departmentService.resolveScopeDeptIds(loginUser, scope);
-
-        List<Task> tasks = taskMapper.searchCalendar(
-                loginUser.id(), deptIds, from, to, keyword
-        );
+        List<Task> tasks = taskMapper.searchCalendar(loginUser.id(), deptIds, from, to, keyword);
         return tasks.stream().map(t -> TaskResponse.from(t, canEdit(loginUser, t))).toList();
     }
 
@@ -377,9 +338,7 @@ public class TaskService {
 
     @Transactional
     public void reorder(LoginUser loginUser, List<Long> ids) {
-        if (ids == null || ids.isEmpty()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
-        }
+        if (ids == null || ids.isEmpty()) throw new BusinessException(ErrorCode.INVALID_INPUT);
 
         Map<Long, Task> tasks = taskMapper.findByIdsNotDeleted(ids).stream()
                 .collect(Collectors.toMap(Task::getId, t -> t));
@@ -402,21 +361,16 @@ public class TaskService {
         Task task = getEditable(loginUser, taskId);
 
         if (parentId != null) {
-            // 부모 존재 확인.
-            // 없는 id를 그대로 넘기면 parent_task_id FK 위반이 500으로 튀고,
+            // 없는 id를 넘기면 parent_task_id FK 위반이 500으로 튀고,
             // 삭제된(is_deleted) 부모를 넘기면 이 작업이 조용히 고아가 된다.
             Task parent = taskMapper.findByIdNotDeleted(parentId);
-            if (parent == null) {
-                throw new BusinessException(ErrorCode.PARENT_NOT_FOUND);
-            }
+            if (parent == null) throw new BusinessException(ErrorCode.PARENT_NOT_FOUND);
             // 다른 프로젝트의 작업을 부모로 두면 어느 쪽 트리에도 온전히 속하지 않는다
             if (!Objects.equals(parent.getProjectId(), task.getProjectId())) {
                 throw new BusinessException(ErrorCode.PARENT_OTHER_PROJECT);
             }
             // 순환 검사: parentId의 조상들 중에 taskId가 있으면 안 됨
-            if (isAncestor(taskId, parentId)) {
-                throw new BusinessException(ErrorCode.CIRCULAR_PARENT);
-            }
+            if (isAncestor(taskId, parentId)) throw new BusinessException(ErrorCode.CIRCULAR_PARENT);
         }
 
         taskMapper.updateParent(taskId, parentId);
@@ -424,18 +378,12 @@ public class TaskService {
         return TaskResponse.from(taskMapper.findByIdNotDeleted(taskId));
     }
 
-// parentId 위로 올라가면서 targetId가 있는지 확인
     private boolean isAncestor(Long targetId, Long startId) {
         Long current = startId;
         Set<Long> visited = new HashSet<>();
         while (current != null) {
-            if (current.equals(targetId)) {
-                return true;
-            }
-            if (visited.contains(current)) {
-                break; // 안전장치
-
-            }
+            if (current.equals(targetId)) return true;
+            if (visited.contains(current)) break;
             visited.add(current);
             Task t = taskMapper.findByIdNotDeleted(current);
             current = (t != null) ? t.getParentTaskId() : null;
@@ -467,77 +415,61 @@ public class TaskService {
             TaskTreeResponse parent = (t.getParentTaskId() == null)
                     ? null
                     : map.get(t.getParentTaskId());
-
             if (parent != null) {
                 parent.getChildren().add(map.get(t.getId()));
             } else {
-                // 최상위이거나, 부모가 이 목록에 없는 경우(삭제됨 / 볼 권한 없음 / 다른 프로젝트).
-                // 여기서 버리면 하위 트리까지 화면에서 사라지므로 최상위로 끌어올린다.
+                // 부모가 목록에 없는 경우(삭제됨/권한 없음/다른 프로젝트) → 최상위로 끌어올린다.
+                // 여기서 버리면 하위 트리까지 화면에서 사라진다.
                 roots.add(map.get(t.getId()));
             }
         }
         return roots;
     }
 
-    // 투두 화면의 "삭제"는 이걸 호출한다 — 프로젝트 작업 자체는 지우지 않고 담당에서만 뺀다.
-    // canEdit 없이 담당자 본인이면 된다
+    // 투두 화면의 "삭제"는 이걸 호출한다 — 프로젝트 작업 자체는 지우지 않고 담당에서만 뺀다
     @Transactional
     public void unassignSelf(LoginUser loginUser, Long taskId) {
         Task task = taskMapper.findByIdNotDeleted(taskId);
-        if (task == null) {
-            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
-        }
-        if (!"WBS_TASK".equals(task.getTaskType())) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
-        }
+        if (task == null) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        if (!"WBS_TASK".equals(task.getTaskType())) throw new BusinessException(ErrorCode.INVALID_INPUT);
         if (!assigneeMapper.findUserIdsByTaskId(taskId).contains(loginUser.id())) {
             throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
         }
         assigneeMapper.deleteByTaskAndUser(taskId, loginUser.id());
     }
 
-    // 담당자 전체 교체.
-    // ★ @Transactional 필수 ★ delete 후 insert가 실패하면(존재하지 않는 user_id로 FK 위반 등)
-    // 트랜잭션이 없을 때는 delete만 커밋되어 담당자가 0명인 채로 남는다.
+    // ★ @Transactional 필수 ★ delete 후 insert가 실패하면(FK 위반 등)
+    // 트랜잭션이 없으면 delete만 커밋되어 담당자가 0명인 채로 남는다.
     @Transactional
     public void replaceAssignees(LoginUser loginUser, Long taskId, List<Long> userIds) {
-        Task target = getEditable(loginUser, taskId); // 권한 확인
-        if (!"WBS_TASK".equals(target.getTaskType())) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
-        }
+        Task target = getEditable(loginUser, taskId);
+        if (!"WBS_TASK".equals(target.getTaskType())) throw new BusinessException(ErrorCode.INVALID_INPUT);
 
-        // 동시에 같은 작업의 담당자를 바꾸는 요청이 겹치면, 아래 "교체 전 명단" 조회가
-        // 서로 다른 시점을 보게 되어 중복 알림·유실 갱신이 난다. 행을 잠가 직렬화한다.
+        // 동시 요청이 겹치면 "교체 전 명단" 조회가 서로 다른 시점을 보게 되어 중복 알림이 난다. 직렬화.
         taskMapper.lockForUpdate(taskId);
 
         // 이미 담당자인 사람에게 또 알림을 보내지 않기 위해 교체 전 명단을 기억해둔다
         Set<Long> before = new HashSet<>(assigneeMapper.findUserIdsByTaskId(taskId));
 
-        List<Long> targets = (userIds != null)
-                ? userIds.stream().distinct().toList()
-                : List.of();
+        List<Long> targets = (userIds != null) ? userIds.stream().distinct().toList() : List.of();
         assigneeMapper.deleteByTaskId(taskId);
         if (!targets.isEmpty()) {
-            // 같은 사람이 두 번 들어오면 UNIQUE(task_id, user_id) 위반이 난다
             assigneeMapper.insertBatch(taskId, targets);
         }
 
-        // 제목을 루프 밖에서 한 번만 조회 (N+1 방지)
         String title = taskMapper.findByIdNotDeleted(taskId).getTitle();
         Set<Long> targetSet = new HashSet<>(targets);
         for (Long uid : targets) {
-            if (before.contains(uid)) {
-                continue; // 원래 담당자였던 사람은 새 지정이 아니다
+            if (!before.contains(uid)) {
+                notificationService.notifyNow(uid, taskId, "ASSIGN",
+                        "'" + title + "' 작업의 담당자로 지정되었습니다.");
             }
-            notificationService.notifyNow(uid, taskId, "ASSIGN",
-                    "'" + title + "' 작업의 담당자로 지정되었습니다.");
         }
         for (Long uid : before) {
-            if (targetSet.contains(uid)) {
-                continue; // 그대로 유지된 담당자
+            if (!targetSet.contains(uid)) {
+                notificationService.notifyNow(uid, taskId, "UNASSIGN",
+                        "'" + title + "' 작업의 담당자에서 제외되었습니다.");
             }
-            notificationService.notifyNow(uid, taskId, "UNASSIGN",
-                    "'" + title + "' 작업의 담당자에서 제외되었습니다.");
         }
     }
 
@@ -545,27 +477,17 @@ public class TaskService {
     public void inviteParticipants(LoginUser loginUser, Long taskId,
             List<Long> userIds, Boolean required) {
         Task task = taskMapper.findByIdNotDeleted(taskId);
-        if (task == null) {
-            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
-        }
-        if (!canView(loginUser, task)) {
-            throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
-        }
-        if ("TODO".equals(task.getTaskType())) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
-        }
-        if (userIds == null || userIds.isEmpty()) {
-            return;
-        }
+        if (task == null) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        if (!canView(loginUser, task)) throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
+        if ("TODO".equals(task.getTaskType())) throw new BusinessException(ErrorCode.INVALID_INPUT);
+        if (userIds == null || userIds.isEmpty()) return;
 
         taskMapper.lockForUpdate(taskId); // replaceAssignees와 같은 이유로 직렬화
 
-        // 기존 참석자를 "필수 여부까지" 기억해둔다.
-        // 누가 새로 초대됐는지, 누가 선택 → 필수로 바뀌었는지 구분해야
+        // 기존 참석자를 "필수 여부까지" 기억해둔다 — 누가 새로 초대됐는지, 선택→필수로 바뀌었는지 구분해야
         // 초대 버튼을 다시 눌렀을 때 중복 알림이 가지 않는다.
         Map<Long, Boolean> beforeRequired = participantMapper.findByTaskId(taskId).stream()
-                .collect(Collectors.toMap(TaskParticipant::getUserId,
-                        TaskParticipant::isRequired));
+                .collect(Collectors.toMap(TaskParticipant::getUserId, TaskParticipant::isRequired));
 
         List<Long> targets = userIds.stream().distinct().toList();
         boolean nowRequired = Boolean.TRUE.equals(required);
@@ -575,7 +497,6 @@ public class TaskService {
         String title = taskMapper.findByIdNotDeleted(taskId).getTitle();
         for (Long uid : targets) {
             Boolean wasRequired = beforeRequired.get(uid);
-
             if (wasRequired == null) {
                 if (task.getProjectId() != null) {
                     projectMemberService.ensureMember(uid, task.getProjectId());
@@ -591,58 +512,36 @@ public class TaskService {
         }
     }
 
-// 참석자 목록
     public List<TaskParticipantResponse> getParticipants(LoginUser loginUser, Long taskId) {
         Task task = taskMapper.findByIdNotDeleted(taskId);
-        if (task == null) {
-            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
-        }
-        if (!canView(loginUser, task)) {
-            throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
-        }
-
-        return participantMapper.findByTaskId(taskId)
-                .stream().map(TaskParticipantResponse::from).toList();
+        if (task == null) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        if (!canView(loginUser, task)) throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
+        return participantMapper.findByTaskId(taskId).stream().map(TaskParticipantResponse::from).toList();
     }
 
-    // 담당자 목록 — PUT /assignees가 전체 교체라, 화면이 현재 담당자를 먼저 읽어야
-    // "안 보이는 사람을 실수로 지우는" 사고를 막을 수 있다.
+    // PUT /assignees가 전체 교체라, 화면이 현재 담당자를 먼저 읽어야 "모르는 사람을 실수로 지우는" 사고를 막을 수 있다.
     public List<UserSummaryResponse> getAssignees(LoginUser loginUser, Long taskId) {
         Task task = taskMapper.findByIdNotDeleted(taskId);
-        if (task == null) {
-            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
-        }
-        if (!canView(loginUser, task)) {
-            throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
-        }
+        if (task == null) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        if (!canView(loginUser, task)) throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
         return assigneeMapper.findAssigneesByTaskId(taskId);
     }
 
-    // 활동 이력 조회 권한 확인. get()과 달리 findById로 삭제된 작업도 찾는다 —
-    // 삭제 직후 "DELETE" 이력을 못 보게 되는 문제(is_deleted 필터에 걸려 404)를 막는다.
+    // get()과 달리 findById로 삭제된 작업도 찾는다 — 삭제 직후 "DELETE" 이력이 is_deleted 필터에 걸려 404가 나는 문제를 막는다.
     public void checkViewableForHistory(LoginUser loginUser, Long id) {
         Task task = taskMapper.findById(id);
-        if (task == null) {
-            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
-        }
-        if (!canView(loginUser, task)) {
-            throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
-        }
+        if (task == null) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        if (!canView(loginUser, task)) throw new BusinessException(ErrorCode.TASK_FORBIDDEN);
     }
 
-// 내 응답 변경 — 본인 응답만 바꾸므로 편집 권한은 필요 없다
     @Transactional
     public void respondToInvite(LoginUser loginUser, Long taskId, String responseStatus) {
-        // @NotNull만으로는 아무 문자열이나 통과한다. 화면은 코드값을 그대로 렌더링하고,
-        // VARCHAR(20)을 넘으면 DB에서 잘리거나 에러가 난다.
+        // @NotNull만으로는 아무 문자열이나 통과한다. VARCHAR(20)을 넘으면 DB에서 잘리거나 에러가 난다.
         if (!ALLOWED_RESPONSES.contains(responseStatus)) {
             throw new BusinessException(ErrorCode.INVALID_PARTICIPANT_RESPONSE);
         }
-
         int updated = participantMapper.updateResponse(taskId, loginUser.id(), responseStatus);
-        if (updated == 0) {
-            // 참석자가 아니면 0건이 갱신된다. 그대로 200을 주면 호출자가 성공으로 오해한다.
-            throw new BusinessException(ErrorCode.NOT_PARTICIPANT);
-        }
+        // 참석자가 아니면 0건이 갱신된다. 그대로 200을 주면 호출자가 성공으로 오해한다.
+        if (updated == 0) throw new BusinessException(ErrorCode.NOT_PARTICIPANT);
     }
 }

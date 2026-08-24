@@ -5,8 +5,6 @@ import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDateTime;
 
-// taskType: TODO / EVENT / WBS_TASK
-// projectId, parentTaskId는 WBS 작업일 때만 사용 (일반 일정/투두는 null)
 public record TaskCreateRequest(
     Long projectId,
     Long parentTaskId,
@@ -17,8 +15,8 @@ public record TaskCreateRequest(
     String deliverable,
     @NotNull LocalDateTime startDate,
     @NotNull LocalDateTime endDate,
-    Boolean allDay,         // null이면 false로 처리
-    String visibility,      // null이면 PUBLIC
-    String status,          // null이면 TODO
-    String priority         // null이면 MEDIUM
+    Boolean allDay,
+    String visibility,
+    String status,
+    String priority
 ) {}

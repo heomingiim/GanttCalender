@@ -61,14 +61,6 @@
         WHERE id = #{id}
     </update>
 
-    <!--
-        status != #{status} 가드가 핵심이다. 같은 작업에 CANCELLED로 바꾸는 요청이
-        동시에 두 번 오면, 먼저 커밋되는 쪽이 이 행을 잠그고(InnoDB row lock),
-        나중 요청은 그 커밋 이후에야 이 WHERE를 다시 평가한다. 그때는 이미
-        status가 CANCELLED라 조건이 거짓이 되어 0건이 갱신된다.
-        서비스단은 이 반환값으로 "실제로 상태가 바뀌었는지"를 판단해
-        취소 알림이 중복 발송되지 않게 한다.
-    -->
     <update id="changeStatus">
         UPDATE tasks SET status = #{status}, progress_rate = #{progressRate},
                          updated_at = NOW()

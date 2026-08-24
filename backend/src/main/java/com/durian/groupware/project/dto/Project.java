@@ -7,7 +7,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-// projects 테이블에 대응
 @Getter
 @Setter
 @NoArgsConstructor

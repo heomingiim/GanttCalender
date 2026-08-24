@@ -158,6 +158,7 @@ gradlew bootRun
 
 ```
 GanttCalender/
+├── employees.csv     직원 시드 데이터 (2,000명), 첫 실행 시 DataSeeder가 읽음
 ├── backend/          Spring Boot 3.5.16 + MyBatis 3.0.5 + MySQL (Java 21 / Gradle 8.14.5)
 │   ├── build.gradle
 │   ├── settings.gradle

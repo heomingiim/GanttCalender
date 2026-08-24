@@ -14,7 +14,6 @@ public interface ProjectMemberMapper {
                                       @Param("userId") Long userId);
     List<ProjectMember> findByProjectId(Long projectId);
 
-    // 멤버 목록 응답용 — users/departments를 JOIN해서 이름까지 채워 온다
     List<ProjectMemberResponse> findMembersByProjectId(Long projectId);
 
     void insert(ProjectMember member);

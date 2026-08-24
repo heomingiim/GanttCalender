@@ -13,8 +13,8 @@ public class TaskParticipant {
     private Long id;
     private Long taskId;
     private Long userId;
-    private boolean required;         // 필수 참석 여부
-    private String responseStatus;    // PENDING / ACCEPTED / DECLINED / TENTATIVE
+    private boolean required;
+    private String responseStatus;
     private LocalDateTime respondedAt;
     private LocalDateTime createdAt;
 }

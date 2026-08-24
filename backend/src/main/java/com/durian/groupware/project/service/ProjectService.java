@@ -90,14 +90,12 @@ public class ProjectService {
         return toResponse(project);
     }
 
-    // 내가 속한 프로젝트 목록
     public List<ProjectResponse> getMyProjects(LoginUser loginUser) {
         return projectMapper.findByMemberId(loginUser.id()).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
-    // 상세 — 멤버만 조회 가능
     public ProjectResponse get(LoginUser loginUser, Long id) {
         Project project = projectMapper.findByIdNotDeleted(id);
         if (project == null) throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
@@ -124,7 +122,6 @@ public class ProjectService {
         return toResponse(projectMapper.findByIdNotDeleted(id));
     }
 
-    // 소프트 삭제
     public void delete(LoginUser loginUser, Long id) {
         Project project = projectMapper.findByIdNotDeleted(id);
         if (project == null) throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
@@ -139,7 +136,6 @@ public class ProjectService {
         }
     }
 
-    // ADMIN만 수정/삭제 가능
     private void checkAdmin(LoginUser loginUser, Long projectId) {
         ProjectMember member = memberMapper.findByProjectAndUser(projectId, loginUser.id());
         if (member == null || !"ADMIN".equals(member.getRole())) {

@@ -32,8 +32,6 @@ public record TaskResponse(
         return from(t, canEdit, canEdit);
     }
 
-    // canEdit: 제목/기간/삭제 등 전체 편집 권한 (작성자 · 관리자)
-    // canEditProgress: 상태/진행률만 바꿀 수 있는 권한 (담당자 포함)
     public static TaskResponse from(Task t, boolean canEdit, boolean canEditProgress) {
         return new TaskResponse(
             t.getId(),

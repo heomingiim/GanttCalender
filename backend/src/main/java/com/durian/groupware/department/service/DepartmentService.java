@@ -25,17 +25,15 @@ public class DepartmentService {
 
     private final DepartmentMapper departmentMapper;
 
-    // 전체 조직 목록을 한 번에 가져와서 메모리에서 트리로 조립
     public List<DepartmentTreeResponse> getTree() {
+        // 전체 조직 목록을 한 번에 가져와서 메모리에서 트리로 조립
         List<Department> all = departmentMapper.findAll();
 
-        // 1. id → Department 맵 만들기
         Map<Long, DepartmentTreeResponse> map = new LinkedHashMap<>();
         for (Department dept : all) {
             map.put(dept.getId(), DepartmentTreeResponse.from(dept));
         }
 
-        // 2. 부모에 자식 붙이기
         List<DepartmentTreeResponse> roots = new ArrayList<>();
         for (Department dept : all) {
             if (dept.getParentId() == null) {
@@ -50,7 +48,8 @@ public class DepartmentService {
         return roots;
     }
 
-    // 캘린더 조회 시 scope 계산: MY → 빈 리스트, TEAM → 내 팀 ID
+    // 캘린더 조회 시 scope 계산: MY → 빈 리스트(= 본인만), TEAM → 내 소속 + 산하 조직 id 전체
+    // 팀 소속이면 자기 팀 하나, 부서 직속(임원)이면 부서 + 산하 팀 전부가 잡힌다
     public List<Long> resolveScopeDeptIds(LoginUser loginUser, String scope) {
         if ("MY".equals(scope) || scope == null) {
             return List.of();
@@ -64,8 +63,6 @@ public class DepartmentService {
         throw new BusinessException(ErrorCode.SCOPE_NOT_ALLOWED);
     }
 
-    // 내 소속 + 그 아래 모든 하위 조직 id
-    // 팀 소속이면 자기 팀 하나, 부서 직속(임원)이면 부서 + 산하 팀 전부가 잡힌다
     private List<Long> collectSubtreeIds(Long rootId) {
         Map<Long, List<Long>> childrenByParent = new HashMap<>();
         for (Department dept : departmentMapper.findAll()) {

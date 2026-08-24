@@ -50,12 +50,11 @@ public class DataSeeder implements ApplicationRunner {
                     "employees.csv를 찾을 수 없습니다: " + file.getAbsolutePath());
         }
 
-        // 1. 조직도 미리 생성 (회사 > 부 > 팀)
-        //    CSV에서 부서/팀 이름을 수집해서 departments 테이블에 INSERT
+        // 1. 조직도 미리 생성 (회사 > 부 > 팀) — CSV에서 부서/팀 이름을 수집해서 departments 테이블에 INSERT
         Map<String, Long> deptIdMap = buildDepartments();
 
         // 2. CSV 읽어서 사용자 INSERT
-        int unassigned = 0;   // 소속(department_id)을 정하지 못한 인원 수
+        int unassigned = 0;  // 소속(department_id)을 정하지 못한 인원 수
         try (Reader reader = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8);
              CSVParser parser = CSVFormat.DEFAULT
                      .withFirstRecordAsHeader()

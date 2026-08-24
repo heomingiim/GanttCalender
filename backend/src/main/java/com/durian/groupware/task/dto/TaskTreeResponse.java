@@ -8,7 +8,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-// 간트차트/WBS 트리 응답. children에 하위 작업이 재귀적으로 담긴다.
 @Getter
 @Setter
 @NoArgsConstructor
@@ -16,11 +15,11 @@ public class TaskTreeResponse {
     private Long id;
     private Long parentTaskId;
     private String title;
-    private String taskType;      // TODO / EVENT / WBS_TASK
+    private String taskType;
     private String status;
     private String priority;
     private String deliverable;
-    private String assigneeNames; // 담당자 이름을 ", "로 이어붙인 표시용 문자열
+    private String assigneeNames;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private Integer progressRate;

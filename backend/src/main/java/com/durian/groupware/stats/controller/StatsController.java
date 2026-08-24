@@ -22,7 +22,6 @@ public class StatsController {
 
     private final StatsService statsService;
 
-    // GET /api/stats/personal?unit=WEEK&from=2026-07-01&to=2026-08-12&scope=TEAM
     @GetMapping("/personal")
     public StatsResponse personal(
             @Login LoginUser loginUser,

@@ -29,14 +29,12 @@ public class ProjectMemberController {
 
     private final ProjectMemberService projectMemberService;
 
-    // GET /api/projects/{id}/members
     @GetMapping
     public List<ProjectMemberResponse> list(@Login LoginUser loginUser,
                                             @PathVariable Long id) {
         return projectMemberService.getMembers(loginUser, id);
     }
 
-    // POST /api/projects/{id}/members — ADMIN만
     @PostMapping
     public ResponseEntity<Void> addMember(@Login LoginUser loginUser,
                                           @PathVariable Long id,
@@ -45,7 +43,6 @@ public class ProjectMemberController {
         return ResponseEntity.ok().build();
     }
 
-    // DELETE /api/projects/{id}/members/{userId} — ADMIN만
     @DeleteMapping("/{userId}")
     public ResponseEntity<Void> removeMember(@Login LoginUser loginUser,
                                              @PathVariable Long id,
@@ -54,7 +51,6 @@ public class ProjectMemberController {
         return ResponseEntity.ok().build();
     }
 
-    // PATCH /api/projects/{id}/members/{userId}/role — ADMIN만
     @PatchMapping("/{userId}/role")
     public ResponseEntity<Void> changeRole(@Login LoginUser loginUser,
                                            @PathVariable Long id,

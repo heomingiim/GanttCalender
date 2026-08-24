@@ -48,7 +48,6 @@ public class TaskController {
     private final TaskService taskService;
     private final ActivityLogService activityLogService;
 
-    // POST /api/tasks
     @PostMapping
     public ResponseEntity<TaskResponse> create(@Login LoginUser loginUser,
             @Valid @RequestBody TaskCreateRequest req) {
@@ -56,13 +55,11 @@ public class TaskController {
                 .body(taskService.create(loginUser, req));
     }
 
-    // GET /api/tasks/{id}
     @GetMapping("/{id}")
     public TaskResponse get(@Login LoginUser loginUser, @PathVariable Long id) {
         return taskService.get(loginUser, id);
     }
 
-    // PUT /api/tasks/{id}
     @PutMapping("/{id}")
     public TaskResponse update(@Login LoginUser loginUser,
             @PathVariable Long id,
@@ -70,14 +67,12 @@ public class TaskController {
         return taskService.update(loginUser, id, req);
     }
 
-    // DELETE /api/tasks/{id} — 소프트 삭제
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@Login LoginUser loginUser, @PathVariable Long id) {
         taskService.delete(loginUser, id);
         return ResponseEntity.ok().build();
     }
 
-    // PATCH /api/tasks/{id}/status
     @PatchMapping("/{id}/status")
     public TaskResponse changeStatus(@Login LoginUser loginUser,
             @PathVariable Long id,
@@ -85,7 +80,6 @@ public class TaskController {
         return taskService.changeStatus(loginUser, id, req.status());
     }
 
-    // PATCH /api/tasks/{id}/progress
     @PatchMapping("/{id}/progress")
     public TaskResponse changeProgress(@Login LoginUser loginUser,
             @PathVariable Long id,
@@ -93,8 +87,6 @@ public class TaskController {
         return taskService.changeProgress(loginUser, id, req.progressRate());
     }
 
-    // PATCH /api/tasks/{id}/parent — 상위 작업 변경 (WBS 계층 이동)
-    // parentTaskId가 null이면 최상위로 올린다
     @PatchMapping("/{id}/parent")
     public TaskResponse setParent(@Login LoginUser loginUser,
             @PathVariable Long id,
@@ -102,16 +94,12 @@ public class TaskController {
         return taskService.setParent(loginUser, id, req.parentTaskId());
     }
 
-    // GET /api/tasks/{id}/assignees — 현재 담당자 목록
-    // PUT이 전체 교체라, 화면이 이걸 먼저 읽어야 기존 담당자를 실수로 지우지 않는다
     @GetMapping("/{id}/assignees")
     public List<UserSummaryResponse> getAssignees(@Login LoginUser loginUser,
             @PathVariable Long id) {
         return taskService.getAssignees(loginUser, id);
     }
 
-    // PUT /api/tasks/{id}/assignees — 담당자 교체
-    // 빈 리스트를 보내면 담당자 전체 해제
     @PutMapping("/{id}/assignees")
     public ResponseEntity<Void> replaceAssignees(@Login LoginUser loginUser,
             @PathVariable Long id,
@@ -120,9 +108,6 @@ public class TaskController {
         return ResponseEntity.ok().build();
     }
 
-    // DELETE /api/tasks/{id}/assignees/me — 담당자 본인이 스스로를 빼는 것.
-    // 투두 화면의 WBS 작업 "삭제"는 프로젝트 작업 자체가 아니라 이 API로 처리해
-    // 내 목록에서만 없어지고 프로젝트에는 남게 한다
     @DeleteMapping("/{id}/assignees/me")
     public ResponseEntity<Void> unassignSelf(@Login LoginUser loginUser, @PathVariable Long id) {
         taskService.unassignSelf(loginUser, id);
@@ -151,7 +136,6 @@ public class TaskController {
         throw new BusinessException(ErrorCode.INVALID_INPUT);
     }
 
-    // PUT /api/tasks/reorder
     @PutMapping("/reorder")
     public ResponseEntity<Void> reorder(@Login LoginUser loginUser,
             @RequestBody TaskReorderRequest req) {
@@ -167,14 +151,12 @@ public class TaskController {
         return ResponseEntity.ok().build();
     }
 
-// GET /api/tasks/{id}/participants
     @GetMapping("/{id}/participants")
     public List<TaskParticipantResponse> participants(@Login LoginUser loginUser,
             @PathVariable Long id) {
         return taskService.getParticipants(loginUser, id);
     }
 
-// PATCH /api/tasks/{id}/participants/me
     @PatchMapping("/{id}/participants/me")
     public ResponseEntity<Void> respond(@Login LoginUser loginUser,
             @PathVariable Long id,
