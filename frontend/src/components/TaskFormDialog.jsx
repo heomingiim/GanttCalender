@@ -223,7 +223,7 @@ export default function TaskFormDialog({
               sx={{ alignSelf: 'center' }}
             />
 
-            {form.taskType !== 'WBS_TASK' && (
+            {form.taskType === 'EVENT' && (
               <TextField select label="구분" value={form.visibility} onChange={setField('visibility')} size="small">
                 {Object.entries(VISIBILITY).map(([code, label]) => (
                   <MenuItem key={code} value={code}>{label}</MenuItem>

@@ -50,13 +50,12 @@
 
             UNION ALL
 
-            SELECT <include refid="periodExpr"/> AS period, t.status AS status
-            FROM date_range dr
-            JOIN tasks t ON DATE(COALESCE(t.start_date, t.created_at)) &lt;= dr.d
-                         AND (t.end_date IS NULL OR DATE(t.end_date) &gt;= dr.d)
+            SELECT <include refid="taskPeriodExpr"/> AS period, t.status AS status
+            FROM tasks t
             JOIN task_assignees ta ON ta.task_id = t.id
             WHERE t.is_deleted = false
               AND t.task_type = 'WBS_TASK'
+              AND DATE(COALESCE(t.start_date, t.created_at)) BETWEEN DATE(#{from}) AND DATE(#{to})
               <choose>
                   <when test="deptIds != null and deptIds.size() > 0">
                   AND ta.user_id IN (<include refid="deptUserIds"/>)

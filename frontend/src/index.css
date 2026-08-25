@@ -42,16 +42,24 @@ body > .MuiModal-root .MuiDialog-paper {
 
 /* 요일 헤더 */
 .rbc-header {
+  height: 44px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #8a94a6;
   font-weight: 700;
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 10px 4px;
+  padding: 0 4px;
   border-bottom: 1px solid #e8eaee !important;
 }
 .rbc-header + .rbc-header {
   border-left: 1px solid #e8eaee !important;
+}
+.rbc-row.rbc-time-header-cell {
+  flex-shrink: 0;
 }
 
 /* 월간 행 높이
@@ -87,6 +95,40 @@ body > .MuiModal-root .MuiDialog-paper {
 .rbc-time-header-content,
 .rbc-time-content {
   border-color: #e8eaee !important;
+}
+/* "8/23(일)~8/29(토)" 요일 라벨 줄과 그 아래 종일 일정들이 쌓이는 줄
+   (rbc-allday-cell)을 구분선으로 나눈다 — 지금은 경계가 없어서 한 줄처럼
+   붙어 보인다. */
+.rbc-allday-cell {
+  border-top: 1px solid #e8eaee;
+}
+
+/* 요일 헤더의 왼쪽 빈 칸(rbc-time-header-gutter)과 시간표 본문의 시간 라벨 칸
+   (rbc-time-gutter)은 같은 폭이어야 요일 헤더와 그 아래 시간표 칸이 일직선으로
+   맞는다. RBC가 이 폭을 JS로 측정해서 인라인 style로 맞춰주긴 하는데(스크롤바
+   유무·폰트 로딩 시점 등에 따라) 실제로는 어긋나는 경우가 있어서, 아예 두 칸의
+   폭을 여기서 고정값으로 못박아 항상 같게 만든다. */
+.rbc-time-header-gutter,
+.rbc-time-gutter {
+  width: 60px !important;
+  min-width: 60px !important;
+  max-width: 60px !important;
+}
+
+.rbc-time-header-gutter {
+  position: relative;
+}
+.rbc-time-header-gutter::after {
+  content: "종일";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #8a94a6;
+  pointer-events: none;
 }
 .rbc-timeslot-group {
   border-color: #e8eaee !important;
@@ -138,6 +180,40 @@ body > .MuiModal-root .MuiDialog-paper {
   opacity: 0.92;
   transition: opacity 0.15s, transform 0.15s;
 }
+.rbc-day-slot .rbc-events-container {
+  margin-right: 0 !important;
+}
+.rbc-day-slot .rbc-event {
+  overflow: visible !important;
+  border-radius: 0 !important;
+  width: 100% !important;
+  left: 0 !important;
+}
+.rbc-day-slot .rbc-event:focus {
+  outline: none;
+}
+.rbc-day-slot .rbc-event:focus .rbc-event-content {
+  outline: 2px solid #3b99fc;
+  outline-offset: 1px;
+}
+.rbc-day-slot .rbc-event {
+  background: transparent !important;
+  padding: 0 !important;
+}
+.rbc-day-slot .rbc-event-content {
+  flex: none !important;
+  height: auto !important;
+  line-height: normal !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: var(--rbc-ev-color, #3174ad);
+  border-radius: 999px;
+  padding: 1px 8px;
+  margin-top: calc(var(--rbc-stack-index, 0) * 22px);
+}
 /* isMoreEvent(월간 뷰에서 우리가 직접 만든 "+N개 더보기" 가짜 이벤트) 표시 */
 .rbc-event.rbc-more-event {
   background: rgba(58, 174, 169, 0.1) !important;
@@ -151,9 +227,17 @@ body > .MuiModal-root .MuiDialog-paper {
 .rbc-event.rbc-selected {
   background-color: inherit;
 }
+/* 주/일간 뷰의 시간 지정 일정은 시작~종료 시각(rbc-event-label)과 제목(rbc-event-content)을
+   같이 그리는데, 알약(pill) 모양으로 좁게 줄여둔 이벤트 박스 안에 시간까지 들어가면
+   제목이 잘려서 안 보인다. 어차피 그리드 위치로 시간대는 짐작되므로 시간 라벨은 기본
+   숨기고 제목만 남긴다. 다만 여러 날에 걸치는 일정이 그 날 앞뒤로 다 걸쳐있을 땐
+   (rbc-event-continues-earlier + -later 둘 다 붙음) RBC가 시간 대신 "종일" 텍스트를
+   이 라벨 자리에 넣어주므로, 그 경우만 예외로 다시 보여준다. */
 .rbc-event-label {
-  font-size: 11px;
-  font-weight: 600;
+  display: none;
+}
+.rbc-event.rbc-event-continues-earlier.rbc-event-continues-later .rbc-event-label {
+  display: block;
 }
 
 /* 더보기 링크 (RBC 자체 계산이 불안정해서 실제로는 거의 안 쓰이고, 우리가 만든
@@ -194,10 +278,8 @@ body > .MuiModal-root .MuiDialog-paper {
   border-radius: 12px 12px 0 0;
 }
 
-/* 현재 시간 표시 */
 .rbc-current-time-indicator {
-  background-color: #3AAEA9 !important;
-  height: 2px;
+  display: none;
 }
 
 /* 시간 레이블 */
@@ -207,16 +289,62 @@ body > .MuiModal-root .MuiDialog-paper {
   font-weight: 600;
 }
 
-/* 시간 슬롯 높이 */
+/* 시간 슬롯 높이 — 30분 단위 세부 구분을 없애고 1시간 단위(step=60, timeslots=1)로만
+   보여주기로 했으므로, 예전에 30분 칸 2개를 담던 높이(40px)를 그대로 쓸 필요가 없다.
+   한 시간이 칸 하나이므로 더 낮춰서 표 전체 높이를 줄인다. */
 .rbc-timeslot-group {
-  min-height: 40px;
+  min-height: 62px;
 }
+/* (되돌림) 일정 박스에 min-height를 강제로 넣어서 30분짜리를 1시간칸만큼
+   키워봤지만, RBC는 이벤트의 top/height를 실제 시작·종료 시각 기준 퍼센트로
+   미리 계산해서 절대위치(position:absolute)로 배치한다. 여기에 CSS로 높이만
+   강제로 늘리면 "시작 위치"는 원래 계산된 그대로(예: 08:30 지점)인데 박스
+   "바닥"만 아래로 늘어나면서, 뒤이어 붙어있는 다음 일정과 겹쳐 보이거나 위치가
+   틀어져 보이는 문제가 생긴다. RBC 기본 동작대로 실제 길이에 비례해서 그리는
+   쪽이 위치 정확성을 지킨다. */
 
 /* 목록(agenda) 뷰 */
+.rbc-agenda-view {
+  border: 1px solid #e8eaee !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  flex: none !important;
+  height: auto !important;
+}
 .rbc-agenda-view table {
-  border: 1px solid #e8eaee;
-  border-radius: 12px;
-  overflow: hidden;
+  border: none !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+.rbc-agenda-view th.rbc-header {
+  display: table-cell;
+  height: auto;
+  box-sizing: border-box;
+  padding: 5px 10px;
+  text-align: left;
+  border-bottom: 1px solid #e8eaee;
+}
+.rbc-agenda-view th.rbc-header + th.rbc-header {
+  border-left: 1px solid #e8eaee !important;
+}
+.rbc-agenda-view table {
+  table-layout: fixed;
+}
+.rbc-agenda-view th:nth-child(1),
+.rbc-agenda-view td:nth-child(1) {
+  width: 110px !important;
+}
+.rbc-agenda-view th:nth-child(2),
+.rbc-agenda-view td:nth-child(2) {
+  width: 140px !important;
+}
+.rbc-agenda-view table tbody tr {
+  background: #fff !important;
+  color: #333 !important;
+}
+.rbc-agenda-view td.rbc-agenda-time-cell,
+.rbc-agenda-view td.rbc-agenda-event-cell {
+  border-left: 1px solid #e8eaee !important;
 }
 .rbc-agenda-date-cell,
 .rbc-agenda-time-cell {
@@ -226,8 +354,9 @@ body > .MuiModal-root .MuiDialog-paper {
 }
 .rbc-agenda-event-cell {
   font-size: 0.84rem;
+  color: #333;
 }
-.rbc-agenda-view table tbody > tr + tr {
+.rbc-agenda-view table tbody > tr + tr > td {
   border-top: 1px solid #e8eaee;
 }
 .rbc-agenda-view table tbody > tr:hover {
@@ -240,10 +369,11 @@ body > .MuiModal-root .MuiDialog-paper {
   display: none !important;
 }
 
-/* 스크롤바 */
-.rbc-time-content::-webkit-scrollbar {
-  width: 6px;
-}
+/* 스크롤바
+   폭은 건드리지 않는다 — RBC가 요일 헤더와 시간표 본문 칸을 맞추려고 브라우저
+   기본 스크롤바 두께를 측정해서 헤더 쪽 여백으로 미리 넣어두는데, 여기서 폭을
+   줄이면(예: 6px) 실제 스크롤바보다 헤더 여백이 더 넓어져서 헤더와 본문 칸이
+   오른쪽으로 갈수록 어긋나 보인다. 색만 커스텀하고 두께는 그대로 둔다. */
 .rbc-time-content::-webkit-scrollbar-track {
   background: transparent;
 }
