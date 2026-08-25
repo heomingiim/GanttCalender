@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   Badge,
   Box,
+  Button,
   Divider,
   IconButton,
   ListItemButton,
@@ -15,17 +16,37 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
 
 import { useNotifications } from '../contexts/NotificationContext';
+import { useToast } from '../contexts/ToastContext';
+import * as taskApi from '../api/tasks';
 import { NOTIFICATION_TYPE } from '../utils/constants';
 import { formatDateTime } from '../utils/date';
 
 export default function NotificationBell() {
   const { unreadCount, items, available, fetchList, markAsRead, markAllAsRead, remove, removeAll } =
     useNotifications();
+  const toast = useToast();
   const [anchorEl, setAnchorEl] = useState(null);
+  const [respondingId, setRespondingId] = useState(null);
+  const [respondedMap, setRespondedMap] = useState({}); // { [notificationId]: 'ACCEPTED' | 'DECLINED' }
 
   const handleOpen = (event) => {
     setAnchorEl(event.currentTarget);
     fetchList();
+  };
+
+  const handleRespond = async (n, status) => {
+    setRespondingId(n.id);
+    try {
+      await taskApi.respondToInvite(n.taskId, status);
+      toast.success(status === 'ACCEPTED' ? '초대를 수락했습니다.' : '초대를 거절했습니다.');
+      setRespondedMap((prev) => ({ ...prev, [n.id]: status }));
+      if (!n.read) markAsRead(n.id);
+      fetchList(); // 서버 응답 상태를 다시 받아와 새로고침 후에도 유지되게 한다
+    } catch (err) {
+      toast.apiError(err);
+    } finally {
+      setRespondingId(null);
+    }
   };
 
   return (
@@ -123,6 +144,39 @@ export default function NotificationBell() {
                       <Typography variant="caption" color="text.secondary">
                         {NOTIFICATION_TYPE[n.type] ?? n.type} · {formatDateTime(n.createdAt)}
                       </Typography>
+                      {n.type === 'INVITE' && n.taskId != null && (() => {
+                        const responded =
+                          (n.responseStatus && n.responseStatus !== 'PENDING' ? n.responseStatus : null)
+                          ?? respondedMap[n.id]
+                          ?? null;
+                        return responded ? (
+                          <Typography variant="caption" sx={{ display: 'block', mt: 0.75, fontWeight: 600, color: responded === 'ACCEPTED' ? 'success.main' : responded === 'DECLINED' ? 'error.main' : 'warning.main' }}>
+                            {responded === 'ACCEPTED' ? '수락함' : responded === 'DECLINED' ? '거절함' : '미정으로 응답함'}
+                          </Typography>
+                        ) : (
+                          <Box sx={{ display: 'flex', gap: 0.75, mt: 0.75 }}>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              disabled={respondingId === n.id}
+                              onClick={(e) => { e.stopPropagation(); handleRespond(n, 'ACCEPTED'); }}
+                              sx={{ fontSize: '0.72rem', py: 0.25, minWidth: 0 }}
+                            >
+                              수락
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="error"
+                              disabled={respondingId === n.id}
+                              onClick={(e) => { e.stopPropagation(); handleRespond(n, 'DECLINED'); }}
+                              sx={{ fontSize: '0.72rem', py: 0.25, minWidth: 0 }}
+                            >
+                              거절
+                            </Button>
+                          </Box>
+                        );
+                      })()}
                     </Box>
                     <IconButton
                       edge="end"

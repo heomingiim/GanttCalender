@@ -54,8 +54,18 @@ body > .MuiModal-root .MuiDialog-paper {
   border-left: 1px solid #e8eaee !important;
 }
 
-/* 월간 행 높이 - 최대 3개 이벤트 후 더보기 */
+/* 월간 행 높이
+   RBC 자체의 "몇 개 넘으면 더보기" 자동 계산(getRowLimit)이 렌더링 타이밍에 따라
+   들쭉날쭉해서 신뢰할 수 없었다 (달마다, 심지어 같은 CSS에서도 3/4/2로 달라짐).
+   → 그래서 "하루 3개 초과면 더보기"는 CSS/RBC 계산이 아니라 CalendarPage.jsx의
+     events useMemo에서 우리가 직접 3개로 자르고 "+N개 더보기" 가짜 이벤트를 넣는
+     방식으로 처리한다 (JS 로직이라 확정적으로 항상 3개).
+   여기 CSS는 그냥 "주 수와 무관하게 행 높이를 일정하게" 만드는 역할만 한다
+   (5주/6주 달마다 칸 크기가 달라 보이지 않도록). 4개(3개+더보기줄)가 넉넉히
+   들어가는 넓이로 잡고, 6주짜리 달은 부모(.rbc-month-view)가 스크롤된다. */
 .rbc-month-row {
+  flex: none !important;
+  height: 130px;
   min-height: 130px;
 }
 
@@ -64,7 +74,13 @@ body > .MuiModal-root .MuiDialog-paper {
 .rbc-time-view {
   border: 1px solid #e8eaee !important;
   border-radius: 12px;
+}
+.rbc-time-view {
   overflow: hidden;
+}
+.rbc-month-view {
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .rbc-day-bg + .rbc-day-bg,
 .rbc-month-row + .rbc-month-row,
@@ -122,6 +138,12 @@ body > .MuiModal-root .MuiDialog-paper {
   opacity: 0.92;
   transition: opacity 0.15s, transform 0.15s;
 }
+/* isMoreEvent(월간 뷰에서 우리가 직접 만든 "+N개 더보기" 가짜 이벤트) 표시 */
+.rbc-event.rbc-more-event {
+  background: rgba(58, 174, 169, 0.1) !important;
+  color: #3AAEA9 !important;
+  font-weight: 700 !important;
+}
 .rbc-event:hover {
   opacity: 1;
   transform: translateY(-1px);
@@ -134,7 +156,8 @@ body > .MuiModal-root .MuiDialog-paper {
   font-weight: 600;
 }
 
-/* 더보기 링크 */
+/* 더보기 링크 (RBC 자체 계산이 불안정해서 실제로는 거의 안 쓰이고, 우리가 만든
+   .rbc-more-event 가짜 이벤트가 그 역할을 대신한다 — 혹시 모를 폴백용으로 남겨둠) */
 .rbc-show-more {
   font-size: 11px;
   font-weight: 700;

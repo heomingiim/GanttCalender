@@ -7,6 +7,7 @@
     <!-- is_read(DB) → read(Java). boolean은 is_ prefix 때문에 자동 매핑이 안 된다 -->
     <resultMap id="notificationMap" type="Notification">
         <result property="read" column="is_read"/>
+        <result property="responseStatus" column="response_status"/>
     </resultMap>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
@@ -14,10 +15,13 @@
         VALUES (#{userId}, #{taskId}, #{type}, #{message}, #{read})
     </insert>
 
+    <!-- INVITE 알림은 task_participants를 조인해 이미 응답했는지(response_status) 같이 내려준다 -->
     <select id="findByUserId" resultMap="notificationMap">
-        SELECT * FROM notifications
-        WHERE user_id = #{userId}
-        ORDER BY created_at DESC
+        SELECT n.*, tp.response_status
+        FROM notifications n
+        LEFT JOIN task_participants tp ON tp.task_id = n.task_id AND tp.user_id = n.user_id
+        WHERE n.user_id = #{userId}
+        ORDER BY n.created_at DESC
         LIMIT 50
     </select>
 

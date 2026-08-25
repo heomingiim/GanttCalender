@@ -19,4 +19,5 @@ public class Notification {
     private boolean read;         // DB 컬럼명: is_read → XML ResultMap으로 매핑
     private LocalDateTime readAt;
     private LocalDateTime createdAt;
+    private String responseStatus; // INVITE 알림일 때 참석자 응답 상태 (task_participants 조인, 그 외는 null)
 }
