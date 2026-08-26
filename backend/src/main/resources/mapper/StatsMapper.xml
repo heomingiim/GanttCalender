@@ -50,20 +50,25 @@
 
             UNION ALL
 
+            <!-- 담당자 필터는 EXISTS로 처리한다. JOIN 으로 하면 TEAM 스코프에서
+                 WBS 1건이 담당자 수만큼 중복 집계된다 (팀원 3명 배정 → 3건) -->
             SELECT <include refid="taskPeriodExpr"/> AS period, t.status AS status
             FROM tasks t
-            JOIN task_assignees ta ON ta.task_id = t.id
             WHERE t.is_deleted = false
               AND t.task_type = 'WBS_TASK'
               AND DATE(COALESCE(t.start_date, t.created_at)) BETWEEN DATE(#{from}) AND DATE(#{to})
-              <choose>
-                  <when test="deptIds != null and deptIds.size() > 0">
-                  AND ta.user_id IN (<include refid="deptUserIds"/>)
-                  </when>
-                  <otherwise>
-                  AND ta.user_id = #{userId}
-                  </otherwise>
-              </choose>
+              AND EXISTS (
+                  SELECT 1 FROM task_assignees ta
+                  WHERE ta.task_id = t.id
+                    <choose>
+                        <when test="deptIds != null and deptIds.size() > 0">
+                        AND ta.user_id IN (<include refid="deptUserIds"/>)
+                        </when>
+                        <otherwise>
+                        AND ta.user_id = #{userId}
+                        </otherwise>
+                    </choose>
+              )
         ) combined
         GROUP BY period, status
 
