@@ -14,5 +14,5 @@ public class ProjectMember {
     private Long projectId;
     private Long userId;
     private String role;          // ADMIN / MEMBER
-    private LocalDateTime createdAt;
+    private LocalDateTime joinedAt;
 }

@@ -15,6 +15,8 @@ import {
   FormGroup,
   IconButton,
   InputAdornment,
+  ListItemButton,
+  Popover,
   Stack,
   TextField,
   ToggleButton,
@@ -50,7 +52,154 @@ const localizer = dateFnsLocalizer({
 
 const DnDCalendar = withDragAndDrop(BigCalendar);
 
+
 const RBC_VIEW_MAP = { month: 'month', week: 'week', day: 'day', list: 'agenda' };
+
+// react-big-calendar 자체의 "하루에 N개 넘으면 더보기" 자동 계산(getRowLimit)은
+// 컴포넌트가 처음 뜨는 순간의 렌더링 상태를 재서 정하는데, 이 값이 브라우저·타이밍에
+// 따라 들쭉날쭉해서 신뢰할 수 없었다. 그래서 "하루 3개까지, 넘으면 더보기"는 RBC에
+// 맡기지 않고 여기서 직접, 항상 같은 결과가 나오도록 자른다.
+const MAX_MONTH_EVENTS_PER_DAY = 3;
+const MAX_TIME_GRID_EVENTS_PER_SLOT = 2;
+
+// startDay~endDay(둘 다 'yyyy-MM-dd') 사이의 날짜 문자열을 모두 나열 (양끝 포함)
+function dayStringsBetween(startDay, endDay) {
+  const [sy, sm, sd] = startDay.split('-').map(Number);
+  const [ey, em, ed] = endDay.split('-').map(Number);
+  const cur = new Date(sy, sm - 1, sd);
+  const last = new Date(ey, em - 1, ed);
+  const days = [];
+  while (cur <= last) {
+    days.push(format(cur, 'yyyy-MM-dd'));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+}
+
+// 여러 날에 걸치는 일정(주로 WBS 작업)도 그 막대가 지나가는 날짜의 "칸 하나"를
+// 차지하는 건 마찬가지이므로, 하루 3개 제한을 셀 때 같이 계산해야 한다. 다만 그
+// 막대 자체는 하루 단위로 잘라서 숨기면 중간이 끊겨 보이므로 항상 그대로 보여주고,
+// 대신 그만큼 그 날짜에 허용되는 "단일 일정" 개수를 줄인다.
+function capMonthEventsPerDay(mapped) {
+  const multiDay = mapped.filter((e) => e.spansMultipleDays);
+  const singleDay = mapped.filter((e) => !e.spansMultipleDays);
+
+  const multiDayCountByDay = new Map();
+  multiDay.forEach((e) => {
+    dayStringsBetween(e.startDay, e.endDay).forEach((key) => {
+      multiDayCountByDay.set(key, (multiDayCountByDay.get(key) ?? 0) + 1);
+    });
+  });
+
+  const byDay = new Map();
+  singleDay.forEach((e) => {
+    if (!byDay.has(e.startDay)) byDay.set(e.startDay, []);
+    byDay.get(e.startDay).push(e);
+  });
+
+  const result = [...multiDay];
+  byDay.forEach((dayEvents, key) => {
+    const budget = Math.max(0, MAX_MONTH_EVENTS_PER_DAY - (multiDayCountByDay.get(key) ?? 0));
+    if (dayEvents.length <= budget) {
+      result.push(...dayEvents);
+      return;
+    }
+    const sorted = [...dayEvents].sort((a, b) => a.start - b.start);
+    const shown = sorted.slice(0, budget);
+    const hidden = sorted.slice(budget);
+    result.push(...shown);
+
+    const [y, m, d] = key.split('-').map(Number);
+    result.push({
+      id: `more-${key}`,
+      title: `+${hidden.length}개 더보기`,
+      start: new Date(y, m - 1, d, 23, 59, 0),
+      end: new Date(y, m - 1, d, 23, 59, 0),
+      allDay: false,
+      isMoreEvent: true,
+      moreDate: key,
+      moreItems: hidden,
+    });
+  });
+  return result;
+}
+
+// 겹치는 시간대는 MAX_TIME_GRID_EVENTS_PER_SLOT개까지 그대로 보여주고, 넘으면
+// 나머지를 "+N개 더보기"로 묶는다.
+function capTimeGridOverlaps(mapped) {
+  const allDayItems = mapped.filter((e) => e.allDay);
+  const timed = mapped.filter((e) => !e.allDay);
+
+  const byDay = new Map();
+  timed.forEach((e) => {
+    if (!byDay.has(e.startDay)) byDay.set(e.startDay, []);
+    byDay.get(e.startDay).push(e);
+  });
+
+  const result = [...allDayItems];
+  byDay.forEach((dayEvents) => {
+    const sorted = [...dayEvents].sort((a, b) => a.start - b.start);
+    let cluster = [];
+    let clusterEnd = null;
+    const clusters = [];
+    sorted.forEach((e) => {
+      if (cluster.length && e.start < clusterEnd) {
+        cluster.push(e);
+        if (e.end > clusterEnd) clusterEnd = e.end;
+      } else {
+        if (cluster.length) clusters.push(cluster);
+        cluster = [e];
+        clusterEnd = e.end;
+      }
+    });
+    if (cluster.length) clusters.push(cluster);
+
+    clusters.forEach((group) => {
+      if (group.length <= MAX_TIME_GRID_EVENTS_PER_SLOT) {
+        group.forEach((e, i) => result.push({ ...e, stackIndex: i, stackSize: group.length }));
+        return;
+      }
+      const shown = group.slice(0, MAX_TIME_GRID_EVENTS_PER_SLOT);
+      const hidden = group.slice(MAX_TIME_GRID_EVENTS_PER_SLOT);
+      const stackSize = MAX_TIME_GRID_EVENTS_PER_SLOT + 1;
+      shown.forEach((e, i) => result.push({ ...e, stackIndex: i, stackSize }));
+      const start = new Date(Math.min(...hidden.map((e) => e.start.getTime())));
+      const end = new Date(Math.max(...hidden.map((e) => e.end.getTime())));
+      result.push({
+        id: `more-time-${hidden[0].id}`,
+        title: `+${hidden.length}개 더보기`,
+        start,
+        end,
+        allDay: false,
+        isMoreEvent: true,
+        moreItems: hidden,
+        stackIndex: MAX_TIME_GRID_EVENTS_PER_SLOT,
+        stackSize,
+      });
+    });
+  });
+  return result;
+}
+
+function AgendaEventPill({ event }) {
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        backgroundColor: event.backgroundColor,
+        color: '#fff',
+        borderRadius: 999,
+        padding: '1px 8px',
+        fontSize: 11,
+        fontWeight: 600,
+      }}
+    >
+      {event.title}
+    </span>
+  );
+}
+
+const AGENDA_COMPONENTS = { event: AgendaEventPill };
 
 const VIEW_OPTIONS = [
   { value: 'month', label: '월간' },
@@ -256,49 +405,81 @@ export default function CalendarPage() {
 
   const handleViewChange = (_e, next) => { if (next) setViewType(next); };
 
-  const events = useMemo(
-    () =>
-      rawTasks
-        .filter(t => typeFilter.includes(t.taskType))
-        .filter(t => {
-          if (categoryFilter === null) return true;
-          const cid = t.categoryId;
-          if (cid != null && !categories.some(c => c.id === cid)) return true;
-          return categoryFilter.includes(cid ?? 'NONE');
-        })
-        .map(t => {
-          const category = categories.find(c => c.id === t.categoryId);
-          const isTimeGrid = viewType === 'week' || viewType === 'day';
-          const startDay = t.startDate?.slice(0, 10);
-          const endDay = t.endDate?.slice(0, 10);
-          const spansMultipleDays = startDay && endDay && startDay !== endDay;
-          const forceAllDay = isTimeGrid && spansMultipleDays;
-          const color = category?.color ?? '#90a4ae';
-          const endDate = exclusiveEnd(t);
-          return {
-            id: String(t.id),
-            title: t.title,
-            start: parseLocalDate(t.startDate),
-            end: endDate ?? parseLocalDate(t.startDate),
-            allDay: forceAllDay || Boolean(t.allDay),
-            backgroundColor: color,
-            raw: t,
-          };
-        }),
-    [rawTasks, typeFilter, categoryFilter, categories, viewType],
-  );
+  const events = useMemo(() => {
+    const mapped = rawTasks
+      .filter(t => typeFilter.includes(t.taskType))
+      .filter(t => {
+        if (categoryFilter === null) return true;
+        const cid = t.categoryId;
+        if (cid != null && !categories.some(c => c.id === cid)) return true;
+        return categoryFilter.includes(cid ?? 'NONE');
+      })
+      .map(t => {
+        const category = categories.find(c => c.id === t.categoryId);
+        const isTimeGrid = viewType === 'week' || viewType === 'day';
+        const startDay = t.startDate?.slice(0, 10);
+        const endDay = t.endDate?.slice(0, 10);
+        const spansMultipleDays = startDay && endDay && startDay !== endDay;
+        const forceAllDay = isTimeGrid && spansMultipleDays;
+        const color = category?.color ?? '#90a4ae';
+        const endDate = exclusiveEnd(t);
+        const isAllDayFinal = forceAllDay || Boolean(t.allDay);
 
-  const eventPropGetter = useCallback((event) => ({
-    style: {
-      backgroundColor: event.backgroundColor,
-      borderColor: 'transparent',
-      borderRadius: '999px',
-      fontSize: '11px',
-      fontWeight: 600,
-      color: '#fff',
-      opacity: 0.92,
-    },
-  }), []);
+        let start = parseLocalDate(t.startDate);
+        let end = endDate ?? parseLocalDate(t.startDate);
+        // 주/일간 시간표에서는 3시 정각 일정이든 3시 30분 일정이든 "3~4시" 칸
+        // 하나에 똑같이 놓이도록, 화면에 그릴 때만 시작은 정시로 내리고 끝은
+        // 다음 정시로 올린다(최소 1시간). 실제 저장값(raw.startDate/endDate)은
+        // 안 건드리므로 상세 화면·수정 폼에는 원래 시간 그대로 나온다.
+        if (isTimeGrid && !isAllDayFinal) {
+          [start, end] = snapToHourBlock(start, end);
+        }
+
+        return {
+          id: String(t.id),
+          title: t.title,
+          start,
+          end,
+          allDay: isAllDayFinal,
+          backgroundColor: color,
+          spansMultipleDays,
+          startDay,
+          endDay: endDay ?? startDay,
+          raw: t,
+        };
+      });
+    if (viewType === 'month') return capMonthEventsPerDay(mapped);
+    if (viewType === 'week' || viewType === 'day') return capTimeGridOverlaps(mapped);
+    return mapped;
+  }, [rawTasks, typeFilter, categoryFilter, categories, viewType]);
+
+  const eventPropGetter = useCallback((event) => {
+    const stacked = (event.stackSize ?? 1) > 1;
+    const stackStyle = {
+      '--rbc-stack-index': event.stackIndex ?? 0,
+      '--rbc-stack-size': event.stackSize ?? 1,
+    };
+    if (event.isMoreEvent) {
+      return {
+        className: stacked ? 'rbc-more-event rbc-stacked' : 'rbc-more-event',
+        style: stackStyle,
+      };
+    }
+    return {
+      className: stacked ? 'rbc-stacked' : undefined,
+      style: {
+        ...stackStyle,
+        '--rbc-ev-color': event.backgroundColor,
+        backgroundColor: event.backgroundColor,
+        borderColor: 'transparent',
+        borderRadius: '999px',
+        fontSize: '11px',
+        fontWeight: 600,
+        color: '#fff',
+        opacity: 0.92,
+      },
+    };
+  }, []);
 
   const dayPropGetter = useCallback((date) => {
     const today = new Date();
@@ -320,7 +501,15 @@ export default function CalendarPage() {
     setFormOpen(true);
   };
 
-  const handleSelectEvent = (event) => setDetailId(Number(event.id));
+  const [moreDayPopover, setMoreDayPopover] = useState(null); // { anchorEl, items }
+
+  const handleSelectEvent = (event, e) => {
+    if (event.isMoreEvent) {
+      setMoreDayPopover({ anchorEl: e?.currentTarget ?? e?.target ?? null, items: event.moreItems });
+      return;
+    }
+    setDetailId(Number(event.id));
+  };
 
   const handleEventDrop = async ({ event, start, end, isAllDay }) => {
     const raw = event.raw;
@@ -570,12 +759,17 @@ export default function CalendarPage() {
               culture="ko"
               events={events}
               view={RBC_VIEW_MAP[viewType]}
-              date={currentDate}
+              date={viewType === 'list' ? visibleRange.start : currentDate}
+              length={7}
               onNavigate={setCurrentDate}
               onView={() => {}}
               toolbar={false}
               popup
               selectable
+              step={60}
+              timeslots={1}
+              allDayMaxRows={MAX_TIME_GRID_EVENTS_PER_SLOT}
+              components={{ agenda: AGENDA_COMPONENTS }}
 
               messages={MESSAGES}
               formats={FORMATS}
@@ -614,6 +808,28 @@ export default function CalendarPage() {
           setFormOpen(true);
         }}
       />
+
+      <Popover
+        open={Boolean(moreDayPopover)}
+        anchorEl={moreDayPopover?.anchorEl}
+        onClose={() => setMoreDayPopover(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        slotProps={{ paper: { sx: { minWidth: 220, maxWidth: 300, borderRadius: 2, border: '1px solid #e2e5ea', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' } } }}
+      >
+        {moreDayPopover?.items.map((ev) => (
+          <ListItemButton
+            key={ev.id}
+            onClick={() => {
+              setMoreDayPopover(null);
+              setDetailId(Number(ev.id));
+            }}
+            sx={{ px: 1.5, py: 1, gap: 1 }}
+          >
+            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: ev.backgroundColor, flexShrink: 0 }} />
+            <Typography variant="body2" noWrap>{ev.title}</Typography>
+          </ListItemButton>
+        ))}
+      </Popover>
     </Box>
   );
 }
@@ -627,6 +843,20 @@ function parseLocalDate(value) {
     return new Date(y, m - 1, d, 0, 0, 0, 0);
   }
   return new Date(s);
+}
+
+// 주/일간 뷰에서 시작은 정시로 내리고 끝은 다음 정시로 올려서(최소 1시간)
+// "3시 정각"이든 "3시 30분"이든 같은 시간 칸에 같은 크기로 표시되게 한다.
+function snapToHourBlock(start, end) {
+  const s = new Date(start);
+  s.setMinutes(0, 0, 0);
+  const e = new Date(end);
+  if (e.getMinutes() !== 0 || e.getSeconds() !== 0 || e.getMilliseconds() !== 0) {
+    e.setHours(e.getHours() + 1);
+  }
+  e.setMinutes(0, 0, 0);
+  if (e <= s) e.setTime(s.getTime() + 60 * 60 * 1000);
+  return [s, e];
 }
 
 function exclusiveEnd(task) {

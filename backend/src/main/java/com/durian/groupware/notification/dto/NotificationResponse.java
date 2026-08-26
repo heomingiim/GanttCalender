@@ -8,12 +8,14 @@ public record NotificationResponse(
     String type,
     String message,
     boolean read,
-    LocalDateTime createdAt
+    LocalDateTime createdAt,
+    String responseStatus
 ) {
     public static NotificationResponse from(Notification n) {
         return new NotificationResponse(
             n.getId(), n.getTaskId(), n.getType(),
-            n.getMessage(), n.isRead(), n.getCreatedAt()
+            n.getMessage(), n.isRead(), n.getCreatedAt(),
+            n.getResponseStatus()
         );
     }
 }
