@@ -9,25 +9,14 @@ import {
 import * as authApi from '../api/auth';
 import { AUTH_EXPIRED_EVENT } from '../api/client';
 
-// ─────────────────────────────────────────────────────────────
-// 로그인 상태를 앱 전체에서 공유하는 Context.
-//
-// 세션 방식이라 토큰을 localStorage에 저장하지 않는다. 진짜 로그인 상태는
-// 서버의 세션에만 있고, 프론트는 새로고침할 때마다 GET /api/auth/me 로 물어본다.
-// (그래서 로딩 상태가 필요하다 — 물어보는 동안 로그인 페이지로 튕기면 안 되니까)
-// ─────────────────────────────────────────────────────────────
-
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true); // 최초 /auth/me 확인 중
 
-  // 앱이 처음 뜰 때 딱 한 번 세션 확인.
-  // 의존성 배열이 []라서 마운트 시 1회만 실행된다. 여기에 user를 넣으면
-  // setUser → 재실행 → setUser ... 무한 루프가 된다.
   useEffect(() => {
-    let cancelled = false; // 언마운트 후 setState 방지용 플래그
+    let cancelled = false;
 
     authApi
       .getMe()
@@ -46,12 +35,9 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  // axios 인터셉터가 401을 만나면 쏘는 이벤트를 받아 로그인 상태를 해제한다.
-  // React 컴포넌트 밖(인터셉터)에서는 setUser를 직접 호출할 수 없어서 이벤트를 경유한다.
   useEffect(() => {
     const handleExpired = () => setUser(null);
     window.addEventListener(AUTH_EXPIRED_EVENT, handleExpired);
-    // cleanup을 빠뜨리면 리스너가 계속 쌓인다 (메모리 누수 + 중복 실행)
     return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleExpired);
   }, []);
 

@@ -1,5 +1,3 @@
-// 백엔드 재귀 children 구조 → <table> 렌더용 depth 포함 1차원 배열 변환 유틸
-
 import { toLocalDateString } from './date';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -18,7 +16,6 @@ export function countTree(nodes) {
   return flattenTree(nodes).length;
 }
 
-// flattenTree 결과에 계층 번호("1", "1.1"...)와 소요일수(days)를 붙인다
 export function withDisplayNumbers(flatTasks) {
   const counters = [];
   return flatTasks.map((t) => {
@@ -37,7 +34,6 @@ export function withDisplayNumbers(flatTasks) {
   });
 }
 
-// 기간을 N주차 그룹 + 날짜 컬럼 배열로 변환 (주말 포함)
 export function buildWorkdayColumns(rangeStart, rangeEnd) {
   if (!rangeStart || !rangeEnd) return { days: [], weeks: [] };
 
@@ -64,7 +60,7 @@ export function buildWorkdayColumns(rangeStart, rangeEnd) {
   let lastWeekKey = null;
   for (const d of days) {
     const monday = new Date(d.date);
-    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7)); // 그 주의 월요일
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
     const weekKey = toLocalDateString(monday);
     if (weekKey !== lastWeekKey) {
       weekNo += 1;
@@ -78,7 +74,6 @@ export function buildWorkdayColumns(rangeStart, rangeEnd) {
   return { days, weeks };
 }
 
-// 작업 기간을 days 배열 인덱스 범위로 변환
 export function dayRangeIndex(days, startDate, endDate) {
   if (!startDate || !endDate || days.length === 0) return null;
   const startKey = toLocalDateString(startDate);
@@ -97,7 +92,6 @@ export function dayRangeIndex(days, startDate, endDate) {
   return { startIdx, endIdx };
 }
 
-// 자기 자신·자손은 부모 후보에서 제외 (백엔드도 막지만 UI에서도 선택 못 하게)
 export function selectableParents(flatTasks, taskId) {
   if (taskId == null) return flatTasks;
 

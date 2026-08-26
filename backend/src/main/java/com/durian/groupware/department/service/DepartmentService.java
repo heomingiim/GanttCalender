@@ -26,7 +26,6 @@ public class DepartmentService {
     private final DepartmentMapper departmentMapper;
 
     public List<DepartmentTreeResponse> getTree() {
-        // 전체 조직 목록을 한 번에 가져와서 메모리에서 트리로 조립
         List<Department> all = departmentMapper.findAll();
 
         Map<Long, DepartmentTreeResponse> map = new LinkedHashMap<>();
@@ -48,8 +47,6 @@ public class DepartmentService {
         return roots;
     }
 
-    // 캘린더 조회 시 scope 계산: MY → 빈 리스트(= 본인만), TEAM → 내 소속 + 산하 조직 id 전체
-    // 팀 소속이면 자기 팀 하나, 부서 직속(임원)이면 부서 + 산하 팀 전부가 잡힌다
     public List<Long> resolveScopeDeptIds(LoginUser loginUser, String scope) {
         if ("MY".equals(scope) || scope == null) {
             return List.of();

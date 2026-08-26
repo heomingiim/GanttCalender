@@ -27,7 +27,6 @@ public class ProjectService {
     private final NotificationService notificationService;
     private final TaskMapper taskMapper;
 
-    // 리프(하위작업 없는) WBS 작업들의 진행률 평균. 취소된 작업은 집계에서 뺀다
     private Integer computeProgress(Long projectId) {
         List<Task> tasks = taskMapper.findByProjectIdNotDeleted(projectId).stream()
                 .filter(t -> "WBS_TASK".equals(t.getTaskType()) && !"CANCELLED".equals(t.getStatus()))
@@ -44,7 +43,6 @@ public class ProjectService {
                 : progress >= 100 ? "DONE" : "IN_PROGRESS";
     }
 
-    // 진행률 기반으로 프로젝트 상태를 자동 파생해 응답에만 반영. CANCELLED는 유지. DB는 쓰지 않는다.
     private ProjectResponse toResponse(Project p) {
         Integer progress = computeProgress(p.getId());
         if (!"CANCELLED".equals(p.getStatus())) {
@@ -53,7 +51,6 @@ public class ProjectService {
         return ProjectResponse.from(p, progress);
     }
 
-    // 태스크 진행률/상태가 바뀔 때 호출되어 프로젝트 상태를 실제로 DB에 반영한다.
     public void syncStatus(Long projectId) {
         Project project = projectMapper.findByIdNotDeleted(projectId);
         if (project == null || "CANCELLED".equals(project.getStatus())) return;
@@ -80,7 +77,6 @@ public class ProjectService {
         project.setVisibility(req.visibility() != null ? req.visibility() : "PUBLIC");
         projectMapper.insert(project);
 
-        // 생성자는 자동으로 ADMIN 멤버로 추가
         ProjectMember member = new ProjectMember();
         member.setProjectId(project.getId());
         member.setUserId(loginUser.id());

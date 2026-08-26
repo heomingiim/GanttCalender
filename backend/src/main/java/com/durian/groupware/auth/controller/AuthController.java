@@ -24,13 +24,11 @@ public class AuthController {
 
     private final AuthService authService;
 
-    // POST /api/auth/login
     @PostMapping("/login")
     public ResponseEntity<UserInfoResponse> login(@Valid @RequestBody LoginRequest req,
                                                    HttpSession session) {
         User user = authService.authenticate(req.employeeNumber());
 
-        // 세션에 로그인 정보 저장
         LoginUser loginUser = new LoginUser(
             user.getId(), user.getEmployeeNumber(),
             user.getName(), user.getRole(), user.getDepartmentId()
@@ -40,14 +38,12 @@ public class AuthController {
         return ResponseEntity.ok(authService.getUserInfo(user));
     }
 
-    // POST /api/auth/logout
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpSession session) {
-        session.invalidate();  // 세션 만료
+        session.invalidate();
         return ResponseEntity.ok().build();
     }
 
-    // GET /api/auth/me  — 현재 로그인한 사용자 정보
     @GetMapping("/me")
     public UserInfoResponse getMe(@Login LoginUser loginUser) {
         return authService.getUserInfo(loginUser.id());

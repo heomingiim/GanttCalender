@@ -10,8 +10,7 @@ import com.durian.groupware.stats.service.StatsService;
 
 import lombok.RequiredArgsConstructor;
 
-// StatsController는 @RequestMapping("/api/stats")라서 여기에 넣으면
-// 경로가 /api/stats/api/dashboard로 합쳐진다. 그래서 별도 컨트롤러로 분리한다.
+// /api/stats prefix 충돌로 StatsController에서 분리
 @RestController
 @RequiredArgsConstructor
 public class DashboardController {

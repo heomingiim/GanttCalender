@@ -124,7 +124,6 @@ export default function StatsPage() {
     setScope(next);
   };
 
-  // 도넛 차트용 데이터
   const pieData = useMemo(() =>
     Object.entries(STATUS)
       .map(([code, label]) => ({ name: label, value: statusCounts[code] ?? 0, color: STATUS_BAR_COLOR[code], pct: total > 0 ? Math.round(((statusCounts[code] ?? 0) / total) * 100) : 0 }))
@@ -132,7 +131,6 @@ export default function StatsPage() {
     [statusCounts, total]
   );
 
-  // 구간별 막대 차트용 데이터
   const periods = useMemo(() => {
     const map = new Map();
     for (const row of rows) {

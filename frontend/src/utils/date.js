@@ -1,9 +1,6 @@
-// toISOString()은 UTC로 변환하므로 KST 기준 LocalDateTime 서버에 보내면 9시간 어긋남.
-// 서버로 보내는 날짜는 UTC 변환 없이 로컬 시각 그대로 직렬화하는 함수를 거친다.
-
+// toISOString()은 UTC 변환이 일어나므로 로컬 시각 그대로 직렬화
 const pad = (n) => String(n).padStart(2, '0');
 
-// Date → '2026-08-11T09:00:00' (서버 전송용)
 export function toLocalDateTimeString(date) {
   if (!date) return null;
   const d = date instanceof Date ? date : new Date(date);
@@ -14,7 +11,6 @@ export function toLocalDateTimeString(date) {
   );
 }
 
-// Date → 'YYYY-MM-DD' (LocalDate 필드 전송용)
 export function toLocalDateString(date) {
   if (!date) return null;
   const d = date instanceof Date ? date : new Date(date);
@@ -22,14 +18,12 @@ export function toLocalDateString(date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-// 'YYYY-MM-DD' → Date (로컬 자정)
 export function parseDateOnly(dateStr) {
   if (!dateStr) return undefined;
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d);
 }
 
-// Date | 'YYYY-MM-DD...' → 'M/D'
 export function formatShortDate(value) {
   if (!value) return '-';
   const dateStr = typeof value === 'string' ? value : toLocalDateString(value);
@@ -47,30 +41,25 @@ export function toDateTimeInputValue(value) {
   );
 }
 
-// <input type="date"> 용 'YYYY-MM-DD'
 export function toDateInputValue(value) {
   if (!value) return '';
   return String(value).slice(0, 10);
 }
 
-// datetime-local input 값 → 서버 전송 형식. 빈 값은 null
 export function fromDateTimeInputValue(value) {
   if (!value) return null;
   return value.length === 16 ? `${value}:00` : value;
 }
 
-// date input 값 → 그대로. 빈 값은 null
 export function fromDateInputValue(value) {
   return value ? value : null;
 }
 
-// '2026-08-11T09:00:00' → '2026-08-11 09:00'
 export function formatDateTime(value) {
   if (!value) return '-';
   return String(value).slice(0, 16).replace('T', ' ');
 }
 
-// '2026-08-11' 포맷으로 표시
 export function formatDate(value) {
   if (!value) return '-';
   return String(value).slice(0, 10);
@@ -96,7 +85,6 @@ export function endOfToday() {
   return d;
 }
 
-// 두 값이 같은 날(Y-M-D)인지
 export function isSameDay(a, b) {
   if (!a || !b) return false;
   return toLocalDateString(a) === toLocalDateString(b);

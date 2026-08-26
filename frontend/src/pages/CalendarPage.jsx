@@ -55,14 +55,9 @@ const DnDCalendar = withDragAndDrop(BigCalendar);
 
 const RBC_VIEW_MAP = { month: 'month', week: 'week', day: 'day', list: 'agenda' };
 
-// react-big-calendar 자체의 "하루에 N개 넘으면 더보기" 자동 계산(getRowLimit)은
-// 컴포넌트가 처음 뜨는 순간의 렌더링 상태를 재서 정하는데, 이 값이 브라우저·타이밍에
-// 따라 들쭉날쭉해서 신뢰할 수 없었다. 그래서 "하루 3개까지, 넘으면 더보기"는 RBC에
-// 맡기지 않고 여기서 직접, 항상 같은 결과가 나오도록 자른다.
 const MAX_MONTH_EVENTS_PER_DAY = 3;
 const MAX_TIME_GRID_EVENTS_PER_SLOT = 2;
 
-// startDay~endDay(둘 다 'yyyy-MM-dd') 사이의 날짜 문자열을 모두 나열 (양끝 포함)
 function dayStringsBetween(startDay, endDay) {
   const [sy, sm, sd] = startDay.split('-').map(Number);
   const [ey, em, ed] = endDay.split('-').map(Number);
@@ -76,10 +71,6 @@ function dayStringsBetween(startDay, endDay) {
   return days;
 }
 
-// 여러 날에 걸치는 일정(주로 WBS 작업)도 그 막대가 지나가는 날짜의 "칸 하나"를
-// 차지하는 건 마찬가지이므로, 하루 3개 제한을 셀 때 같이 계산해야 한다. 다만 그
-// 막대 자체는 하루 단위로 잘라서 숨기면 중간이 끊겨 보이므로 항상 그대로 보여주고,
-// 대신 그만큼 그 날짜에 허용되는 "단일 일정" 개수를 줄인다.
 function capMonthEventsPerDay(mapped) {
   const multiDay = mapped.filter((e) => e.spansMultipleDays);
   const singleDay = mapped.filter((e) => !e.spansMultipleDays);
@@ -124,8 +115,6 @@ function capMonthEventsPerDay(mapped) {
   return result;
 }
 
-// 겹치는 시간대는 MAX_TIME_GRID_EVENTS_PER_SLOT개까지 그대로 보여주고, 넘으면
-// 나머지를 "+N개 더보기"로 묶는다.
 function capTimeGridOverlaps(mapped) {
   const allDayItems = mapped.filter((e) => e.allDay);
   const timed = mapped.filter((e) => !e.allDay);
@@ -773,7 +762,7 @@ export default function CalendarPage() {
 
               messages={MESSAGES}
               formats={FORMATS}
-              style={{ height: '100%' }}
+              style={{ height: viewType === 'month' ? 'auto' : '100%' }}
               eventPropGetter={eventPropGetter}
               dayPropGetter={dayPropGetter}
               onSelectEvent={handleSelectEvent}

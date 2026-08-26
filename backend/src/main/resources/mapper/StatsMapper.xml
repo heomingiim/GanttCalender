@@ -104,4 +104,16 @@
         ORDER BY t.end_date IS NULL, t.end_date, t.start_date
     </select>
 
+    <select id="findOverdueWbsTasks" resultMap="com.durian.groupware.task.mapper.TaskMapper.taskMap">
+        SELECT DISTINCT t.* FROM tasks t
+        LEFT JOIN task_assignees ta ON t.id = ta.task_id
+        WHERE t.is_deleted = false
+          AND t.task_type = 'WBS_TASK'
+          AND t.status NOT IN ('DONE', 'CANCELLED')
+          AND t.end_date IS NOT NULL
+          AND t.end_date &lt; CURDATE()
+          AND (t.creator_id = #{userId} OR ta.user_id = #{userId})
+        ORDER BY t.end_date
+    </select>
+
 </mapper>

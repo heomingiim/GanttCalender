@@ -9,10 +9,8 @@ const client = axios.create({
   },
 });
 
-/** 401을 감지했을 때 AuthContext에 알리는 이벤트 이름 */
 export const AUTH_EXPIRED_EVENT = 'auth:expired';
 
-// /auth/me(상태 확인)·/auth/login(오타 에러 표시)은 401에서 리다이렉트 제외
 const SKIP_AUTH_REDIRECT = ['/auth/me', '/auth/login'];
 
 client.interceptors.response.use(
@@ -30,7 +28,6 @@ client.interceptors.response.use(
     };
 
     if (status === 401 && !SKIP_AUTH_REDIRECT.some((p) => url.startsWith(p))) {
-      // 인터셉터에서 React 상태를 직접 못 바꾸므로 이벤트로 AuthContext에 위임
       window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
     }
 

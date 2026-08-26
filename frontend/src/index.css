@@ -5,9 +5,6 @@ body,
   margin: 0;
 }
 
-/* zoom은 요소의 top/left 좌표까지 함께 스케일되어 팝업이 이중으로 밀린다.
-   transform: scale은 layout 좌표를 건드리지 않고 시각적으로만 확대하므로
-   MUI가 계산한 top:X 그대로 렌더되고 크기만 1.3x 로 보인다. */
 #root {
   transform: scale(1.3);
   transform-origin: top left;
@@ -15,23 +12,14 @@ body,
   height: calc(100% / 1.3);
 }
 
-/* MUI 팝업 구조:
-   .MuiPopper-root (popper.js 가 transform 으로 위치 잡음)
-     └ .MuiGrow-root or transition wrapper (자체 transform 사용)
-        └ .MuiPaper-root (실제 팝업 컨텐츠)
-   따라서 최상위/transition 래퍼가 아니라 Paper 자체만 스케일해야
-   위치·transition 과 충돌 없이 크기만 커진다. */
 body > .MuiPopper-root .MuiPaper-root,
 body > .MuiAutocomplete-popper .MuiPaper-root,
 body > .MuiTooltip-popper .MuiTooltip-tooltip,
 body > .MuiPopover-root .MuiPopover-paper {
-  /* translateX(-15%) 는 요소 자기 자신 너비의 15% 만큼 왼쪽 이동.
-     팝업 크기에 비례해서 자동으로 보정된다. 부족하면 20%, 과하면 10% 등으로 조정. */
   transform: translateX(-15%) scale(1.3) !important;
   transform-origin: top left !important;
 }
 
-/* Dialog paper 는 flex-center 로 중앙 정렬되므로 center 기준 스케일 */
 body > .MuiDialog-root .MuiDialog-paper,
 body > .MuiModal-root .MuiDialog-paper {
   transform: scale(1.3) !important;
@@ -62,15 +50,7 @@ body > .MuiModal-root .MuiDialog-paper {
   flex-shrink: 0;
 }
 
-/* 월간 행 높이
-   RBC 자체의 "몇 개 넘으면 더보기" 자동 계산(getRowLimit)이 렌더링 타이밍에 따라
-   들쭉날쭉해서 신뢰할 수 없었다 (달마다, 심지어 같은 CSS에서도 3/4/2로 달라짐).
-   → 그래서 "하루 3개 초과면 더보기"는 CSS/RBC 계산이 아니라 CalendarPage.jsx의
-     events useMemo에서 우리가 직접 3개로 자르고 "+N개 더보기" 가짜 이벤트를 넣는
-     방식으로 처리한다 (JS 로직이라 확정적으로 항상 3개).
-   여기 CSS는 그냥 "주 수와 무관하게 행 높이를 일정하게" 만드는 역할만 한다
-   (5주/6주 달마다 칸 크기가 달라 보이지 않도록). 4개(3개+더보기줄)가 넉넉히
-   들어가는 넓이로 잡고, 6주짜리 달은 부모(.rbc-month-view)가 스크롤된다. */
+/* 주 수와 무관하게 행 높이를 고정 — RBC 자체 계산이 타이밍에 따라 불안정해서 JS로 직접 처리 */
 .rbc-month-row {
   flex: none !important;
   height: 130px;
@@ -87,8 +67,8 @@ body > .MuiModal-root .MuiDialog-paper {
   overflow: hidden;
 }
 .rbc-month-view {
-  overflow-x: hidden;
-  overflow-y: auto;
+  height: auto !important;
+  overflow: visible !important;
 }
 .rbc-day-bg + .rbc-day-bg,
 .rbc-month-row + .rbc-month-row,
@@ -96,18 +76,11 @@ body > .MuiModal-root .MuiDialog-paper {
 .rbc-time-content {
   border-color: #e8eaee !important;
 }
-/* "8/23(일)~8/29(토)" 요일 라벨 줄과 그 아래 종일 일정들이 쌓이는 줄
-   (rbc-allday-cell)을 구분선으로 나눈다 — 지금은 경계가 없어서 한 줄처럼
-   붙어 보인다. */
 .rbc-allday-cell {
   border-top: 1px solid #e8eaee;
 }
 
-/* 요일 헤더의 왼쪽 빈 칸(rbc-time-header-gutter)과 시간표 본문의 시간 라벨 칸
-   (rbc-time-gutter)은 같은 폭이어야 요일 헤더와 그 아래 시간표 칸이 일직선으로
-   맞는다. RBC가 이 폭을 JS로 측정해서 인라인 style로 맞춰주긴 하는데(스크롤바
-   유무·폰트 로딩 시점 등에 따라) 실제로는 어긋나는 경우가 있어서, 아예 두 칸의
-   폭을 여기서 고정값으로 못박아 항상 같게 만든다. */
+/* RBC가 JS로 측정하는 gutter 폭이 타이밍에 따라 어긋나는 경우가 있어 고정값으로 못박음 */
 .rbc-time-header-gutter,
 .rbc-time-gutter {
   width: 60px !important;
@@ -214,7 +187,6 @@ body > .MuiModal-root .MuiDialog-paper {
   padding: 1px 8px;
   margin-top: calc(var(--rbc-stack-index, 0) * 22px);
 }
-/* isMoreEvent(월간 뷰에서 우리가 직접 만든 "+N개 더보기" 가짜 이벤트) 표시 */
 .rbc-event.rbc-more-event {
   background: rgba(58, 174, 169, 0.1) !important;
   color: #3AAEA9 !important;
@@ -227,12 +199,7 @@ body > .MuiModal-root .MuiDialog-paper {
 .rbc-event.rbc-selected {
   background-color: inherit;
 }
-/* 주/일간 뷰의 시간 지정 일정은 시작~종료 시각(rbc-event-label)과 제목(rbc-event-content)을
-   같이 그리는데, 알약(pill) 모양으로 좁게 줄여둔 이벤트 박스 안에 시간까지 들어가면
-   제목이 잘려서 안 보인다. 어차피 그리드 위치로 시간대는 짐작되므로 시간 라벨은 기본
-   숨기고 제목만 남긴다. 다만 여러 날에 걸치는 일정이 그 날 앞뒤로 다 걸쳐있을 땐
-   (rbc-event-continues-earlier + -later 둘 다 붙음) RBC가 시간 대신 "종일" 텍스트를
-   이 라벨 자리에 넣어주므로, 그 경우만 예외로 다시 보여준다. */
+/* 시간 라벨은 그리드 위치로 짐작 가능해서 숨김. 다일(多日) 이벤트의 "종일" 텍스트만 예외 */
 .rbc-event-label {
   display: none;
 }
@@ -240,8 +207,6 @@ body > .MuiModal-root .MuiDialog-paper {
   display: block;
 }
 
-/* 더보기 링크 (RBC 자체 계산이 불안정해서 실제로는 거의 안 쓰이고, 우리가 만든
-   .rbc-more-event 가짜 이벤트가 그 역할을 대신한다 — 혹시 모를 폴백용으로 남겨둠) */
 .rbc-show-more {
   font-size: 11px;
   font-weight: 700;
@@ -289,19 +254,9 @@ body > .MuiModal-root .MuiDialog-paper {
   font-weight: 600;
 }
 
-/* 시간 슬롯 높이 — 30분 단위 세부 구분을 없애고 1시간 단위(step=60, timeslots=1)로만
-   보여주기로 했으므로, 예전에 30분 칸 2개를 담던 높이(40px)를 그대로 쓸 필요가 없다.
-   한 시간이 칸 하나이므로 더 낮춰서 표 전체 높이를 줄인다. */
 .rbc-timeslot-group {
   min-height: 62px;
 }
-/* (되돌림) 일정 박스에 min-height를 강제로 넣어서 30분짜리를 1시간칸만큼
-   키워봤지만, RBC는 이벤트의 top/height를 실제 시작·종료 시각 기준 퍼센트로
-   미리 계산해서 절대위치(position:absolute)로 배치한다. 여기에 CSS로 높이만
-   강제로 늘리면 "시작 위치"는 원래 계산된 그대로(예: 08:30 지점)인데 박스
-   "바닥"만 아래로 늘어나면서, 뒤이어 붙어있는 다음 일정과 겹쳐 보이거나 위치가
-   틀어져 보이는 문제가 생긴다. RBC 기본 동작대로 실제 길이에 비례해서 그리는
-   쪽이 위치 정확성을 지킨다. */
 
 /* 목록(agenda) 뷰 */
 .rbc-agenda-view {
@@ -369,11 +324,7 @@ body > .MuiModal-root .MuiDialog-paper {
   display: none !important;
 }
 
-/* 스크롤바
-   폭은 건드리지 않는다 — RBC가 요일 헤더와 시간표 본문 칸을 맞추려고 브라우저
-   기본 스크롤바 두께를 측정해서 헤더 쪽 여백으로 미리 넣어두는데, 여기서 폭을
-   줄이면(예: 6px) 실제 스크롤바보다 헤더 여백이 더 넓어져서 헤더와 본문 칸이
-   오른쪽으로 갈수록 어긋나 보인다. 색만 커스텀하고 두께는 그대로 둔다. */
+/* 스크롤바 폭은 RBC가 헤더-본문 정렬에 사용하므로 건드리지 않음 */
 .rbc-time-content::-webkit-scrollbar-track {
   background: transparent;
 }

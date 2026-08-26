@@ -53,7 +53,6 @@ public class StatsService {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
 
-        // 캘린더 팀 스코프와 같은 방식: MY면 빈 리스트(= 본인만), TEAM이면 부서 id들
         List<Long> deptIds = departmentService.resolveScopeDeptIds(loginUser, scope);
 
         List<StatRow> rows = statsMapper.getStats(
@@ -80,8 +79,6 @@ public class StatsService {
 
     public DashboardResponse getDashboard(LoginUser loginUser) {
         LocalDate today = LocalDate.now();
-        // 오늘이 시작~마감 기간에 포함된 것만 "오늘 할 일"로 친다 (마감일만 오늘인 것으로 한정하지 않는다)
-        // WBS 작업은 아래 wbsTasks에서 따로 보여주므로 여기서는 순수 투두만 남긴다
         List<TaskResponse> todos = taskService.getMyTodos(loginUser, null, null, null,
                         null, today.atTime(23, 59, 59)).stream()
                 .filter(t -> "TODO".equals(t.taskType()))
@@ -97,7 +94,6 @@ public class StatsService {
         return new DashboardResponse(todos, events, wbsTasks, overdueWbsTasks);
     }
 
-    // from을 안 주면 단위에 맞는 기본 구간을 잡는다
     private LocalDate defaultFrom(String unit, LocalDate to) {
         return switch (unit) {
             case "DAY" -> to.minusDays(29);

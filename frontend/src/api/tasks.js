@@ -1,7 +1,6 @@
 import client from './client';
 import { toLocalDateTimeString } from '../utils/date';
 
-// ── Task CRUD ────────────────────────────────────────
 export const getTask = (id) => client.get(`/tasks/${id}`);
 
 export const createTask = (body) => client.post('/tasks', body);
@@ -10,7 +9,6 @@ export const updateTask = (id, body) => client.put(`/tasks/${id}`, body);
 
 export const deleteTask = (id) => client.delete(`/tasks/${id}`);
 
-// WBS 작업에서 본인만 담당자에서 빠진다 (프로젝트 작업 자체는 그대로 남음)
 export const unassignSelf = (id) => client.delete(`/tasks/${id}/assignees/me`);
 
 export const changeStatus = (id, status) =>
@@ -19,9 +17,7 @@ export const changeStatus = (id, status) =>
 export const changeProgress = (id, progressRate) =>
   client.patch(`/tasks/${id}/progress`, { progressRate });
 
-// ── 캘린더 조회 ──────────────────────────────────────
-// from/to는 LocalDateTime이라 반드시 toLocalDateTimeString()으로 변환해서 보낸다.
-// (백엔드 getCalendar는 null 기본값 처리가 없으므로 항상 채워 보낸다)
+// from/to는 항상 채워 보낸다 (백엔드 null 기본값 없음)
 export const getCalendarEvents = ({ from, to, scope = 'MY', keyword }) =>
   client.get('/tasks', {
     params: {
@@ -33,7 +29,6 @@ export const getCalendarEvents = ({ from, to, scope = 'MY', keyword }) =>
     },
   });
 
-// ── 투두리스트 ───────────────────────────────────────
 export const getMyTodos = ({ status, projectId, keyword, from, to } = {}) =>
   client.get('/tasks', {
     params: {
@@ -46,21 +41,16 @@ export const getMyTodos = ({ status, projectId, keyword, from, to } = {}) =>
     },
   });
 
-// ── 순서 변경 ────────────────────────────────────────
 export const reorderTasks = (ids) => client.put('/tasks/reorder', { ids });
 
-// ── WBS 상위 작업 변경 ──────────────────────────────
-// parentTaskId를 null로 보내면 최상위로 올라간다.
 export const setParent = (id, parentTaskId) =>
   client.patch(`/tasks/${id}/parent`, { parentTaskId });
 
-// ── 담당자 ───────────────────────────────────────────
 export const getAssignees = (id) => client.get(`/tasks/${id}/assignees`);
 
 export const replaceAssignees = (id, userIds) =>
   client.put(`/tasks/${id}/assignees`, { userIds });
 
-// ── 참석자 ───────────────────────────────────────────
 export const getParticipants = (id) => client.get(`/tasks/${id}/participants`);
 
 export const inviteParticipants = (id, userIds, required) =>
@@ -69,5 +59,4 @@ export const inviteParticipants = (id, userIds, required) =>
 export const respondToInvite = (id, responseStatus) =>
   client.patch(`/tasks/${id}/participants/me`, { responseStatus });
 
-// ── 활동 이력 ────────────────────────────────────────
 export const getActivityLogs = (id) => client.get(`/tasks/${id}/activity-logs`);

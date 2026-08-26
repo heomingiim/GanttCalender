@@ -21,7 +21,6 @@ public class CategoryService {
     public List<CategoryResponse> getMyCategories(LoginUser loginUser) {
         List<Category> personal = categoryMapper.findByUserId(loginUser.id());
         List<Category> team = categoryMapper.findByDepartmentId(loginUser.departmentId());
-        // 개인 + 팀 공용 합쳐서 반환
         List<Category> all = new ArrayList<>();
         all.addAll(personal);
         all.addAll(team);
